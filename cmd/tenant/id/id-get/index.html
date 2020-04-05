@@ -1138,15 +1138,27 @@
           
 
 
+  <li class="md-nav__item">
+    <a href="../../../cli/cli-reconsent/" title="reconsent" class="md-nav__link">
+      reconsent
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3-6-1" type="checkbox" id="nav-3-6-1">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3-6-2" type="checkbox" id="nav-3-6-2">
     
-    <label class="md-nav__link" for="nav-3-6-1">
+    <label class="md-nav__link" for="nav-3-6-2">
       completion
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="3">
-      <label class="md-nav__title" for="nav-3-6-1">
+      <label class="md-nav__title" for="nav-3-6-2">
         completion
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
@@ -6483,6 +6495,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#remarks" title="Remarks" class="md-nav__link">
+    Remarks
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples" title="Examples" class="md-nav__link">
     Examples
   </a>
@@ -6556,6 +6575,42 @@
   <li class="md-nav__item">
     <a href="../../report/report-servicesusercounts/" title="report servicesusercounts" class="md-nav__link">
       report servicesusercounts
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3-17-3" type="checkbox" id="nav-3-17-3">
+    
+    <label class="md-nav__link" for="nav-3-17-3">
+      status
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="3">
+      <label class="md-nav__title" for="nav-3-17-3">
+        status
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../status/status-list/" title="status list" class="md-nav__link">
+      status list
     </a>
   </li>
 
@@ -6751,6 +6806,66 @@
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
         
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../yammer/report/report-activitycounts/" title="report activitycounts" class="md-nav__link">
+      report activitycounts
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../yammer/report/report-activityusercounts/" title="report activityusercounts" class="md-nav__link">
+      report activityusercounts
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../yammer/report/report-activityuserdetail/" title="report activityuserdetail" class="md-nav__link">
+      report activityuserdetail
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../yammer/report/report-deviceusagedistributionusercounts/" title="report deviceusagedistributionusercounts" class="md-nav__link">
+      report deviceusagedistributionusercounts
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../yammer/report/report-deviceusageuserdetail/" title="report deviceusageuserdetail" class="md-nav__link">
+      report deviceusageuserdetail
+    </a>
+  </li>
+
         
           
           
@@ -7029,6 +7144,18 @@
   <li class="md-nav__item">
     <a href="../../../../examples/aad/delete-o365-groups/" title="Delete all Office 365 groups" class="md-nav__link">
       Delete all Office 365 groups
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../../examples/aad/flag-groups-with-user-names/" title="Scan for Office 365 Groups created with user's first or last name" class="md-nav__link">
+      Scan for Office 365 Groups created with user's first or last name
     </a>
   </li>
 
@@ -7342,6 +7469,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#remarks" title="Remarks" class="md-nav__link">
+    Remarks
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples" title="Examples" class="md-nav__link">
     Examples
   </a>
@@ -7387,7 +7521,7 @@
 <td>output usage information</td>
 </tr>
 <tr>
-<td><code>-d, --domainName &lt;domainName&gt;</code></td>
+<td><code>-d, --domainName [domainName]</code></td>
 <td>The domain name for which to retrieve the Office 365 tenant ID</td>
 </tr>
 <tr>
@@ -7412,9 +7546,15 @@
 </tr>
 </tbody>
 </table>
+<h2 id="remarks">Remarks<a class="headerlink" href="#remarks" title="Permanent link">&para;</a></h2>
+<p>If no domain name is specified, the command will return the tenant ID of the tenant to which you are currently logged in.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Get Office 365 tenant ID for the specified domain</p>
 <div class="codehilite"><pre><span></span>tenant id get --domainName contoso.com
+</pre></div>
+
+<p>Get Office 365 tenant ID of the the tenant to which you are currently logged in</p>
+<div class="codehilite"><pre><span></span>tenant id get
 </pre></div>
                 
                   
