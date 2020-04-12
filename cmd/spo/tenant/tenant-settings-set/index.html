@@ -834,6 +834,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../../aad/o365group/o365group-report-activitystorage/" title="o365group report activitystorage" class="md-nav__link">
+      o365group report activitystorage
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../../aad/o365group/o365group-user-add/" title="o365group user add" class="md-nav__link">
       o365group user add
     </a>
@@ -4088,6 +4100,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../orgassetslibrary/orgassetslibrary-add/" title="orgassetslibrary add" class="md-nav__link">
+      orgassetslibrary add
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../orgassetslibrary/orgassetslibrary-list/" title="orgassetslibrary list" class="md-nav__link">
       orgassetslibrary list
     </a>
@@ -6854,6 +6878,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../../yammer/report/report-deviceusageusercounts/" title="report deviceusageusercounts" class="md-nav__link">
+      report deviceusageusercounts
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../../yammer/report/report-deviceusageuserdetail/" title="report deviceusageuserdetail" class="md-nav__link">
       report deviceusageuserdetail
     </a>
@@ -6868,6 +6904,30 @@
   <li class="md-nav__item">
     <a href="../../../yammer/report/report-groupsactivitycounts/" title="report groupsactivitycounts" class="md-nav__link">
       report groupsactivitycounts
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../yammer/report/report-groupsactivitydetail/" title="report groupsactivitydetail" class="md-nav__link">
+      report groupsactivitydetail
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../yammer/report/report-groupsactivitygroupcounts/" title="report groupsactivitygroupcounts" class="md-nav__link">
+      report groupsactivitygroupcounts
     </a>
   </li>
 
@@ -7279,6 +7339,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../../../examples/spo/ensure-siteassets-library/" title="Ensure the Site Assets Library is created" class="md-nav__link">
+      Ensure the Site Assets Library is created
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../../../examples/spo/hide-list-from-site-contents/" title="Hide SharePoint list from Site Contents" class="md-nav__link">
       Hide SharePoint list from Site Contents
     </a>
@@ -7293,6 +7365,18 @@
   <li class="md-nav__item">
     <a href="../../../../examples/spo/list-site-app-catalogs/" title="Lists active SharePoint site collection application catalogs" class="md-nav__link">
       Lists active SharePoint site collection application catalogs
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../../examples/spo/list-tenant-wide-extensions/" title="Lists all tenant-wide extensions" class="md-nav__link">
+      Lists all tenant-wide extensions
     </a>
   </li>
 
@@ -7512,7 +7596,7 @@
 </tr>
 <tr>
 <td><code>-o, --output [output]</code></td>
-<td>Output type. <code>json|text</code>. Default <code>text</code></td>
+<td>Output type. <code>json,text</code>. Default <code>text</code></td>
 </tr>
 <tr>
 <td><code>--pretty</code></td>
@@ -7536,7 +7620,7 @@
 </tr>
 <tr>
 <td><code>--ExternalServicesEnabled [ExternalServicesEnabled]</code></td>
-<td>Enables external services for a tenant. External services are defined as services that are not in the Office 365 datacenters. Allowed values true,false</td>
+<td>Enables external services for a tenant. External services are defined as services that are not in the Office 365 datacenters. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--NoAccessRedirectUrl [NoAccessRedirectUrl]</code></td>
@@ -7548,7 +7632,7 @@
 </tr>
 <tr>
 <td><code>--DisplayStartASiteOption [DisplayStartASiteOption]</code></td>
-<td>Determines whether tenant users see the Start a Site menu option. Allowed values true,false</td>
+<td>Determines whether tenant users see the Start a Site menu option. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--StartASiteFormUrl [StartASiteFormUrl]</code></td>
@@ -7556,35 +7640,35 @@
 </tr>
 <tr>
 <td><code>--ShowEveryoneClaim [ShowEveryoneClaim]</code></td>
-<td>Enables the administrator to hide the Everyone claim in the People Picker. When users share an item with Everyone, it is accessible to all authenticated users in the tenant\'s Azure Active Directory, including any active external users who have previously accepted invitations. Note, that some SharePoint system resources such as templates and pages are required to be shared to Everyone and this type of sharing does not expose any user data or metadata. Allowed values true,false</td>
+<td>Enables the administrator to hide the Everyone claim in the People Picker. When users share an item with Everyone, it is accessible to all authenticated users in the tenant\'s Azure Active Directory, including any active external users who have previously accepted invitations. Note, that some SharePoint system resources such as templates and pages are required to be shared to Everyone and this type of sharing does not expose any user data or metadata. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--ShowAllUsersClaim [ShowAllUsersClaim]</code></td>
-<td>Enables the administrator to hide the All Users claim groups in People Picker. When users share an item with "All Users (x)", it is accessible to all organization members in the tenant\'s Azure Active Directory who have authenticated with via this method. When users share an item with "All Users (x)" it is accessible to all organtization members in the tenant that used NTLM to authentication with SharePoint. Allowed values true,false</td>
+<td>Enables the administrator to hide the All Users claim groups in People Picker. When users share an item with "All Users (x)", it is accessible to all organization members in the tenant\'s Azure Active Directory who have authenticated with via this method. When users share an item with "All Users (x)" it is accessible to all organtization members in the tenant that used NTLM to authentication with SharePoint. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--ShowEveryoneExceptExternalUsersClaim [ShowEveryoneExceptExternalUsersClaim]</code></td>
-<td>Enables the administrator to hide the "Everyone except external users" claim in the People Picker. When users share an item with "Everyone except external users", it is accessible to all organization members in the tenant\'s Azure Active Directory, but not to any users who have previously accepted invitations. Allowed values true,false</td>
+<td>Enables the administrator to hide the "Everyone except external users" claim in the People Picker. When users share an item with "Everyone except external users", it is accessible to all organization members in the tenant\'s Azure Active Directory, but not to any users who have previously accepted invitations. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--SearchResolveExactEmailOrUPN [SearchResolveExactEmailOrUPN]</code></td>
-<td>Removes the search capability from People Picker. Note, recently resolved names will still appear in the list until browser cache is cleared or expired. SharePoint Administrators will still be able to use starts with or partial name matching when enabled. Allowed values true,false</td>
+<td>Removes the search capability from People Picker. Note, recently resolved names will still appear in the list until browser cache is cleared or expired. SharePoint Administrators will still be able to use starts with or partial name matching when enabled. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--OfficeClientADALDisabled [OfficeClientADALDisabled]</code></td>
-<td>When set to true this will disable the ability to use Modern Authentication that leverages ADAL across the tenant. Allowed values true,false</td>
+<td>When set to true this will disable the ability to use Modern Authentication that leverages ADAL across the tenant. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--LegacyAuthProtocolsEnabled [LegacyAuthProtocolsEnabled]</code></td>
-<td>By default this value is set to true. Setting this parameter prevents Office clients using non-modern authentication protocols from accessing SharePoint Online resources. A value of true - Enables Office clients using non-modern authentication protocols(such as, Forms-Based Authentication (FBA) or Identity Client Runtime Library (IDCRL)) to access SharePoint resources. Allowed values true,false</td>
+<td>By default this value is set to true. Setting this parameter prevents Office clients using non-modern authentication protocols from accessing SharePoint Online resources. A value of true - Enables Office clients using non-modern authentication protocols(such as, Forms-Based Authentication (FBA) or Identity Client Runtime Library (IDCRL)) to access SharePoint resources. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--RequireAcceptingAccountMatchInvitedAccount [RequireAcceptingAccountMatchInvitedAccount]</code></td>
-<td>Ensures that an external user can only accept an external sharing invitation with an account matching the invited email address. Administrators who desire increased control over external collaborators should consider enabling this feature. Allowed values true,false</td>
+<td>Ensures that an external user can only accept an external sharing invitation with an account matching the invited email address. Administrators who desire increased control over external collaborators should consider enabling this feature. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--ProvisionSharedWithEveryoneFolder [ProvisionSharedWithEveryoneFolder]</code></td>
-<td>Creates a Shared with Everyone folder in every user\'s new OneDrive for Business document library. The valid values are: True (default) - The Shared with Everyone folder is created. False - No folder is created when the site and OneDrive for Business document library is created. Allowed values true,false</td>
+<td>Creates a Shared with Everyone folder in every user\'s new OneDrive for Business document library. The valid values are: True (default) - The Shared with Everyone folder is created. False - No folder is created when the site and OneDrive for Business document library is created. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--SignInAccelerationDomain [SignInAccelerationDomain]</code></td>
@@ -7592,15 +7676,15 @@
 </tr>
 <tr>
 <td><code>--EnableGuestSignInAcceleration [EnableGuestSignInAcceleration]</code></td>
-<td>Accelerates guest-enabled site collections as well as member-only site collections when the SignInAccelerationDomain parameter is set. Allowed values true,false</td>
+<td>Accelerates guest-enabled site collections as well as member-only site collections when the SignInAccelerationDomain parameter is set. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--UsePersistentCookiesForExplorerView [UsePersistentCookiesForExplorerView]</code></td>
-<td>Lets SharePoint issue a special cookie that will allow this feature to work even when "Keep Me Signed In" is not selected. "Open with Explorer" requires persisted cookies to operate correctly. When the user does not select "Keep Me Signed in" at the time of sign -in, "Open with Explorer" will fail. This special cookie expires after 30 minutes and cannot be cleared by closing the browser or signing out of SharePoint Online.To clear this cookie, the user must log out of their Windows session. The valid values are: False(default) - No special cookie is generated and the normal Office 365 sign -in length / timing applies. True - Generates a special cookie that will allow "Open with Explorer" to function if the "Keep Me Signed In" box is not checked at sign -in. Allowed values true,false</td>
+<td>Lets SharePoint issue a special cookie that will allow this feature to work even when "Keep Me Signed In" is not selected. "Open with Explorer" requires persisted cookies to operate correctly. When the user does not select "Keep Me Signed in" at the time of sign -in, "Open with Explorer" will fail. This special cookie expires after 30 minutes and cannot be cleared by closing the browser or signing out of SharePoint Online.To clear this cookie, the user must log out of their Windows session. The valid values are: False(default) - No special cookie is generated and the normal Office 365 sign -in length / timing applies. True - Generates a special cookie that will allow "Open with Explorer" to function if the "Keep Me Signed In" box is not checked at sign -in. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--BccExternalSharingInvitations [BccExternalSharingInvitations]</code></td>
-<td>When the feature is enabled, all external sharing invitations that are sent will blind copy the e-mail messages listed in the BccExternalSharingsInvitationList. Allowed values true,false</td>
+<td>When the feature is enabled, all external sharing invitations that are sent will blind copy the e-mail messages listed in the BccExternalSharingsInvitationList. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--BccExternalSharingInvitationsList [BccExternalSharingInvitationsList]</code></td>
@@ -7608,11 +7692,11 @@
 </tr>
 <tr>
 <td><code>--UserVoiceForFeedbackEnabled [UserVoiceForFeedbackEnabled]</code></td>
-<td>Enables or disables the User Voice Feedback button. Allowed values true,false</td>
+<td>Enables or disables the User Voice Feedback button. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--PublicCdnEnabled [PublicCdnEnabled]</code></td>
-<td>Enables or disables the publish CDN. Allowed values true,false</td>
+<td>Enables or disables the publish CDN. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--PublicCdnAllowedFileTypes [PublicCdnAllowedFileTypes]</code></td>
@@ -7640,11 +7724,11 @@
 </tr>
 <tr>
 <td><code>--OneDriveForGuestsEnabled [OneDriveForGuestsEnabled]</code></td>
-<td>Lets OneDrive for Business creation for administrator managed guest users. Administrator managed Guest users use credentials in the resource tenant to access the resources. Allowed values true,false</td>
+<td>Lets OneDrive for Business creation for administrator managed guest users. Administrator managed Guest users use credentials in the resource tenant to access the resources. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--IPAddressEnforcement [IPAddressEnforcement]</code></td>
-<td>Allows access from network locations that are defined by an administrator. The values are true and false. The default value is false which means the setting is disabled. Before the iPAddressEnforcement parameter is set, make sure you add a valid IPv4 or IPv6 address to the iPAddressAllowList parameter. Allowed values true,false</td>
+<td>Allows access from network locations that are defined by an administrator. The values are true and false. The default value is false which means the setting is disabled. Before the iPAddressEnforcement parameter is set, make sure you add a valid IPv4 or IPv6 address to the iPAddressAllowList parameter. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--IPAddressAllowList [IPAddressAllowList]</code></td>
@@ -7656,7 +7740,7 @@
 </tr>
 <tr>
 <td><code>--UseFindPeopleInPeoplePicker [UseFindPeopleInPeoplePicker]</code></td>
-<td>Sets use find people in PeoplePicker to true or false. Note: When set to true, users aren\'t able to share with security groups or SharePoint groups. Allowed values true,false</td>
+<td>Sets use find people in PeoplePicker to true or false. Note: When set to true, users aren\'t able to share with security groups or SharePoint groups. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--DefaultSharingLinkType [DefaultSharingLinkType]</code></td>
@@ -7672,11 +7756,11 @@
 </tr>
 <tr>
 <td><code>--PreventExternalUsersFromResharing [PreventExternalUsersFromResharing]</code></td>
-<td>Prevents external users from resharing. Allowed values true,false</td>
+<td>Prevents external users from resharing. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--ShowPeoplePickerSuggestionsForGuestUsers [ShowPeoplePickerSuggestionsForGuestUsers]</code></td>
-<td>Shows people picker suggestions for guest users. Allowed values true,false</td>
+<td>Shows people picker suggestions for guest users. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--FileAnonymousLinkType [FileAnonymousLinkType]</code></td>
@@ -7688,31 +7772,31 @@
 </tr>
 <tr>
 <td><code>--NotifyOwnersWhenItemsReshared [NotifyOwnersWhenItemsReshared]</code></td>
-<td>When this parameter is set to true and another user re-shares a document from a user\'s OneDrive for Business, the OneDrive for Business owner is notified by email. For additional information about how to configure notifications for external sharing, see Configure notifications for external sharing for OneDrive for Business. Allowed values true,false</td>
+<td>When this parameter is set to true and another user re-shares a document from a user\'s OneDrive for Business, the OneDrive for Business owner is notified by email. For additional information about how to configure notifications for external sharing, see Configure notifications for external sharing for OneDrive for Business. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--NotifyOwnersWhenInvitationsAccepted [NotifyOwnersWhenInvitationsAccepted]</code></td>
-<td>When this parameter is set to true and when an external user accepts an invitation to a resource in a user\'s OneDrive for Business, the OneDrive for Business owner is notified by email. For additional information about how to configure notifications for external sharing, see Configure notifications for external sharing for OneDrive for Business. Allowed values true,false</td>
+<td>When this parameter is set to true and when an external user accepts an invitation to a resource in a user\'s OneDrive for Business, the OneDrive for Business owner is notified by email. For additional information about how to configure notifications for external sharing, see Configure notifications for external sharing for OneDrive for Business. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--NotificationsInOneDriveForBusinessEnabled [NotificationsInOneDriveForBusinessEnabled]</code></td>
-<td>Enables or disables notifications in OneDrive for business. Allowed values true,false</td>
+<td>Enables or disables notifications in OneDrive for business. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--NotificationsInSharePointEnabled [NotificationsInSharePointEnabled]</code></td>
-<td>Enables or disables notifications in SharePoint. Allowed values true,false</td>
+<td>Enables or disables notifications in SharePoint. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--OwnerAnonymousNotification [OwnerAnonymousNotification]</code></td>
-<td>Enables or disables owner anonymous notification. Allowed values true,false</td>
+<td>Enables or disables owner anonymous notification. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--CommentsOnSitePagesDisabled [CommentsOnSitePagesDisabled]</code></td>
-<td>Enables or disables comments on site pages. Allowed values true,false</td>
+<td>Enables or disables comments on site pages. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--SocialBarOnSitePagesDisabled [SocialBarOnSitePagesDisabled]</code></td>
-<td>Enables or disables social bar on site pages. Allowed values true,false</td>
+<td>Enables or disables social bar on site pages. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--OrphanedPersonalSitesRetentionPeriod [OrphanedPersonalSitesRetentionPeriod]</code></td>
@@ -7720,7 +7804,7 @@
 </tr>
 <tr>
 <td><code>--DisallowInfectedFileDownload [DisallowInfectedFileDownload]</code></td>
-<td>Prevents the Download button from being displayed on the Virus Found warning page. Allowed values true,false</td>
+<td>Prevents the Download button from being displayed on the Virus Found warning page. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--DefaultLinkPermission [DefaultLinkPermission]</code></td>
@@ -7732,23 +7816,23 @@
 </tr>
 <tr>
 <td><code>--AllowDownloadingNonWebViewableFiles [AllowDownloadingNonWebViewableFiles]</code></td>
-<td>Allows downloading non web viewable files. The Allowed values true,false</td>
+<td>Allows downloading non web viewable files. The Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--AllowEditing [AllowEditing]</code></td>
-<td>Allows editing. Allowed values true,false</td>
+<td>Allows editing. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--ApplyAppEnforcedRestrictionsToAdHocRecipients [ApplyAppEnforcedRestrictionsToAdHocRecipients]</code></td>
-<td>Applies app enforced restrictions to AdHoc recipients. Allowed values true,false</td>
+<td>Applies app enforced restrictions to AdHoc recipients. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--FilePickerExternalImageSearchEnabled [FilePickerExternalImageSearchEnabled]</code></td>
-<td>Enables file picker external image search. Allowed values true,false</td>
+<td>Enables file picker external image search. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--EmailAttestationRequired [EmailAttestationRequired]</code></td>
-<td>Sets email attestation to required. Allowed values true,false</td>
+<td>Sets email attestation to required. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--EmailAttestationReAuthDays [EmailAttestationReAuthDays]</code></td>
@@ -7756,55 +7840,55 @@
 </tr>
 <tr>
 <td><code>--HideDefaultThemes [HideDefaultThemes]</code></td>
-<td>Defines if the default themes are visible or hidden. Allowed values true,false</td>
+<td>Defines if the default themes are visible or hidden. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--BlockAccessOnUnmanagedDevices [BlockAccessOnUnmanagedDevices]</code></td>
-<td>Blocks access on unmanaged devices. Allowed values true,false</td>
+<td>Blocks access on unmanaged devices. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--AllowLimitedAccessOnUnmanagedDevices [AllowLimitedAccessOnUnmanagedDevices]</code></td>
-<td>Allows limited access on unmanaged devices blocks. Allowed values true,false</td>
+<td>Allows limited access on unmanaged devices blocks. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--BlockDownloadOfAllFilesForGuests [BlockDownloadOfAllFilesForGuests]</code></td>
-<td>Blocks download of all files for guests. Allowed values true,false</td>
+<td>Blocks download of all files for guests. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--BlockDownloadOfAllFilesOnUnmanagedDevices [BlockDownloadOfAllFilesOnUnmanagedDevices]</code></td>
-<td>Blocks download of all files on unmanaged devices. Allowed values true,false</td>
+<td>Blocks download of all files on unmanaged devices. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--BlockDownloadOfViewableFilesForGuests [BlockDownloadOfViewableFilesForGuests]</code></td>
-<td>Blocks download of viewable files for guests. Allowed values true,false</td>
+<td>Blocks download of viewable files for guests. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--BlockDownloadOfViewableFilesOnUnmanagedDevices [BlockDownloadOfViewableFilesOnUnmanagedDevices]</code></td>
-<td>Blocks download of viewable files on unmanaged devices. Allowed values true,false</td>
+<td>Blocks download of viewable files on unmanaged devices. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--BlockMacSync [BlockMacSync]</code></td>
-<td>Blocks Mac sync. Allowed values true,false</td>
+<td>Blocks Mac sync. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--DisableReportProblemDialog [DisableReportProblemDialog]</code></td>
-<td>Disables report problem dialog. Allowed values true,false</td>
+<td>Disables report problem dialog. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--DisplayNamesOfFileViewers [DisplayNamesOfFileViewers]</code></td>
-<td>Displayes names of file viewers. Allowed values true,false</td>
+<td>Displayes names of file viewers. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--EnableMinimumVersionRequirement [EnableMinimumVersionRequirement]</code></td>
-<td>Enables minimum version requirement. Allowed values true,false</td>
+<td>Enables minimum version requirement. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--HideSyncButtonOnODB [HideSyncButtonOnODB]</code></td>
-<td>Hides the sync button on One Drive for Business. Allowed values true,false</td>
+<td>Hides the sync button on One Drive for Business. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--IsUnmanagedSyncClientForTenantRestricted [IsUnmanagedSyncClientForTenantRestricted]</code></td>
-<td>Is unmanaged sync client for tenant restricted. Allowed values true,false</td>
+<td>Is unmanaged sync client for tenant restricted. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--LimitedAccessFileType [LimitedAccessFileType]</code></td>
@@ -7812,11 +7896,11 @@
 </tr>
 <tr>
 <td><code>--OptOutOfGrooveBlock [OptOutOfGrooveBlock]</code></td>
-<td>Opts out of the groove block. Allowed values true,false</td>
+<td>Opts out of the groove block. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--OptOutOfGrooveSoftBlock [OptOutOfGrooveSoftBlock]</code></td>
-<td>Opts out of Groove soft block. Allowed values true,false</td>
+<td>Opts out of Groove soft block. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--OrgNewsSiteUrl [OrgNewsSiteUrl]</code></td>
@@ -7824,11 +7908,11 @@
 </tr>
 <tr>
 <td><code>--PermissiveBrowserFileHandlingOverride [PermissiveBrowserFileHandlingOverride]</code></td>
-<td>Permissive browser fileHandling override. Allowed values true,false</td>
+<td>Permissive browser fileHandling override. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--ShowNGSCDialogForSyncOnODB [ShowNGSCDialogForSyncOnODB]</code></td>
-<td>Show NGSC dialog for sync on OneDrive for Business. Allowed values true,false</td>
+<td>Show NGSC dialog for sync on OneDrive for Business. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--SpecialCharactersStateInFileFolderNames [SpecialCharactersStateInFileFolderNames]</code></td>
@@ -7836,7 +7920,7 @@
 </tr>
 <tr>
 <td><code>--SyncPrivacyProfileProperties [SyncPrivacyProfileProperties]</code></td>
-<td>Syncs privacy profile properties. Allowed values true,false</td>
+<td>Syncs privacy profile properties. Allowed values <code>true,false</code></td>
 </tr>
 <tr>
 <td><code>--ExcludedFileExtensionsForSyncClient [ExcludedFileExtensionsForSyncClient]</code></td>
