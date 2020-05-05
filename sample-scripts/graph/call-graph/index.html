@@ -7255,10 +7255,46 @@
       <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-4" type="checkbox" id="nav-5-4">
     
     <label class="md-nav__link" for="nav-5-4">
-      SharePoint Online
+      Power Automate
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
       <label class="md-nav__title" for="nav-5-4">
+        Power Automate
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../flow/inventory-flows-by-author/" title="Inventory Flows By Owner" class="md-nav__link">
+      Inventory Flows By Owner
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      SharePoint Online
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
         SharePoint Online
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
@@ -7384,13 +7420,13 @@
 
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-6" type="checkbox" id="nav-5-6">
     
-    <label class="md-nav__link" for="nav-5-5">
+    <label class="md-nav__link" for="nav-5-6">
       Microsoft Teams
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
-      <label class="md-nav__title" for="nav-5-5">
+      <label class="md-nav__title" for="nav-5-6">
         Microsoft Teams
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
@@ -7538,7 +7574,7 @@
 <div class="superfences-tabs">
 <input name="__tabs_1" type="radio" id="__tab_1_0" checked="checked" />
 <label for="__tab_1_0">PowerShell Core</label>
-<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nv">$token</span> <span class="p">=</span> <span class="n">o365</span> <span class="n">accesstoken</span> <span class="n">get</span> <span class="p">-</span><span class="n">-resource</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">graph</span><span class="p">.</span><span class="n">microsoft</span><span class="p">.</span><span class="n">com</span> <span class="p">-</span><span class="n">-new</span>
+<div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nv">$token</span> <span class="p">=</span> <span class="n">o365</span> <span class="n">util</span> <span class="n">accesstoken</span> <span class="n">get</span> <span class="p">-</span><span class="n">-resource</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">graph</span><span class="p">.</span><span class="n">microsoft</span><span class="p">.</span><span class="n">com</span> <span class="p">-</span><span class="n">-new</span>
 <span class="nv">$me</span> <span class="p">=</span> <span class="nb">Invoke-RestMethod</span> <span class="n">-Uri</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">graph</span><span class="p">.</span><span class="n">microsoft</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">v1</span><span class="p">.</span><span class="n">0</span><span class="p">/</span><span class="n">me</span> <span class="n">-Headers</span> <span class="p">@{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">=</span><span class="s2">&quot;Bearer $token&quot;</span><span class="p">}</span>
 <span class="nv">$me</span>
 </pre></div></div>
@@ -7548,7 +7584,7 @@
 
 <span class="c1"># requires jq: https://stedolan.github.io/jq/</span>
 
-<span class="nv">token</span><span class="o">=</span><span class="sb">`</span>o365 accesstoken get --resource https://graph.microsoft.com --new<span class="sb">`</span>
+<span class="nv">token</span><span class="o">=</span><span class="sb">`</span>o365 util accesstoken get --resource https://graph.microsoft.com --new<span class="sb">`</span>
 <span class="nv">me</span><span class="o">=</span><span class="sb">`</span>curl https://graph.microsoft.com/v1.0/me -H <span class="s2">&quot;Authorization: Bearer </span><span class="nv">$token</span><span class="s2">&quot;</span><span class="sb">`</span>
 <span class="nb">echo</span> <span class="nv">$me</span> <span class="p">|</span> jq
 </pre></div></div>
@@ -7594,13 +7630,13 @@
           </a>
         
         
-          <a href="../../spo/add-app-catalog/" title="Add App Catalog to SharePoint site" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../../flow/inventory-flows-by-author/" title="Inventory Flows By Owner" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Add App Catalog to SharePoint site
+                Inventory Flows By Owner
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
