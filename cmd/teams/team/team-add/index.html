@@ -7250,6 +7250,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../../../sample-scripts/aad/manage-group-users/" title="Bulk add/remove users to Microsoft Teams and Office 365 Groups" class="md-nav__link">
+      Bulk add/remove users to Microsoft Teams and Office 365 Groups
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../../../sample-scripts/aad/delete-o365-groups/" title="Delete all Office 365 groups" class="md-nav__link">
       Delete all Office 365 groups
     </a>
@@ -7689,16 +7701,12 @@
 <td>output usage information</td>
 </tr>
 <tr>
-<td><code>-n, --name [name]</code></td>
-<td>Display name for the Microsoft Teams team. Required, when <code>groupId</code> is not specified.</td>
+<td><code>-n, --name &lt;name&gt;</code></td>
+<td>Display name for the Microsoft Teams team</td>
 </tr>
 <tr>
-<td><code>-d, --description  [description]</code></td>
-<td>Description for the Microsoft Teams team. Required, when <code>groupId</code> is not specified.</td>
-</tr>
-<tr>
-<td><code>-i, --groupId [groupId]</code></td>
-<td>The ID of the Office 365 group to add a Microsoft Teams team to</td>
+<td><code>-d, --description &lt;description&gt;</code></td>
+<td>Description for the Microsoft Teams team</td>
 </tr>
 <tr>
 <td><code>--query [query]</code></td>
@@ -7727,13 +7735,10 @@
 <p class="admonition-title">Attention</p>
 <p>This command is based on an API that is currently in preview and is subject to change once the API reached general availability.</p>
 </div>
+<p>If you want to add a Team to an existing Office 365 Group use the <a href="../../../aad/o365group/o365group-teamify/">aad o365group teamify</a> command instead.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
-<p>Add a new Microsoft Teams team by creating a group</p>
+<p>Add a new Microsoft Teams team</p>
 <div class="codehilite"><pre><span></span>teams team add --name <span class="s1">&#39;Architecture&#39;</span> --description <span class="s1">&#39;Architecture Discussion&#39;</span>
-</pre></div>
-
-<p>Add a new Microsoft Teams team to an existing Office 365 group</p>
-<div class="codehilite"><pre><span></span>teams team add --groupId 6d551ed5-a606-4e7d-b5d7-36063ce562cc
 </pre></div>
                 
                   
