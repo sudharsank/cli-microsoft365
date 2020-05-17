@@ -404,6 +404,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../../user-guide/using-own-identity/" title="Using your own Azure AD identity" class="md-nav__link">
+      Using your own Azure AD identity
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -6838,6 +6850,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../../yammer/message/message-like-set/" title="message like set" class="md-nav__link">
+      message like set
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -7735,6 +7759,10 @@
 <td>Display name of the application for which the configured app roles should be retrieved</td>
 </tr>
 <tr>
+<td><code>-o, --objectId [objectId]</code></td>
+<td>ObjectId of the application for which the configured app roles should be retrieved</td>
+</tr>
+<tr>
 <td><code>--query [query]</code></td>
 <td>JMESPath query string. See <a href="http://jmespath.org/">http://jmespath.org/</a> for more information and examples</td>
 </tr>
@@ -7757,7 +7785,7 @@
 </tbody>
 </table>
 <h2 id="remarks">Remarks<a class="headerlink" href="#remarks" title="Permanent link">&para;</a></h2>
-<p>Specify either the <code>appId</code> or <code>displayName</code> but not both. If you specify both values, the command will fail with an error.</p>
+<p>Specify either the <code>appId</code>, <code>objectId</code> or <code>displayName</code>. If you specify more than one option value, the command will fail with an error.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>List app roles assigned to service principal with Application (client) ID <em>b2307a39-e878-458b-bc90-03bc578531d6</em>.</p>
 <div class="codehilite"><pre><span></span>aad approleassignment list --appId b2307a39-e878-458b-bc90-03bc578531d6
@@ -7765,6 +7793,10 @@
 
 <p>List app roles assigned to service principal with Application display name <em>MyAppName</em>.</p>
 <div class="codehilite"><pre><span></span>aad approleassignment list --displayName <span class="s1">&#39;MyAppName&#39;</span>
+</pre></div>
+
+<p>List app roles assigned to service principal with ObjectId <em>b2307a39-e878-458b-bc90-03bc578531dd</em>.</p>
+<div class="codehilite"><pre><span></span>aad approleassignment list --objectId b2307a39-e878-458b-bc90-03bc578531dd
 </pre></div>
 
 <h2 id="more-information">More information<a class="headerlink" href="#more-information" title="Permanent link">&para;</a></h2>
