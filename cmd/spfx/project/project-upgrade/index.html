@@ -7774,7 +7774,7 @@
 </tr>
 <tr>
 <td><code>-f, --outputFile [outputFile]</code></td>
-<td>Path to the file where the upgrade report should be stored in</td>
+<td>Path to the file where the upgrade report should be stored in. Ignored when <code>output</code> is <code>tour</code></td>
 </tr>
 <tr>
 <td><code>--query [query]</code></td>
@@ -7782,7 +7782,7 @@
 </tr>
 <tr>
 <td><code>-o, --output [output]</code></td>
-<td>Output type. <code>json,text,md</code>. Default <code>text</code></td>
+<td>Output type. <code>json,text,md,tour</code>. Default <code>text</code></td>
 </tr>
 <tr>
 <td><code>--pretty</code></td>
@@ -7825,6 +7825,10 @@
 
 <p>Get instructions to upgrade the current SharePoint Framework project to the latest SharePoint Framework version supported by the Office 365 CLI using PowerShell</p>
 <div class="codehilite"><pre><span></span>spfx project upgrade --shell powershell
+</pre></div>
+
+<p>Get instructions to upgrade the current SharePoint Framework project to the latest version of SharePoint Framework and save the findings in a <a href="https://aka.ms/codetour">CodeTour</a> file</p>
+<div class="codehilite"><pre><span></span>spfx project upgrade  --output tour
 </pre></div>
                 
                   
