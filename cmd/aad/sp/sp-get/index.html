@@ -536,6 +536,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../approleassignment/approleassignment-add/" title="approleassignment add" class="md-nav__link">
+      approleassignment add
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../approleassignment/approleassignment-list/" title="approleassignment list" class="md-nav__link">
       approleassignment list
     </a>
@@ -7783,6 +7795,10 @@
 <td>Display name of the application for which the service principal should be retrieved</td>
 </tr>
 <tr>
+<td><code>--objectId [objectId]</code></td>
+<td>ObjectId of the application for which the service principal should be retrieved</td>
+</tr>
+<tr>
 <td><code>--query [query]</code></td>
 <td>JMESPath query string. See <a href="http://jmespath.org/">http://jmespath.org/</a> for more information and examples</td>
 </tr>
@@ -7805,7 +7821,7 @@
 </tbody>
 </table>
 <h2 id="remarks">Remarks<a class="headerlink" href="#remarks" title="Permanent link">&para;</a></h2>
-<p>When looking up information about a service principal you should specify either its <code>appId</code> or <code>displayName</code> but not both. If you specify both values, the command will fail with an error.</p>
+<p>Specify either the <code>appId</code>, <code>objectId</code> or <code>displayName</code>. If you specify more than one option value, the command will fail with an error.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Return details about the service principal with appId <em>b2307a39-e878-458b-bc90-03bc578531d6</em>.</p>
 <div class="codehilite"><pre><span></span>aad sp get --appId b2307a39-e878-458b-bc90-03bc578531d6
@@ -7813,6 +7829,10 @@
 
 <p>Return details about the <em>Microsoft Graph</em> service principal.</p>
 <div class="codehilite"><pre><span></span>aad sp get --displayName <span class="s2">&quot;Microsoft Graph&quot;</span>
+</pre></div>
+
+<p>Return details about the service principal with ObjectId <em>b2307a39-e878-458b-bc90-03bc578531dd</em>.</p>
+<div class="codehilite"><pre><span></span>aad sp get --objectId b2307a39-e878-458b-bc90-03bc578531dd
 </pre></div>
 
 <h2 id="more-information">More information<a class="headerlink" href="#more-information" title="Permanent link">&para;</a></h2>
