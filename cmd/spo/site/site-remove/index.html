@@ -101,7 +101,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#spo-site-classic-remove" tabindex="1" class="md-skip">
+      <a href="#spo-site-remove" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -4822,6 +4822,18 @@
 
 
   <li class="md-nav__item">
+    <a href="./" title="site remove" class="md-nav__link">
+      site remove
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../site-rename/" title="site rename" class="md-nav__link">
       site rename
     </a>
@@ -4923,6 +4935,13 @@
         <li class="md-nav__item">
   <a href="#usage" title="Usage" class="md-nav__link">
     Usage
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alias" title="Alias" class="md-nav__link">
+    Alias
   </a>
   
 </li>
@@ -7774,6 +7793,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#alias" title="Alias" class="md-nav__link">
+    Alias
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#options" title="Options" class="md-nav__link">
     Options
   </a>
@@ -7810,13 +7836,17 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="http://github.com/pnp/office365-cli/blob/master/docs/manual/docs/cmd/spo/site/site-classic-remove.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="http://github.com/pnp/office365-cli/blob/master/docs/manual/docs/cmd/spo/site/site-remove.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="spo-site-classic-remove">spo site classic remove<a class="headerlink" href="#spo-site-classic-remove" title="Permanent link">&para;</a></h1>
+                <h1 id="spo-site-remove">spo site remove<a class="headerlink" href="#spo-site-remove" title="Permanent link">&para;</a></h1>
 <p>Removes the specified site</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span>spo site classic remove <span class="o">[</span>options<span class="o">]</span>
+<div class="codehilite"><pre><span></span>spo site remove <span class="o">[</span>options<span class="o">]</span>
+</pre></div>
+
+<h2 id="alias">Alias<a class="headerlink" href="#alias" title="Permanent link">&para;</a></h2>
+<div class="codehilite"><pre><span></span>spo site classic remove
 </pre></div>
 
 <h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
@@ -7879,22 +7909,22 @@
 <p>To use this command you have to have permissions to access the tenant admin site.</p>
 </div>
 <h2 id="remarks">Remarks<a class="headerlink" href="#remarks" title="Permanent link">&para;</a></h2>
-<p>Deleting and creating classic site collections is by default asynchronous and depending on the current state of Office 365, might take up to few minutes. If you're building a script with steps that require the site to be fully deleted, you should use the <code>--wait</code> flag. When using this flag, the <code>spo site classic remove</code> command will keep running until it received confirmation from Office 365 that the site has been fully deleted.</p>
+<p>Deleting a site collection is by default asynchronous and depending on the current state of Office 365, might take up to few minutes. If you're building a script with steps that require the site to be fully deleted, you should use the <code>--wait</code> flag. When using this flag, the <code>spo site remove</code> command will keep running until it received confirmation from Office 365 that the site has been fully deleted.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Remove the specified site and place it in the Recycle Bin</p>
-<div class="codehilite"><pre><span></span>spo site classic remove --url https://contoso.sharepoint.com/sites/demosite
+<div class="codehilite"><pre><span></span>spo site remove --url https://contoso.sharepoint.com/sites/demosite
 </pre></div>
 
 <p>Remove the site without moving it to the Recycle Bin</p>
-<div class="codehilite"><pre><span></span>spo site classic remove --url https://contoso.sharepoint.com/sites/demosite --skipRecycleBin
+<div class="codehilite"><pre><span></span>spo site remove --url https://contoso.sharepoint.com/sites/demosite --skipRecycleBin
 </pre></div>
 
 <p>Remove the previously deleted site from the Recycle Bin</p>
-<div class="codehilite"><pre><span></span>spo site classic remove --url https://contoso.sharepoint.com/sites/demosite --fromRecycleBin
+<div class="codehilite"><pre><span></span>spo site remove --url https://contoso.sharepoint.com/sites/demosite --fromRecycleBin
 </pre></div>
 
 <p>Remove the site without moving it to the Recycle Bin and wait for completion</p>
-<div class="codehilite"><pre><span></span>spo site classic remove --url https://contoso.sharepoint.com/sites/demosite --wait --skipRecycleBin
+<div class="codehilite"><pre><span></span>spo site remove --url https://contoso.sharepoint.com/sites/demosite --wait --skipRecycleBin
 </pre></div>
                 
                   
