@@ -6388,6 +6388,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#more-information" title="More information" class="md-nav__link">
+    More information
+  </a>
+  
+</li>
+      
       
       
       
@@ -7818,6 +7825,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#more-information" title="More information" class="md-nav__link">
+    More information
+  </a>
+  
+</li>
+      
       
       
       
@@ -7857,12 +7871,20 @@
 <td>output usage information</td>
 </tr>
 <tr>
-<td><code>-n, --name &lt;name&gt;</code></td>
-<td>Display name for the Microsoft Teams team</td>
+<td><code>-n, --name [name]</code></td>
+<td>Display name for the Microsoft Teams team. Required if <code>templatePath</code> not supplied</td>
 </tr>
 <tr>
-<td><code>-d, --description &lt;description&gt;</code></td>
-<td>Description for the Microsoft Teams team</td>
+<td><code>-d, --description [description]</code></td>
+<td>Description for the Microsoft Teams team. Required if <code>templatePath</code> not supplied</td>
+</tr>
+<tr>
+<td><code>--templatePath [templatePath]</code></td>
+<td>Local path to the file containing the template. If <code>name</code> or <code>description</code> are supplied, these take precedence over the template values</td>
+</tr>
+<tr>
+<td><code>--wait</code></td>
+<td>Wait for the team to be provisioned before completing the command</td>
 </tr>
 <tr>
 <td><code>--query [query]</code></td>
@@ -7896,6 +7918,19 @@
 <p>Add a new Microsoft Teams team</p>
 <div class="codehilite"><pre><span></span>teams team add --name <span class="s1">&#39;Architecture&#39;</span> --description <span class="s1">&#39;Architecture Discussion&#39;</span>
 </pre></div>
+
+<p>Add a new Microsoft Teams team using a template</p>
+<div class="codehilite"><pre><span></span>teams team add --name <span class="s1">&#39;Architecture&#39;</span> --description <span class="s1">&#39;Architecture Discussion&#39;</span> --templatePath <span class="s1">&#39;template.json&#39;</span>
+</pre></div>
+
+<p>Add a new Microsoft Teams team using a template and wait for the team to be provisioned</p>
+<div class="codehilite"><pre><span></span>teams team add --name <span class="s1">&#39;Architecture&#39;</span> --description <span class="s1">&#39;Architecture Discussion&#39;</span> --templatePath <span class="s1">&#39;template.json&#39;</span> --wait
+</pre></div>
+
+<h2 id="more-information">More information<a class="headerlink" href="#more-information" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Get started with Teams templates: <a href="https://docs.microsoft.com/en-us/MicrosoftTeams/get-started-with-teams-templates">https://docs.microsoft.com/en-us/MicrosoftTeams/get-started-with-teams-templates</a></li>
+</ul>
                 
                   
                 
