@@ -7603,6 +7603,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../../../sample-scripts/spo/insert-sp-library-pictures-into-word/" title="Insert pictures in a SharePoint Document Library into a Word document" class="md-nav__link">
+      Insert pictures in a SharePoint Document Library into a Word document
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../../../sample-scripts/spo/list-site-app-catalogs/" title="Lists active SharePoint site collection application catalogs" class="md-nav__link">
       Lists active SharePoint site collection application catalogs
     </a>
@@ -7860,11 +7872,15 @@
 </tr>
 <tr>
 <td><code>-i, --id [id]</code></td>
-<td>The ID of the field to remove. Specify <code>id</code> or <code>fieldTitle</code> but not both</td>
+<td>The ID of the field to remove. Specify id, fieldTitle, or group</td>
 </tr>
 <tr>
-<td><code>--fieldTitle [fieldTitle]</code></td>
-<td>The display name (case-sensitive) of the field to remove. Specify <code>id</code> or <code>fieldTitle</code> but not both</td>
+<td><code>-t, --fieldTitle [fieldTitle]</code></td>
+<td>The display name (case-sensitive) of the field to remove. Specify id, fieldTitle, or group</td>
+</tr>
+<tr>
+<td><code>-g, --group [group]</code></td>
+<td>Delete all fields from this group (case-sensitive). Specify id, fieldTitle, or group</td>
 </tr>
 <tr>
 <td><code>--confirm</code></td>
@@ -7903,6 +7919,10 @@
 
 <p>Remove the list column with the specified display name, located in site <em>https://contoso.sharepoint.com/sites/contoso-sales</em>. Retrieves the list by its url</p>
 <div class="codehilite"><pre><span></span>spo field remove --webUrl https://contoso.sharepoint.com/sites/contoso-sales --listUrl <span class="s1">&#39;Lists/Events&#39;</span> --fieldTitle <span class="s1">&#39;Title&#39;</span>
+</pre></div>
+
+<p>Remove all site columns from group <em>MyGroup</em></p>
+<div class="codehilite"><pre><span></span>spo field remove --webUrl https://contoso.sharepoint.com/sites/contoso-sales --group <span class="s1">&#39;MyGroup&#39;</span>
 </pre></div>
                 
                   

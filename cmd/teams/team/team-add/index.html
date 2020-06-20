@@ -7617,6 +7617,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../../../sample-scripts/spo/insert-sp-library-pictures-into-word/" title="Insert pictures in a SharePoint Document Library into a Word document" class="md-nav__link">
+      Insert pictures in a SharePoint Document Library into a Word document
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../../../sample-scripts/spo/list-site-app-catalogs/" title="Lists active SharePoint site collection application catalogs" class="md-nav__link">
       Lists active SharePoint site collection application catalogs
     </a>
@@ -7914,6 +7926,7 @@
 <p>This command is based on an API that is currently in preview and is subject to change once the API reached general availability.</p>
 </div>
 <p>If you want to add a Team to an existing Office 365 Group use the <a href="../../../aad/o365group/o365group-teamify/">aad o365group teamify</a> command instead.</p>
+<p>This command will return different responses based on the presence of the <code>--wait</code> option. If present, the command will return a <code>group</code> resource in the response. If not present, the command will return a <code>teamsAsyncOperation</code> resource in the response.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Add a new Microsoft Teams team</p>
 <div class="codehilite"><pre><span></span>teams team add --name <span class="s1">&#39;Architecture&#39;</span> --description <span class="s1">&#39;Architecture Discussion&#39;</span>
@@ -7930,6 +7943,8 @@
 <h2 id="more-information">More information<a class="headerlink" href="#more-information" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Get started with Teams templates: <a href="https://docs.microsoft.com/en-us/MicrosoftTeams/get-started-with-teams-templates">https://docs.microsoft.com/en-us/MicrosoftTeams/get-started-with-teams-templates</a></li>
+<li>group resource type: <a href="https://docs.microsoft.com/en-gb/graph/api/resources/group?view=graph-rest-beta">https://docs.microsoft.com/en-gb/graph/api/resources/group?view=graph-rest-beta</a></li>
+<li>teamsAsyncOperation resource type: <a href="https://docs.microsoft.com/en-gb/graph/api/resources/teamsasyncoperation?view=graph-rest-beta">https://docs.microsoft.com/en-gb/graph/api/resources/teamsasyncoperation?view=graph-rest-beta</a></li>
 </ul>
                 
                   
