@@ -7793,6 +7793,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../../sample-scripts/spo/export-configs-tenant-wide-extensions/" title="Export configurations of Tenant Wide Extensions" class="md-nav__link">
+      Export configurations of Tenant Wide Extensions
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../../sample-scripts/spo/hide-list-from-site-contents/" title="Hide SharePoint list from Site Contents" class="md-nav__link">
       Hide SharePoint list from Site Contents
     </a>
@@ -8081,7 +8093,7 @@
 <td>output usage information</td>
 </tr>
 <tr>
-<td><code>-q, --query &lt;query&gt;</code></td>
+<td><code>-q, --queryText &lt;queryText&gt;</code></td>
 <td>Query to be executed in KQL format</td>
 </tr>
 <tr>
@@ -8200,19 +8212,19 @@
 </table>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Execute search query to retrieve all Document Sets (ContentTypeId = <em>0x0120D520</em>) for the English locale</p>
-<div class="codehilite"><pre><span></span>spo search --query <span class="s2">&quot;ContentTypeId:0x0120D520&quot;</span> --culture <span class="m">1033</span>
+<div class="codehilite"><pre><span></span>spo search --queryText <span class="s2">&quot;ContentTypeId:0x0120D520&quot;</span> --culture <span class="m">1033</span>
 </pre></div>
 
 <p>Retrieve all documents. For each document, retrieve the <em>Path</em>, <em>Author</em> and <em>FileType</em>.</p>
-<div class="codehilite"><pre><span></span>spo search --query <span class="s2">&quot;IsDocument:1&quot;</span> --selectProperties <span class="s2">&quot;Path,Author,FileType&quot;</span> --allResults
+<div class="codehilite"><pre><span></span>spo search --queryText <span class="s2">&quot;IsDocument:1&quot;</span> --selectProperties <span class="s2">&quot;Path,Author,FileType&quot;</span> --allResults
 </pre></div>
 
 <p>Return the top 50 items of which the title starts with <em>Marketing</em> while trimming duplicates.</p>
-<div class="codehilite"><pre><span></span>spo search --query <span class="s2">&quot;Title:Marketing*&quot;</span> --rowLimit<span class="o">=</span><span class="m">50</span> --trimDuplicates
+<div class="codehilite"><pre><span></span>spo search --queryText <span class="s2">&quot;Title:Marketing*&quot;</span> --rowLimit<span class="o">=</span><span class="m">50</span> --trimDuplicates
 </pre></div>
 
 <p>Return only items from a specific result source (using the source id).</p>
-<div class="codehilite"><pre><span></span>spo search --query <span class="s2">&quot;*&quot;</span> --sourceId <span class="s2">&quot;6e71030e-5e16-4406-9bff-9c1829843083&quot;</span>
+<div class="codehilite"><pre><span></span>spo search --queryText <span class="s2">&quot;*&quot;</span> --sourceId <span class="s2">&quot;6e71030e-5e16-4406-9bff-9c1829843083&quot;</span>
 </pre></div>
                 
                   
