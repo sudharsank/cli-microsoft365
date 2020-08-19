@@ -8145,6 +8145,10 @@
 <td>The new title for the site collection</td>
 </tr>
 <tr>
+<td><code>--sharingCapability [sharingCapability]</code></td>
+<td>The sharing capability for the site. Allowed values:  <code>Disabled</code>, <code>ExternalUserSharingOnly</code>, <code>ExternalUserAndGuestSharing</code>, <code>ExistingExternalUserSharingOnly</code>.</td>
+</tr>
+<tr>
 <td><code>--query [query]</code></td>
 <td>JMESPath query string. See <a href="http://jmespath.org/">http://jmespath.org/</a> for more information and examples</td>
 </tr>
@@ -8205,6 +8209,10 @@
 
 <p>Update site collection's title</p>
 <div class="codehilite"><pre><span></span>spo site <span class="nb">set</span> --url https://contoso.sharepoint.com/sites/sales --title <span class="s2">&quot;My new site&quot;</span>
+</pre></div>
+
+<p>Restrict external sharing to already available external users only</p>
+<div class="codehilite"><pre><span></span>spo site <span class="nb">set</span> --url https://contoso.sharepoint.com/sites/sales  --sharingCapability ExistingExternalUserSharingOnly
 </pre></div>
                 
                   
