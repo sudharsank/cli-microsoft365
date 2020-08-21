@@ -36,7 +36,7 @@
     
     
       
-        <title>Disable the specified Tenant Wide Extension  - Office 365 CLI</title>
+        <title>Disable the specified Tenant Wide Extension  - CLI for Microsoft 365</title>
       
     
     
@@ -110,9 +110,9 @@
   <nav class="md-header-nav md-grid">
     <div class="md-flex">
       <div class="md-flex__cell md-flex__cell--shrink">
-        <a href="../../.." title="Office 365 CLI" class="md-header-nav__button md-logo">
+        <a href="../../.." title="CLI for Microsoft 365" class="md-header-nav__button md-logo">
           
-            <img src="../../../images/pnp-office365-cli-white.svg" width="24" height="24">
+            <img src="../../../images/pnp-cli-microsoft365-white.svg" width="24" height="24">
           
         </a>
       </div>
@@ -124,7 +124,7 @@
           
             
               <span class="md-header-nav__topic">
-                Office 365 CLI
+                CLI for Microsoft 365
               </span>
               <span class="md-header-nav__topic">
                 Disable the specified Tenant Wide Extension 
@@ -293,12 +293,12 @@
                   <div class="md-sidebar__inner">
                     <nav class="md-nav md-nav--primary" data-md-level="0">
   <label class="md-nav__title md-nav__title--site" for="__drawer">
-    <a href="../../.." title="Office 365 CLI" class="md-nav__button md-logo">
+    <a href="../../.." title="CLI for Microsoft 365" class="md-nav__button md-logo">
       
-        <img src="../../../images/pnp-office365-cli-white.svg" width="48" height="48">
+        <img src="../../../images/pnp-cli-microsoft365-white.svg" width="48" height="48">
       
     </a>
-    Office 365 CLI
+    CLI for Microsoft 365
   </label>
   
     <div class="md-nav__source">
@@ -386,8 +386,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../../../user-guide/connecting-office-365/" title="Logging in to Office 365" class="md-nav__link">
-      Logging in to Office 365
+    <a href="../../../user-guide/connecting-office-365/" title="Logging in to Microsoft 365" class="md-nav__link">
+      Logging in to Microsoft 365
     </a>
   </li>
 
@@ -6714,11 +6714,11 @@
       <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3-17" type="checkbox" id="nav-3-17">
     
     <label class="md-nav__link" for="nav-3-17">
-      Office 365 (tenant)
+      Microsoft 365 (tenant)
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
       <label class="md-nav__title" for="nav-3-17">
-        Office 365 (tenant)
+        Microsoft 365 (tenant)
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
         
@@ -7430,8 +7430,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../../../concepts/communicating-o365/" title="Communication with Office 365" class="md-nav__link">
-      Communication with Office 365
+    <a href="../../../concepts/communicating-m365/" title="Communication with Microsoft 365" class="md-nav__link">
+      Communication with Microsoft 365
     </a>
   </li>
 
@@ -7511,8 +7511,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../../aad/manage-group-users/" title="Bulk add/remove users to Microsoft Teams and Office 365 Groups" class="md-nav__link">
-      Bulk add/remove users to Microsoft Teams and Office 365 Groups
+    <a href="../../aad/manage-group-users/" title="Bulk add/remove users to Microsoft Teams and Microsoft 365 Groups" class="md-nav__link">
+      Bulk add/remove users to Microsoft Teams and Microsoft 365 Groups
     </a>
   </li>
 
@@ -7523,8 +7523,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../../aad/delete-o365-groups/" title="Delete all Office 365 groups" class="md-nav__link">
-      Delete all Office 365 groups
+    <a href="../../aad/delete-m365-groups/" title="Delete all Microsoft 365 groups" class="md-nav__link">
+      Delete all Microsoft 365 groups
     </a>
   </li>
 
@@ -7535,8 +7535,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../../aad/flag-groups-with-user-names/" title="Scan for Office 365 Groups created with user's first or last name" class="md-nav__link">
-      Scan for Office 365 Groups created with user's first or last name
+    <a href="../../aad/flag-groups-with-user-names/" title="Scan for Microsoft 365 Groups created with user's first or last name" class="md-nav__link">
+      Scan for Microsoft 365 Groups created with user's first or last name
     </a>
   </li>
 
@@ -7935,8 +7935,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../../../about/comparison-powershell/" title="Comparison to SharePoint and Office 365 PowerShell" class="md-nav__link">
-      Comparison to SharePoint and Office 365 PowerShell
+    <a href="../../../about/comparison-powershell/" title="Comparison to SharePoint and Microsoft 365 PowerShell" class="md-nav__link">
+      Comparison to SharePoint and Microsoft 365 PowerShell
     </a>
   </li>
 
@@ -8010,13 +8010,13 @@
 <div class="superfences-content"><div class="codehilite"><pre><span></span><span class="nv">$extensionName</span> <span class="p">=</span> <span class="nb">Read-Host</span> <span class="s2">&quot;Enter the Extension Name&quot;</span>
 <span class="nv">$listName</span> <span class="p">=</span> <span class="s2">&quot;Tenant Wide Extensions&quot;</span>
 
-<span class="nv">$appCatalogUrl</span> <span class="p">=</span> <span class="n">o365</span> <span class="n">spo</span> <span class="n">tenant</span> <span class="n">appcatalogurl</span> <span class="n">get</span>
+<span class="nv">$appCatalogUrl</span> <span class="p">=</span> <span class="n">m365</span> <span class="n">spo</span> <span class="n">tenant</span> <span class="n">appcatalogurl</span> <span class="n">get</span>
 <span class="nv">$filterQuery</span> <span class="p">=</span> <span class="s2">&quot;Title eq &#39;&quot;</span> <span class="p">+</span> <span class="nv">$extensionName</span> <span class="p">+</span> <span class="s2">&quot;&#39;&quot;</span>
-<span class="nv">$appItems</span> <span class="p">=</span> <span class="n">o365</span> <span class="n">spo</span> <span class="n">listitem</span> <span class="n">list</span> <span class="p">-</span><span class="n">-title</span> <span class="nv">$listName</span> <span class="p">-</span><span class="n">-webUrl</span> <span class="nv">$appCatalogUrl</span> <span class="p">-</span><span class="n">-fields</span> <span class="s2">&quot;Id,Title&quot;</span> <span class="p">-</span><span class="n">-filter</span> <span class="nv">$filterQuery</span> <span class="p">-</span><span class="n">-output</span> <span class="n">json</span>
+<span class="nv">$appItems</span> <span class="p">=</span> <span class="n">m365</span> <span class="n">spo</span> <span class="n">listitem</span> <span class="n">list</span> <span class="p">-</span><span class="n">-title</span> <span class="nv">$listName</span> <span class="p">-</span><span class="n">-webUrl</span> <span class="nv">$appCatalogUrl</span> <span class="p">-</span><span class="n">-fields</span> <span class="s2">&quot;Id,Title&quot;</span> <span class="p">-</span><span class="n">-filter</span> <span class="nv">$filterQuery</span> <span class="p">-</span><span class="n">-output</span> <span class="n">json</span>
 <span class="nv">$extItems</span> <span class="p">=</span> <span class="nv">$appItems</span><span class="p">.</span><span class="n">Replace</span><span class="p">(</span><span class="s2">&quot;Id&quot;</span><span class="p">,</span> <span class="s2">&quot;ExtId&quot;</span><span class="p">)</span> <span class="p">|</span> <span class="nb">ConvertFrom-JSON</span>
 
 <span class="k">if</span> <span class="p">(</span><span class="nv">$extItems</span><span class="p">.</span><span class="n">count</span> <span class="o">-gt</span> <span class="n">0</span><span class="p">)</span> <span class="p">{</span>
-  <span class="n">o365</span> <span class="n">spo</span> <span class="n">listitem</span> <span class="nb">set </span><span class="p">-</span><span class="n">-listTitle</span> <span class="nv">$listName</span> <span class="p">-</span><span class="n">-id</span> <span class="nv">$extItems</span><span class="p">.</span><span class="n">ExtId</span> <span class="p">-</span><span class="n">-webUrl</span> <span class="nv">$appCatalogUrl</span> <span class="p">-</span><span class="n">-TenantWideExtensionDisabled</span> <span class="s2">&quot;true&quot;</span> <span class="p">&gt;</span><span class="nv">$null</span> <span class="n">2</span><span class="p">&gt;&amp;</span><span class="n">1</span>
+  <span class="n">m365</span> <span class="n">spo</span> <span class="n">listitem</span> <span class="nb">set </span><span class="p">-</span><span class="n">-listTitle</span> <span class="nv">$listName</span> <span class="p">-</span><span class="n">-id</span> <span class="nv">$extItems</span><span class="p">.</span><span class="n">ExtId</span> <span class="p">-</span><span class="n">-webUrl</span> <span class="nv">$appCatalogUrl</span> <span class="p">-</span><span class="n">-TenantWideExtensionDisabled</span> <span class="s2">&quot;true&quot;</span> <span class="p">&gt;</span><span class="nv">$null</span> <span class="n">2</span><span class="p">&gt;&amp;</span><span class="n">1</span>
   <span class="nb">Write-Host</span><span class="p">(</span><span class="s2">&quot;Extension disabled.&quot;</span><span class="p">);</span>
 <span class="p">}</span>
 <span class="k">else</span> <span class="p">{</span>
@@ -8032,14 +8032,14 @@
 <span class="nb">echo</span> <span class="s2">&quot;Enter the extension name to disable: &quot;</span><span class="p">;</span> <span class="nb">read</span> extensionName<span class="p">;</span>
 <span class="nv">listName</span><span class="o">=</span><span class="s2">&quot;Tenant Wide Extensions&quot;</span><span class="p">;</span>
 
-<span class="nv">appCatalogUrl</span><span class="o">=</span><span class="k">$(</span>o365 spo tenant appcatalogurl get<span class="k">)</span>
+<span class="nv">appCatalogUrl</span><span class="o">=</span><span class="k">$(</span>m365 spo tenant appcatalogurl get<span class="k">)</span>
 <span class="nv">filterQuery</span><span class="o">=</span><span class="s2">&quot;Title eq &#39;</span><span class="nv">$extensionName</span><span class="s2">&#39;&quot;</span>
-<span class="nv">appItemsJson</span><span class="o">=</span><span class="k">$(</span>o365 spo listitem list --title <span class="s2">&quot;</span><span class="nv">$listName</span><span class="s2">&quot;</span> --webUrl <span class="s2">&quot;</span><span class="nv">$appCatalogUrl</span><span class="s2">&quot;</span> --fields <span class="s2">&quot;Id,Title&quot;</span> --filter <span class="s2">&quot;</span><span class="nv">$filterQuery</span><span class="s2">&quot;</span> --output json<span class="k">)</span>
+<span class="nv">appItemsJson</span><span class="o">=</span><span class="k">$(</span>m365 spo listitem list --title <span class="s2">&quot;</span><span class="nv">$listName</span><span class="s2">&quot;</span> --webUrl <span class="s2">&quot;</span><span class="nv">$appCatalogUrl</span><span class="s2">&quot;</span> --fields <span class="s2">&quot;Id,Title&quot;</span> --filter <span class="s2">&quot;</span><span class="nv">$filterQuery</span><span class="s2">&quot;</span> --output json<span class="k">)</span>
 <span class="nv">appItemId</span><span class="o">=(</span> <span class="k">$(</span>jq -r <span class="s1">&#39;.[].Id&#39;</span> <span class="o">&lt;&lt;&lt;</span> <span class="nv">$appItemsJson</span><span class="k">)</span><span class="o">)</span>
 
 <span class="k">if</span> <span class="o">[[</span> <span class="nv">$appItemId</span> -gt <span class="m">0</span> <span class="o">]]</span>
 <span class="k">then</span>
- o365 spo listitem <span class="nb">set</span> --listTitle <span class="s2">&quot;</span><span class="nv">$listName</span><span class="s2">&quot;</span> --id <span class="s2">&quot;</span><span class="nv">$appItemId</span><span class="s2">&quot;</span> --webUrl <span class="s2">&quot;</span><span class="nv">$appCatalogUrl</span><span class="s2">&quot;</span> --TenantWideExtensionDisabled <span class="s2">&quot;true&quot;</span> &gt;/dev/null <span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+ m365 spo listitem <span class="nb">set</span> --listTitle <span class="s2">&quot;</span><span class="nv">$listName</span><span class="s2">&quot;</span> --id <span class="s2">&quot;</span><span class="nv">$appItemId</span><span class="s2">&quot;</span> --webUrl <span class="s2">&quot;</span><span class="nv">$appCatalogUrl</span><span class="s2">&quot;</span> --TenantWideExtensionDisabled <span class="s2">&quot;true&quot;</span> &gt;/dev/null <span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
  <span class="nb">echo</span> <span class="s2">&quot;Extension disabled.&quot;</span>
 <span class="k">else</span>
   <span class="nb">echo</span> <span class="s2">&quot;No extensions found with the name &#39;</span><span class="nv">$extensionName</span><span class="s2">&#39;.&quot;</span>
