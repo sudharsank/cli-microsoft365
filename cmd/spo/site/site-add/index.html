@@ -4906,6 +4906,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#remarks-for-modern-sites" title="Remarks for modern sites" class="md-nav__link">
+    Remarks for modern sites
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples" title="Examples" class="md-nav__link">
     Examples
   </a>
@@ -8071,6 +8078,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#remarks-for-modern-sites" title="Remarks for modern sites" class="md-nav__link">
+    Remarks for modern sites
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples" title="Examples" class="md-nav__link">
     Examples
   </a>
@@ -8148,11 +8162,11 @@
 </tr>
 <tr>
 <td><code>-l, --lcid [lcid]</code></td>
-<td>Site language in the LCID format, eg. <em>1033</em> for <em>en-US</em></td>
+<td>Site language in the LCID format, eg. <em>1033</em> for <em>en-US</em>. See <a href="https://support.microsoft.com/en-us/office/languages-supported-by-sharepoint-dfbf3652-2902-4809-be21-9080b6512fff">SharePoint documentation</a> for the list of supported languages</td>
 </tr>
 <tr>
 <td><code>--owners [owners]</code></td>
-<td>Comma-separated list of users to set as site owners (applies to type TeamSite, ClassicSite)</td>
+<td>Comma-separated list of users to set as site owners</td>
 </tr>
 <tr>
 <td><code>--isPublic</code></td>
@@ -8232,6 +8246,9 @@
 <p>The value of the <code>--storageQuotaWarningLevel</code> option must not exceed the the value of the <code>--storageQuota</code> option.</p>
 <p>If you try to create a site with the same URL as a site that has been previously moved to the recycle bin, you will get an error. To avoid this error, you can use the <code>--removeDeletedSite</code> option. Prior to creating the site, the spo site classic add command will check if the site with the specified URL has been previously moved to the recycle bin and if so, will remove it. Because removing sites from the recycle bin might take a moment, it should be used in conjunction with the <code>--wait</code> option so that the new site is not created before the old site is fully removed.</p>
 <p>Deleting and creating classic site collections is by default asynchronous and depending on the current state of Office 365, might take up to few minutes. If you're building a script with steps that require the site to be fully provisioned, you should use the <code>--wait</code> flag. When using this flag, the spo site classic add command will keep running until it received confirmation from Office 365 that the site has been fully provisioned.</p>
+<h2 id="remarks-for-modern-sites">Remarks for modern sites<a class="headerlink" href="#remarks-for-modern-sites" title="Permanent link">&para;</a></h2>
+<p>The <code>--owners</code> option is mandatory for creating <code>CommunicationSite</code> sites with app-only permissions.</p>
+<p>When trying to create a team site using app-only permissions, you will get an <em>Insufficient privileges to complete the operation.</em> error. As a workaround, you can use the <a href="../../../aad/o365group/o365group-add/"><code>aad o365group add</code></a> command, followed by <a href="../site-set/"><code>spo site set</code></a> to further configure the Team site.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Create modern team site with private group</p>
 <div class="codehilite"><pre><span></span>spo site add --alias team1 --title Team <span class="m">1</span>
@@ -8255,6 +8272,10 @@
 
 <p>Create communication site using the Topic design</p>
 <div class="codehilite"><pre><span></span>spo site add --type CommunicationSite --url https://contoso.sharepoint.com/sites/marketing --title Marketing
+</pre></div>
+
+<p>Create communication site using app-only permissions</p>
+<div class="codehilite"><pre><span></span>spo site add --type CommunicationSite --url https://contoso.sharepoint.com/sites/marketing --title Marketing --owners <span class="s2">&quot;john.smith@contoso.com&quot;</span>
 </pre></div>
 
 <p>Create communication site using the Showcase design</p>
