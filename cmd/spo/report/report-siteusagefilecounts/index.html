@@ -8161,10 +8161,6 @@
 <td>The length of time over which the report is aggregated. Supported values <code>D7,D30,D90,D180</code></td>
 </tr>
 <tr>
-<td><code>-f, --outputFile [outputFile]</code></td>
-<td>Path to the file where the report should be stored in</td>
-</tr>
-<tr>
 <td><code>--query [query]</code></td>
 <td>JMESPath query string. See <a href="http://jmespath.org/">http://jmespath.org/</a> for more information and examples</td>
 </tr>
@@ -8190,11 +8186,11 @@
 </pre></div>
 
 <p>Get the total number of files across all sites and the number of active files for the last week and exports the report data in the specified path in text format</p>
-<div class="codehilite"><pre><span></span>spo report siteusagefilecounts --period D7 --output text --outputFile <span class="s2">&quot;siteusagefilecounts.txt&quot;</span>
+<div class="codehilite"><pre><span></span>spo report siteusagefilecounts --period D7 --output text &gt; <span class="s2">&quot;siteusagefilecounts.txt&quot;</span>
 </pre></div>
 
 <p>Get the total number of files across all sites and the number of active files for the last week and exports the report data in the specified path in json format</p>
-<div class="codehilite"><pre><span></span>spo report siteusagefilecounts --period D7 --output json --outputFile <span class="s2">&quot;siteusagefilecounts.json&quot;</span>
+<div class="codehilite"><pre><span></span>spo report siteusagefilecounts --period D7 --output json &gt; <span class="s2">&quot;siteusagefilecounts.json&quot;</span>
 </pre></div>
                 
                   

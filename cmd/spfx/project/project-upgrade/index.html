@@ -8169,10 +8169,6 @@
 <td>The shell you use. Supported shells <code>bash,powershell,cmd</code>. Default <code>bash</code></td>
 </tr>
 <tr>
-<td><code>-f, --outputFile [outputFile]</code></td>
-<td>Path to the file where the upgrade report should be stored in. Ignored when <code>output</code> is <code>tour</code></td>
-</tr>
-<tr>
 <td><code>--query [query]</code></td>
 <td>JMESPath query string. See <a href="http://jmespath.org/">http://jmespath.org/</a> for more information and examples</td>
 </tr>
@@ -8200,7 +8196,7 @@
 <p>Using this command you can upgrade SharePoint Framework projects built using versions: 1.0.0, 1.0.1, 1.0.2, 1.1.0, 1.1.1, 1.1.3, 1.2.0, 1.3.0, 1.3.1, 1.3.2, 1.3.4, 1.4.0, 1.4.1, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.8.1, 1.8.2, 1.9.1 and 1.10.0.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Get instructions to upgrade the current SharePoint Framework project to SharePoint Framework version 1.5.0 and save the findings in a Markdown file</p>
-<div class="codehilite"><pre><span></span>spfx project upgrade --toVersion <span class="m">1</span>.5.0 --output md --outputFile <span class="s2">&quot;upgrade-report.md&quot;</span>
+<div class="codehilite"><pre><span></span>spfx project upgrade --toVersion <span class="m">1</span>.5.0 --output md &gt; <span class="s2">&quot;upgrade-report.md&quot;</span>
 </pre></div>
 
 <p>Get instructions to Upgrade the current SharePoint Framework project to SharePoint Framework version 1.5.0 and show the summary of the findings in the shell</p>
