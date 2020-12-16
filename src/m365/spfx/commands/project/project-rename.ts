@@ -1,14 +1,11 @@
-import commands from '../../commands';
-import Command, {
-  CommandOption, CommandAction, CommandError, CommandValidate
-} from '../../../../Command';
-import GlobalOptions from '../../../../GlobalOptions';
-import { BaseProjectCommand } from './base-project-command';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
 import { v4 } from 'uuid';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { Logger } from '../../../../cli';
+import { CommandError, CommandOption } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import commands from '../../commands';
+import { BaseProjectCommand } from './base-project-command';
 
 interface CommandArgs {
   options: Options;
@@ -52,26 +49,7 @@ class SpfxProjectRenameCommand extends BaseProjectCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.newName) {
-        return 'Required parameter newName missing';
-      }
-
-      return true;
-    };
-  }
-
-  public action(): CommandAction {
-    const cmd: Command = this;
-    return function (this: CommandInstance, args: CommandArgs, cb: (err?: any) => void) {
-      args = (cmd as any).processArgs(args);
-      (cmd as any).initAction(args, this);
-      cmd.commandAction(this, args, cb);
-    }
-  }
-
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     this.projectRootPath = this.getProjectRoot(process.cwd());
     if (this.projectRootPath === null) {
       cb(new CommandError(`Couldn't find project root folder`, SpfxProjectRenameCommand.ERROR_NO_PROJECT_ROOT_FOLDER));
@@ -85,21 +63,21 @@ class SpfxProjectRenameCommand extends BaseProjectCommand {
     if (args.options.generateNewId) {
       newId = this.generateNewId();
       if (this.debug) {
-        cmd.log('Created new solution id');
-        cmd.log(newId);
+        logger.logToStderr('Created new solution id');
+        logger.logToStderr(newId);
       }
     }
 
     if (this.debug) {
-      cmd.log(`Renaming SharePoint Framework project to '${args.options.newName}'`);
+      logger.logToStderr(`Renaming SharePoint Framework project to '${args.options.newName}'`);
     }
 
     try {
-      this.replacePackageJsonContent(path.join(this.projectRootPath, 'package.json'), args, cmd);
-      this.replaceYoRcJsonContent(path.join(this.projectRootPath, '.yo-rc.json'), newId, args, cmd);
-      this.replacePackageSolutionJsonContent(path.join(this.projectRootPath, 'config', 'package-solution.json'), projectName, newId, args, cmd);
-      this.replaceDeployAzureStorageJsonContent(path.join(this.projectRootPath, 'config', 'deploy-azure-storage.json'), args, cmd);
-      this.replaceReadMeContent(path.join(this.projectRootPath, 'README.md'), projectName, args, cmd);
+      this.replacePackageJsonContent(path.join(this.projectRootPath, 'package.json'), args, logger);
+      this.replaceYoRcJsonContent(path.join(this.projectRootPath, '.yo-rc.json'), newId, args, logger);
+      this.replacePackageSolutionJsonContent(path.join(this.projectRootPath, 'config', 'package-solution.json'), projectName, newId, args, logger);
+      this.replaceDeployAzureStorageJsonContent(path.join(this.projectRootPath, 'config', 'deploy-azure-storage.json'), args, logger);
+      this.replaceReadMeContent(path.join(this.projectRootPath, 'README.md'), projectName, args, logger);
     }
     catch (error) {
       cb(new CommandError(error));
@@ -107,7 +85,7 @@ class SpfxProjectRenameCommand extends BaseProjectCommand {
     }
 
     if (this.verbose) {
-      cmd.log('DONE');
+      logger.logToStderr('DONE');
     }
 
     cb();
@@ -117,7 +95,7 @@ class SpfxProjectRenameCommand extends BaseProjectCommand {
     return v4();
   }
 
-  private replacePackageJsonContent = (filePath: string, args: CommandArgs, cmd: CommandInstance) => {
+  private replacePackageJsonContent = (filePath: string, args: CommandArgs, logger: Logger) => {
     if (!fs.existsSync(filePath)) {
       return;
     }
@@ -136,12 +114,12 @@ class SpfxProjectRenameCommand extends BaseProjectCommand {
       fs.writeFileSync(filePath, updatedContentString, 'utf-8');
 
       if (this.debug) {
-        cmd.log(`Updated ${path.basename(filePath)}`);
+        logger.logToStderr(`Updated ${path.basename(filePath)}`);
       }
     }
   }
 
-  private replaceYoRcJsonContent = (filePath: string, newId: string, args: CommandArgs, cmd: CommandInstance) => {
+  private replaceYoRcJsonContent = (filePath: string, newId: string, args: CommandArgs, logger: Logger) => {
     if (!fs.existsSync(filePath)) {
       return;
     }
@@ -172,12 +150,12 @@ class SpfxProjectRenameCommand extends BaseProjectCommand {
       fs.writeFileSync(filePath, updatedContentString, 'utf-8');
 
       if (this.debug) {
-        cmd.log(`Updated ${path.basename(filePath)}`);
+        logger.logToStderr(`Updated ${path.basename(filePath)}`);
       }
     }
   }
 
-  private replacePackageSolutionJsonContent = (filePath: string, projectName: string, newId: string, args: CommandArgs, cmd: CommandInstance) => {
+  private replacePackageSolutionJsonContent = (filePath: string, projectName: string, newId: string, args: CommandArgs, logger: Logger) => {
     if (!fs.existsSync(filePath)) {
       return;
     }
@@ -208,12 +186,12 @@ class SpfxProjectRenameCommand extends BaseProjectCommand {
       fs.writeFileSync(filePath, updatedContentString, 'utf-8');
 
       if (this.debug) {
-        cmd.log(`Updated ${path.basename(filePath)}`);
+        logger.logToStderr(`Updated ${path.basename(filePath)}`);
       }
     }
   }
 
-  private replaceDeployAzureStorageJsonContent = (filePath: string, args: CommandArgs, cmd: CommandInstance) => {
+  private replaceDeployAzureStorageJsonContent = (filePath: string, args: CommandArgs, logger: Logger) => {
     if (!fs.existsSync(filePath)) {
       return;
     }
@@ -232,12 +210,12 @@ class SpfxProjectRenameCommand extends BaseProjectCommand {
       fs.writeFileSync(filePath, updatedContentString, 'utf-8');
 
       if (this.debug) {
-        cmd.log(`Updated ${path.basename(filePath)}`);
+        logger.logToStderr(`Updated ${path.basename(filePath)}`);
       }
     }
   }
 
-  private replaceReadMeContent = (filePath: string, projectName: string, args: CommandArgs, cmd: CommandInstance) => {
+  private replaceReadMeContent = (filePath: string, projectName: string, args: CommandArgs, logger: Logger) => {
     if (!fs.existsSync(filePath)) {
       return;
     }
@@ -249,32 +227,9 @@ class SpfxProjectRenameCommand extends BaseProjectCommand {
       fs.writeFileSync(filePath, updatedContent, 'utf-8');
 
       if (this.debug) {
-        cmd.log(`Updated ${path.basename(filePath)}`);
+        logger.logToStderr(`Updated ${path.basename(filePath)}`);
       }
     }
-  }
-
-  public commandHelp(args: any, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.PROJECT_RENAME).helpInformation());
-    log(
-      `   ${chalk.yellow('Important:')} Run this command in the folder where the project that you want to
-    rename is located.
-
-  Remarks:
-
-    This command will update the project name in: package.json, .yo-rc.json,
-    package-solution.json, deploy-azure-storage.json and README.md.
-
-
-  Examples:
-
-    Renames SharePoint Framework project to contoso
-      ${commands.PROJECT_RENAME} --newName contoso
-
-    Renames SharePoint Framework project to contoso with new solution ID
-      ${commands.PROJECT_RENAME} --newName contoso --generateNewId
-`);
   }
 }
 

@@ -1,18 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandError, CommandOption } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./siteclassification-disable');
-import * as assert from 'assert';
+import { Cli, Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./siteclassification-disable');
 
 describe(commands.SITECLASSIFICATION_DISABLE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let promptOptions: any;
 
   before(() => {
@@ -22,30 +23,31 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
         log.push(msg);
       },
-      prompt: (options: any, cb: (result: { continue: boolean }) => void) => {
-        promptOptions = options;
-        cb({ continue: false });
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
+        log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
+      promptOptions = options;
+      cb({ continue: false });
+    });
     promptOptions = undefined;
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get,
-      request.delete
+      request.delete,
+      Cli.prompt
     ]);
   });
 
@@ -59,15 +61,15 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
 
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SITECLASSIFICATION_DISABLE), true);
+    assert.strictEqual(command.name.startsWith(commands.SITECLASSIFICATION_DISABLE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -77,42 +79,8 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
     assert(containsOption);
   });
 
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SITECLASSIFICATION_DISABLE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
-  });
-
   it('prompts before disabling siteclassification when confirm option not passed', (done) => {
-    cmdInstance.action({ options: { debug: false } }, () => {
+    command.action(logger, { options: { debug: false } }, () => {
       let promptIssued = false;
 
       if (promptOptions && promptOptions.type === 'confirm') {
@@ -141,9 +109,9 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: true, confirm: true } }, (err: any) => {
+    command.action(logger, { options: { debug: true, confirm: true } } as any, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Site classification is not enabled.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Site classification is not enabled.')));
         done();
       }
       catch (e) {
@@ -224,9 +192,9 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: true, confirm: true } }, (err: any) => {
+    command.action(logger, { options: { debug: true, confirm: true } } as any, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("Missing DirectorySettingTemplate for \"Group.Unified\"")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("Missing DirectorySettingTemplate for \"Group.Unified\"")));
         done();
       }
       catch (e) {
@@ -307,9 +275,9 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: true, confirm: true } }, (err: any) => {
+    command.action(logger, { options: { debug: true, confirm: true } } as any, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("Missing UnifiedGroupSettting id")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("Missing UnifiedGroupSettting id")));
         done();
       }
       catch (e) {
@@ -390,9 +358,9 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: true, confirm: true } }, (err: any) => {
+    command.action(logger, { options: { debug: true, confirm: true } } as any, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("Missing UnifiedGroupSettting id")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("Missing UnifiedGroupSettting id")));
         done();
       }
       catch (e) {
@@ -488,7 +456,7 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { confirm: true } }, (err: any) => {
+    command.action(logger, { options: { confirm: true } } as any, (err: any) => {
       try {
         assert(deleteRequestIssued);
         done();
@@ -585,9 +553,9 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: true, confirm: true } }, (err: any) => {
+    command.action(logger, { options: { debug: true, confirm: true } } as any, (err: any) => {
       try {
-        assert(deleteRequestIssued && cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(deleteRequestIssued && loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -599,10 +567,11 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
 
   it('aborts removing the group when prompt not confirmed', (done) => {
     const postSpy = sinon.spy(request, 'delete');
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({ options: { debug: false } }, () => {
+    });
+    command.action(logger, { options: { debug: false } }, () => {
       try {
         assert(postSpy.notCalled);
         done();
@@ -699,10 +668,11 @@ describe(commands.SITECLASSIFICATION_DISABLE, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({ options: { debug: false } }, () => {
+    });
+    command.action(logger, { options: { debug: false } }, () => {
       try {
         assert(deleteRequestIssued);
         done();

@@ -5,19 +5,15 @@ Registers the specified site collection as a hub site
 ## Usage
 
 ```sh
-spo hubsite register [options]
+m365 spo hubsite register [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|URL of the site collection to register as a hub site
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: URL of the site collection to register as a hub site
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -31,7 +27,7 @@ If the specified site collection is already registered as a hub site, you will g
 Register the site collection with URL _https://contoso.sharepoint.com/sites/sales_ as a hub site
 
 ```sh
-spo hubsite register --url https://contoso.sharepoint.com/sites/sales
+m365 spo hubsite register --url https://contoso.sharepoint.com/sites/sales
 ```
 
 ## More information

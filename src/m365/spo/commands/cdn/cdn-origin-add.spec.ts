@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./cdn-origin-add');
-import * as assert from 'assert';
-import request from '../../../../request';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import config from '../../../../config';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./cdn-origin-add');
 
 describe(commands.CDN_ORIGIN_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
+  let logger: Logger;
   let requests: any[];
 
   before(() => {
@@ -30,8 +30,8 @@ describe(commands.CDN_ORIGIN_ADD, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
         if (opts.headers &&
           opts.headers['X-RequestDigest'] &&
-          opts.body) {
-          if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
+          opts.data) {
+          if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
             return Promise.resolve(JSON.stringify([
               {
                 "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7018.1204", "ErrorInfo": null, "TraceCorrelationId": "a05d299e-0036-4000-8546-cfc42dc07fd2"
@@ -48,14 +48,15 @@ describe(commands.CDN_ORIGIN_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -63,8 +64,7 @@ describe(commands.CDN_ORIGIN_ADD, () => {
   });
 
   afterEach(() => {
-    Utils.restore(vorpal.find);
-  });
+    });
 
   after(() => {
     Utils.restore([
@@ -79,20 +79,20 @@ describe(commands.CDN_ORIGIN_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.CDN_ORIGIN_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.CDN_ORIGIN_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('sets CDN origin on the public CDN when Public type specified', (done) => {
-    cmdInstance.action({ options: { debug: true, origin: '*/cdn', type: 'Public' } }, () => {
+    command.action(logger, { options: { debug: true, origin: '*/cdn', type: 'Public' } }, () => {
       let setRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
           r.headers['X-RequestDigest'] &&
-          r.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
+          r.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
           setRequestIssued = true;
         }
       });
@@ -108,12 +108,12 @@ describe(commands.CDN_ORIGIN_ADD, () => {
   });
 
   it('sets CDN origin on the private CDN when Private type specified', (done) => {
-    cmdInstance.action({ options: { debug: true, origin: '*/cdn', type: 'Private' } }, () => {
+    command.action(logger, { options: { debug: true, origin: '*/cdn', type: 'Private' } }, () => {
       let setRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
           r.headers['X-RequestDigest'] &&
-          r.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">1</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
+          r.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">1</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
           setRequestIssued = true;
         }
       });
@@ -129,12 +129,12 @@ describe(commands.CDN_ORIGIN_ADD, () => {
   });
 
   it('sets CDN origin on the public CDN when no type specified', (done) => {
-    cmdInstance.action({ options: { debug: false, origin: '*/cdn' } }, () => {
+    command.action(logger, { options: { debug: false, origin: '*/cdn' } }, () => {
       let setRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
           r.headers['X-RequestDigest'] &&
-          r.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
+          r.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
           setRequestIssued = true;
         }
       });
@@ -165,8 +165,8 @@ describe(commands.CDN_ORIGIN_ADD, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
         if (opts.headers &&
           opts.headers['X-RequestDigest'] &&
-          opts.body) {
-          if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
+          opts.data) {
+          if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
             return Promise.resolve(JSON.stringify([
               {
                 "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7018.1204", "ErrorInfo": {
@@ -180,9 +180,9 @@ describe(commands.CDN_ORIGIN_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: true, origin: '*/cdn', type: 'Public' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, origin: '*/cdn', type: 'Public' } } as any, (err?: any) => {
       try {
-        assert.equal(err.message, 'The library is already registered as a CDN origin.');
+        assert.strictEqual(err.message, 'The library is already registered as a CDN origin.');
         done();
       }
       catch (e) {
@@ -196,9 +196,9 @@ describe(commands.CDN_ORIGIN_ADD, () => {
     sinon.stub(request, 'post').callsFake((opts) => {
       return Promise.reject('An error has occurred');
     });
-    cmdInstance.action({ options: { debug: true, origin: '*/cdn', type: 'Public' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, origin: '*/cdn', type: 'Public' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -223,8 +223,8 @@ describe(commands.CDN_ORIGIN_ADD, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
         if (opts.headers &&
           opts.headers['X-RequestDigest'] &&
-          opts.body) {
-          if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">&lt;*/CDN&gt;</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
+          opts.data) {
+          if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="AddTenantCdnOrigin" Id="27" ObjectPathId="23"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">&lt;*/CDN&gt;</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="23" Name="abc" /></ObjectPaths></Request>`) {
             return Promise.resolve(JSON.stringify([
               {
                 "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7018.1204", "ErrorInfo": null, "TraceCorrelationId": "a05d299e-0036-4000-8546-cfc42dc07fd2"
@@ -239,7 +239,7 @@ describe(commands.CDN_ORIGIN_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, origin: '<*/CDN>' } }, () => {
+    command.action(logger, { options: { debug: true, origin: '<*/CDN>' } }, () => {
       let isDone = false;
       log.forEach(l => {
         if (l && typeof l === 'string' && l.indexOf('DONE')) {
@@ -258,7 +258,7 @@ describe(commands.CDN_ORIGIN_ADD, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsdebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -269,7 +269,7 @@ describe(commands.CDN_ORIGIN_ADD, () => {
   });
 
   it('requires CDN origin name', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let requiresCdnOriginName = false;
     options.forEach(o => {
       if (o.option.indexOf('<origin>') > -1) {
@@ -281,63 +281,29 @@ describe(commands.CDN_ORIGIN_ADD, () => {
 
   it('doesn\'t fail if the parent doesn\'t define options', () => {
     sinon.stub(Command.prototype, 'options').callsFake(() => { return []; });
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     Utils.restore(Command.prototype.options);
     assert(options.length > 0);
   });
 
   it('accepts Public SharePoint Online CDN type', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { type: 'Public' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { type: 'Public' } });
+    assert.strictEqual(actual, true);
   });
 
   it('accepts Private SharePoint Online CDN type', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { type: 'Private' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { type: 'Private' } });
+    assert.strictEqual(actual, true);
   });
 
   it('rejects invalid SharePoint Online CDN type', () => {
     const type = 'foo';
-    const actual = (command.validate() as CommandValidate)({ options: { type: type } });
-    assert.equal(actual, `${type} is not a valid CDN type. Allowed values are Public|Private`);
+    const actual = command.validate({ options: { type: type } });
+    assert.strictEqual(actual, `${type} is not a valid CDN type. Allowed values are Public|Private`);
   });
 
   it('doesn\'t fail validation if the optional type option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => {},
-      prompt: () => {},
-      helpInformation: () => {}
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => {});
-    assert(find.calledWith(commands.CDN_ORIGIN_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => {},
-      helpInformation: () => {}
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => {});
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: {} });
+    assert.strictEqual(actual, true);
   });
 });

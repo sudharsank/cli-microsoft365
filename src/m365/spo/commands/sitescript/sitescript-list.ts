@@ -1,9 +1,9 @@
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import request from '../../../../request';
-import commands from '../../commands';
 import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { ContextInfo } from '../../spo';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 class SpoSiteScriptListCommand extends SpoCommand {
   public get name(): string {
@@ -14,11 +14,11 @@ class SpoSiteScriptListCommand extends SpoCommand {
     return 'Lists site script available for use with site designs';
   }
 
-  public commandAction(cmd: CommandInstance, args: {}, cb: () => void): void {
+  public commandAction(logger: Logger, args: {}, cb: () => void): void {
     let spoUrl: string = '';
 
     this
-      .getSpoUrl(cmd, this.debug)
+      .getSpoUrl(logger, this.debug)
       .then((_spoUrl: string): Promise<ContextInfo> => {
         spoUrl = _spoUrl;
         return this.getRequestDigest(spoUrl);
@@ -30,37 +30,22 @@ class SpoSiteScriptListCommand extends SpoCommand {
             'X-RequestDigest': res.FormDigestValue,
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post<{ value: any[] }>(requestOptions);
       })
       .then((res: { value: any[] }): void => {
         if (res.value && res.value.length > 0) {
-          cmd.log(res.value);
+          logger.log(res.value);
         }
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    List all site scripts available for use with site designs
-      ${this.name}
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-`);
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 }
 

@@ -1,18 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./team-set');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./team-set');
 
 describe(commands.TEAMS_TEAM_SET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,24 +22,24 @@ describe(commands.TEAMS_TEAM_SET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.patch
     ]);
   });
@@ -52,27 +53,27 @@ describe(commands.TEAMS_TEAM_SET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TEAMS_TEAM_SET), true);
+    assert.strictEqual(command.name.startsWith(commands.TEAMS_TEAM_SET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('validates for a correct input.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
     done();
   });
 
   it('sets the visibility settings correctly', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/beta/groups/8231f9f2-701f-4c6e-93ce-ecb563e3c1ee` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           visibility: 'Public'
         })) {
         return Promise.resolve({});
@@ -81,11 +82,11 @@ describe(commands.TEAMS_TEAM_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false, teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee', visibility: 'Public' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(typeof err, 'undefined');
+        assert.strictEqual(typeof err, 'undefined');
         done();
       }
       catch (e) {
@@ -97,7 +98,7 @@ describe(commands.TEAMS_TEAM_SET, () => {
   it('sets the mailNickName correctly', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/beta/groups/8231f9f2-701f-4c6e-93ce-ecb563e3c1ee` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           mailNickName: 'NewNickName'
         })) {
         return Promise.resolve({});
@@ -106,11 +107,11 @@ describe(commands.TEAMS_TEAM_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false, teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee', mailNickName: 'NewNickName' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(typeof err, 'undefined');
+        assert.strictEqual(typeof err, 'undefined');
         done();
       }
       catch (e) {
@@ -122,7 +123,7 @@ describe(commands.TEAMS_TEAM_SET, () => {
   it('sets the description settings correctly', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/beta/groups/8231f9f2-701f-4c6e-93ce-ecb563e3c1ee` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           description: 'desc'
         })) {
         return Promise.resolve({});
@@ -130,11 +131,11 @@ describe(commands.TEAMS_TEAM_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: true, teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee', description: 'desc' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -145,7 +146,7 @@ describe(commands.TEAMS_TEAM_SET, () => {
   it('sets the classification settings correctly', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/beta/groups/8231f9f2-701f-4c6e-93ce-ecb563e3c1ee` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           classification: 'MBI'
         })) {
         return Promise.resolve({});
@@ -153,11 +154,11 @@ describe(commands.TEAMS_TEAM_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: true, teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee', classification: 'MBI' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -184,11 +185,11 @@ describe(commands.TEAMS_TEAM_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false, teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee', displayName: 'NewName' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(err.message, 'No team found with Group Id 8231f9f2-701f-4c6e-93ce-ecb563e3c1ee');
+        assert.strictEqual(err.message, 'No team found with Group Id 8231f9f2-701f-4c6e-93ce-ecb563e3c1ee');
         done();
       }
       catch (e) {
@@ -197,33 +198,28 @@ describe(commands.TEAMS_TEAM_SET, () => {
     });
   });
 
-  it('fails validation if the teamId is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the teamId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { teamId: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { teamId: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the teamId is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if visibility is not a valid visibility Private|Public', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee',
         visibility: 'hidden'
       }
     });
-    assert.notEqual(actual, false);
+    assert.notStrictEqual(actual, false);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -231,39 +227,5 @@ describe(commands.TEAMS_TEAM_SET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TEAMS_TEAM_SET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

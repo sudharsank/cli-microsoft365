@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import teamsCommands from '../../../teams/commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./o365group-user-set');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import teamsCommands from '../../../teams/commands';
+import commands from '../../commands';
+const command: Command = require('./o365group-user-set');
 
 describe(commands.O365GROUP_USER_SET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
+  let logger: Logger;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,14 +21,15 @@ describe(commands.O365GROUP_USER_SET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -37,7 +38,6 @@ describe(commands.O365GROUP_USER_SET, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get,
       request.post,
       request.delete
@@ -53,107 +53,86 @@ describe(commands.O365GROUP_USER_SET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.O365GROUP_USER_SET), true);
+    assert.strictEqual(command.name.startsWith(commands.O365GROUP_USER_SET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('defines alias', () => {
     const alias = command.alias();
-    assert.notEqual(typeof alias, 'undefined');
+    assert.notStrictEqual(typeof alias, 'undefined');
   });
 
   it('defines correct alias', () => {
     const alias = command.alias();
-    assert.equal((alias && alias.indexOf(teamsCommands.TEAMS_USER_SET) > -1), true);
+    assert.strictEqual((alias && alias.indexOf(teamsCommands.TEAMS_USER_SET) > -1), true);
   });
 
   it('fails validation if the groupId is not a valid guid.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         groupId: 'not-c49b-4fd4-8223-28f0ac3a6402'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('fails validation if the teamId is not a valid guid.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: 'not-c49b-4fd4-8223-28f0ac3a6402'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
-  it('fails validation if the groupId is not provided.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+  it('fails validation if neither the groupId nor the teamId are provided.', (done) => {
+    const actual = command.validate({
       options: {
-        role: 'Member'
+        role: 'Member',
+        userName: 'anne.matthews@contoso.onmicrosoft.com',
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('fails validation when both groupId and teamId are specified', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         groupId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
         teamId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
       }
     });
-    assert.notEqual(actual, true);
-    done();
-  });
-
-  it('fails validation when no user is specified', (done) => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        groupId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
-        role: 'Member'
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('fails validation when invalid role is specified', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         groupId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
         userName: 'anne.matthews@contoso.onmicrosoft.com',
         role: 'Invalid',
       }
     });
-    assert.notEqual(actual, true);
-    done();
-  });
-
-  it('fails validation when no role is specified', (done) => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        groupId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
-        userName: 'anne.matthews@contoso.onmicrosoft.com'
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('passes validation when valid teamId, userName and role specified', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         groupId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
         userName: 'anne.matthews@contoso.onmicrosoft.com',
         role: 'Member'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
     done();
   });
 
@@ -173,9 +152,9 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, groupId: "00000000-0000-0000-0000-000000000000", userName: 'notpresent.karl.matteson@contoso.onmicrosoft.com', role: 'Member' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, groupId: "00000000-0000-0000-0000-000000000000", userName: 'notpresent.karl.matteson@contoso.onmicrosoft.com', role: 'Member' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("The specified user does not belong to the given Microsoft 365 Group. Please use the 'o365group user add' command to add new users.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("The specified user does not belong to the given Microsoft 365 Group. Please use the 'o365group user add' command to add new users.")));
         done();
       }
       catch (e) {
@@ -200,9 +179,9 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, teamId: "00000000-0000-0000-0000-000000000000", userName: 'notpresent.karl.matteson@contoso.onmicrosoft.com', role: 'Member' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, teamId: "00000000-0000-0000-0000-000000000000", userName: 'notpresent.karl.matteson@contoso.onmicrosoft.com', role: 'Member' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("The specified user does not belong to the given Microsoft Teams team. Please use the 'graph teams user add' command to add new users.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("The specified user does not belong to the given Microsoft Teams team. Please use the 'graph teams user add' command to add new users.")));
         done();
       }
       catch (e) {
@@ -227,9 +206,9 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, groupId: "00000000-0000-0000-0000-000000000000", userName: 'karl.matteson@contoso.onmicrosoft.com', role: 'Member' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, groupId: "00000000-0000-0000-0000-000000000000", userName: 'karl.matteson@contoso.onmicrosoft.com', role: 'Member' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('The specified user is already a member in the specified Microsoft 365 group, and thus cannot be demoted.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('The specified user is already a member in the specified Microsoft 365 group, and thus cannot be demoted.')));
         done();
       }
       catch (e) {
@@ -254,9 +233,9 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, teamId: "00000000-0000-0000-0000-000000000000", userName: 'karl.matteson@contoso.onmicrosoft.com', role: 'Member' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, teamId: "00000000-0000-0000-0000-000000000000", userName: 'karl.matteson@contoso.onmicrosoft.com', role: 'Member' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('The specified user is already a member in the specified Microsoft Teams team, and thus cannot be demoted.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('The specified user is already a member in the specified Microsoft Teams team, and thus cannot be demoted.')));
         done();
       }
       catch (e) {
@@ -281,9 +260,9 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, groupId: "00000000-0000-0000-0000-000000000000", userName: 'anne.matthews@contoso.onmicrosoft.com', role: 'Owner' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, groupId: "00000000-0000-0000-0000-000000000000", userName: 'anne.matthews@contoso.onmicrosoft.com', role: 'Owner' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('The specified user is already an owner in the specified Microsoft 365 group, and thus cannot be promoted.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('The specified user is already an owner in the specified Microsoft 365 group, and thus cannot be promoted.')));
         done();
       }
       catch (e) {
@@ -308,9 +287,9 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, teamId: "00000000-0000-0000-0000-000000000000", userName: 'anne.matthews@contoso.onmicrosoft.com', role: 'Owner' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, teamId: "00000000-0000-0000-0000-000000000000", userName: 'anne.matthews@contoso.onmicrosoft.com', role: 'Owner' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('The specified user is already an owner in the specified Microsoft Teams team, and thus cannot be promoted.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('The specified user is already an owner in the specified Microsoft Teams team, and thus cannot be promoted.')));
         done();
       }
       catch (e) {
@@ -339,7 +318,7 @@ describe(commands.O365GROUP_USER_SET, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/groups/00000000-0000-0000-0000-000000000000/owners/$ref` &&
-        JSON.stringify(opts.body) === `{"@odata.id":"https://graph.microsoft.com/v1.0/directoryObjects/00000000-0000-0000-0000-000000000001"}`) {
+        JSON.stringify(opts.data) === `{"@odata.id":"https://graph.microsoft.com/v1.0/directoryObjects/00000000-0000-0000-0000-000000000001"}`) {
         promoteMemberIssued = true;
         return Promise.resolve();
       }
@@ -347,7 +326,7 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, groupId: "00000000-0000-0000-0000-000000000000", userName: 'karl.matteson@contoso.onmicrosoft.com', role: 'Owner' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, groupId: "00000000-0000-0000-0000-000000000000", userName: 'karl.matteson@contoso.onmicrosoft.com', role: 'Owner' } } as any, (err?: any) => {
       try {
         assert(promoteMemberIssued);
         done();
@@ -379,7 +358,7 @@ describe(commands.O365GROUP_USER_SET, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/groups/00000000-0000-0000-0000-000000000000/owners/$ref` &&
-        JSON.stringify(opts.body) === `{"@odata.id":"https://graph.microsoft.com/v1.0/directoryObjects/00000000-0000-0000-0000-000000000001"}`) {
+        JSON.stringify(opts.data) === `{"@odata.id":"https://graph.microsoft.com/v1.0/directoryObjects/00000000-0000-0000-0000-000000000001"}`) {
         promoteMemberIssued = true;
         return Promise.resolve();
       }
@@ -387,7 +366,7 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, teamId: "00000000-0000-0000-0000-000000000000", userName: 'karl.matteson@contoso.onmicrosoft.com', role: 'Owner' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, teamId: "00000000-0000-0000-0000-000000000000", userName: 'karl.matteson@contoso.onmicrosoft.com', role: 'Owner' } } as any, (err?: any) => {
       try {
         assert(promoteMemberIssued);
         done();
@@ -426,7 +405,7 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, groupId: "00000000-0000-0000-0000-000000000000", userName: 'anne.matthews@contoso.onmicrosoft.com', role: 'Member' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, groupId: "00000000-0000-0000-0000-000000000000", userName: 'anne.matthews@contoso.onmicrosoft.com', role: 'Member' } } as any, (err?: any) => {
       try {
         assert(demoteOwnerIssued);
         done();
@@ -464,7 +443,7 @@ describe(commands.O365GROUP_USER_SET, () => {
       return Promise.reject('Invalid request');      
     });
 
-    cmdInstance.action({ options: { debug: true, groupId: "00000000-0000-0000-0000-000000000000", userName: 'anne.matthews@contoso.onmicrosoft.com', role: 'Member' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, groupId: "00000000-0000-0000-0000-000000000000", userName: 'anne.matthews@contoso.onmicrosoft.com', role: 'Member' } } as any, (err?: any) => {
       try {
         assert(demoteOwnerIssued);
         done();
@@ -476,7 +455,7 @@ describe(commands.O365GROUP_USER_SET, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -484,39 +463,5 @@ describe(commands.O365GROUP_USER_SET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.O365GROUP_USER_SET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

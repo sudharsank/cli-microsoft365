@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./groupsetting-set');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./groupsetting-set');
 
 describe(commands.GROUPSETTING_SET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,24 +21,24 @@ describe(commands.GROUPSETTING_SET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get,
       request.patch
     ]);
@@ -53,11 +53,11 @@ describe(commands.GROUPSETTING_SET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.GROUPSETTING_SET), true);
+    assert.strictEqual(command.name.startsWith(commands.GROUPSETTING_SET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('updates group setting', (done) => {
@@ -72,7 +72,7 @@ describe(commands.GROUPSETTING_SET, () => {
     });
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/groupSettings/c391b57d-5783-4c53-9236-cefb5c6ef323` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           displayName: null,
           templateId: '62375ab9-6b52-47ed-826b-58e47e0e304b',
           values: [
@@ -136,8 +136,7 @@ describe(commands.GROUPSETTING_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         id: 'c391b57d-5783-4c53-9236-cefb5c6ef323',
@@ -147,7 +146,7 @@ describe(commands.GROUPSETTING_SET, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -169,7 +168,7 @@ describe(commands.GROUPSETTING_SET, () => {
     });
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/groupSettings/c391b57d-5783-4c53-9236-cefb5c6ef323` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           displayName: null,
           templateId: '62375ab9-6b52-47ed-826b-58e47e0e304b',
           values: [
@@ -239,8 +238,7 @@ describe(commands.GROUPSETTING_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         id: 'c391b57d-5783-4c53-9236-cefb5c6ef323',
@@ -259,7 +257,7 @@ describe(commands.GROUPSETTING_SET, () => {
     });
   });
 
-  it('ignores global options when creating request body', (done) => {
+  it('ignores global options when creating request data', (done) => {
     sinon.stub(request, 'get').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/groupSettings/c391b57d-5783-4c53-9236-cefb5c6ef323`) {
         return Promise.resolve({
@@ -271,7 +269,7 @@ describe(commands.GROUPSETTING_SET, () => {
     });
     const patchStub = sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/groupSettings/c391b57d-5783-4c53-9236-cefb5c6ef323` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           displayName: null,
           templateId: '62375ab9-6b52-47ed-826b-58e47e0e304b',
           values: [
@@ -340,8 +338,7 @@ describe(commands.GROUPSETTING_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         verbose: true,
@@ -353,7 +350,7 @@ describe(commands.GROUPSETTING_SET, () => {
       }
     }, () => {
       try {
-        assert.deepEqual(patchStub.firstCall.args[0].body, {
+        assert.deepEqual(patchStub.firstCall.args[0].data, {
           displayName: null,
           templateId: '62375ab9-6b52-47ed-826b-58e47e0e304b',
           values: [
@@ -399,10 +396,9 @@ describe(commands.GROUPSETTING_SET, () => {
       });
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false, id: '62375ab9-6b52-47ed-826b-58e47e0e304c' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: '62375ab9-6b52-47ed-826b-58e47e0e304c' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Resource '62375ab9-6b52-47ed-826b-58e47e0e304c' does not exist or one of its queried reference-property objects are not present.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Resource '62375ab9-6b52-47ed-826b-58e47e0e304c' does not exist or one of its queried reference-property objects are not present.`)));
         done();
       }
       catch (e) {
@@ -411,28 +407,23 @@ describe(commands.GROUPSETTING_SET, () => {
     });
   });
 
-  it('fails validation if the id not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the id is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the id is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '68be84bf-a585-4776-80b3-30aa5207aa22' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '68be84bf-a585-4776-80b3-30aa5207aa22' } });
+    assert.strictEqual(actual, true);
   });
 
   it('allows unknown properties', () => {
     const allowUnknownOptions = command.allowUnknownOptions();
-    assert.equal(allowUnknownOptions, true);
+    assert.strictEqual(allowUnknownOptions, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -440,39 +431,5 @@ describe(commands.GROUPSETTING_SET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.GROUPSETTING_SET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

@@ -1,45 +1,44 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./sitedesign-list');
-import * as assert from 'assert';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import auth from '../../../../Auth';
+import commands from '../../commands';
+const command: Command = require('./sitedesign-list');
 
 describe(commands.SITEDESIGN_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
     sinon.stub(appInsights, 'trackEvent').callsFake(() => {});
-    sinon.stub(command as any, 'getRequestDigest').callsFake(() => Promise.resolve({ FormDigestValue: 'ABC' }));
     auth.service.connected = true;
     auth.service.spoUrl = 'https://contoso.sharepoint.com';
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
+    logger = {
+      log: (msg: string) => {
+        log.push(msg);
       },
-      action: command.action(),
-      log: (msg: any) => {
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -47,7 +46,6 @@ describe(commands.SITEDESIGN_LIST, () => {
   after(() => {
     Utils.restore([
       auth.restoreAuth,
-      (command as any).getRequestDigest,
       appInsights.trackEvent
     ]);
     auth.service.connected = false;
@@ -55,11 +53,15 @@ describe(commands.SITEDESIGN_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SITEDESIGN_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.SITEDESIGN_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['Id', 'IsDefault', 'Title', 'Version', 'WebTemplate']);
   });
 
   it('lists available site designs', (done) => {
@@ -100,22 +102,34 @@ describe(commands.SITEDESIGN_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false } }, () => {
+    command.action(logger, { options: { debug: false } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            "Id": "9b142c22-037f-4a7f-9017-e9d8c0e34b98",
+            "Description": null,
             "IsDefault": false,
+            "PreviewImageAltText": null,
+            "PreviewImageUrl": null,
+            "SiteScriptIds": [
+              "449c0c6d-5380-4df2-b84b-622e0ac8ec25"
+            ],
             "Title": "Contoso REST",
-            "Version": 1,
-            "WebTemplate": "64"
+            "WebTemplate": "64",
+            "Id": "9b142c22-037f-4a7f-9017-e9d8c0e34b98",
+            "Version": 1
           },
           {
-            "Id": "2a9f178a-4d1d-449c-9296-df509ab4702c",
+            "Description": null,
             "IsDefault": false,
+            "PreviewImageAltText": null,
+            "PreviewImageUrl": null,
+            "SiteScriptIds": [
+              "449c0c6d-5380-4df2-b84b-622e0ac8ec24"
+            ],
             "Title": "REST test",
-            "Version": 1,
-            "WebTemplate": "64"
+            "WebTemplate": "64",
+            "Id": "2a9f178a-4d1d-449c-9296-df509ab4702c",
+            "Version": 1
           }
         ]));
         done();
@@ -164,22 +178,34 @@ describe(commands.SITEDESIGN_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true } }, () => {
+    command.action(logger, { options: { debug: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            "Id": "9b142c22-037f-4a7f-9017-e9d8c0e34b98",
+            "Description": null,
             "IsDefault": false,
+            "PreviewImageAltText": null,
+            "PreviewImageUrl": null,
+            "SiteScriptIds": [
+              "449c0c6d-5380-4df2-b84b-622e0ac8ec25"
+            ],
             "Title": "Contoso REST",
-            "Version": 1,
-            "WebTemplate": "64"
+            "WebTemplate": "64",
+            "Id": "9b142c22-037f-4a7f-9017-e9d8c0e34b98",
+            "Version": 1
           },
           {
-            "Id": "2a9f178a-4d1d-449c-9296-df509ab4702c",
+            "Description": null,
             "IsDefault": false,
+            "PreviewImageAltText": null,
+            "PreviewImageUrl": null,
+            "SiteScriptIds": [
+              "449c0c6d-5380-4df2-b84b-622e0ac8ec24"
+            ],
             "Title": "REST test",
-            "Version": 1,
-            "WebTemplate": "64"
+            "WebTemplate": "64",
+            "Id": "2a9f178a-4d1d-449c-9296-df509ab4702c",
+            "Version": 1
           }
         ]));
         done();
@@ -228,9 +254,9 @@ describe(commands.SITEDESIGN_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, output: 'json' } }, () => {
+    command.action(logger, { options: { debug: false, output: 'json' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             "Description": null,
             "IsDefault": false,
@@ -271,9 +297,9 @@ describe(commands.SITEDESIGN_LIST, () => {
       return Promise.reject({ error: { 'odata.error': { message: { value: 'An error has occurred' } } } });
     });
 
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -283,7 +309,7 @@ describe(commands.SITEDESIGN_LIST, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -291,39 +317,5 @@ describe(commands.SITEDESIGN_LIST, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SITEDESIGN_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

@@ -1,18 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./file-move');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./file-move');
 
 describe(commands.FILE_MOVE, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   let stubAllPostRequests: any = (
     recycleFile: any = null,
@@ -63,31 +64,36 @@ describe(commands.FILE_MOVE, () => {
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
-    sinon.stub(appInsights, 'trackEvent').callsFake(() => {});
+    sinon.stub(appInsights, 'trackEvent').callsFake(() => { });
     sinon.stub((command as any), 'getRequestDigest').callsFake(() => Promise.resolve({
       FormDigestValue: 'abc'
     }));
+    sinon.stub(global as NodeJS.Global, 'setTimeout').callsFake((fn, to) => {
+      fn();
+      return {} as any;
+    });
     auth.service.connected = true;
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       request.get
     ]);
@@ -96,24 +102,25 @@ describe(commands.FILE_MOVE, () => {
   after(() => {
     Utils.restore([
       auth.restoreAuth,
-      appInsights.trackEvent
+      appInsights.trackEvent,
+      global.setTimeout
     ]);
     auth.service.connected = false;
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FILE_MOVE), true);
+    assert.strictEqual(command.name.startsWith(commands.FILE_MOVE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('should command complete successfully (verbose)', (done) => {
     stubAllPostRequests();
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -122,7 +129,7 @@ describe(commands.FILE_MOVE, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.lastCall.args[0] === 'DONE');
+        assert(loggerLogToStderrSpy.lastCall.args[0] === 'DONE');
         done();
       }
       catch (e) {
@@ -135,7 +142,7 @@ describe(commands.FILE_MOVE, () => {
     stubAllPostRequests();
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         sourceUrl: 'abc/abc.pdf',
@@ -143,7 +150,51 @@ describe(commands.FILE_MOVE, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.callCount === 0);
+        assert(loggerLogSpy.callCount === 0);
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+    });
+  });
+
+  it('should complete successfully in 4 tries. ', (done) => {
+    var counter = 4;
+    sinon.stub(request, 'post').callsFake((opts) => {
+      if ((opts.url as string).indexOf('/recycle()') > -1) {
+        return Promise.resolve();
+      }
+
+      if ((opts.url as string).indexOf('/_api/site/CreateCopyJobs') > -1) {
+        return Promise.resolve({ value: [{ "EncryptionKey": "6G35dpTMegtzqT3rsZ/av6agpsqx/SUyaAHBs9fJE6A=", "JobId": "cee65dc5-8d05-41cc-8657-92a12d213f76", "JobQueueUri": "https://spobn1sn1m001pr.queue.core.windows.net:443/1246pq20180429-5305d83990eb483bb93e7356252715b4?sv=2014-02-14&sig=JUwFF1B0KVC2h0o5qieHPUG%2BQE%2BEhJHNpbzFf8QmCGc%3D&st=2018-04-28T07%3A00%3A00Z&se=2018-05-20T07%3A00%3A00Z&sp=rap" }] });
+      }
+
+      if ((opts.url as string).indexOf('/_api/site/GetCopyJobProgress') > -1) {
+        // substract jobstate untill we hit jobstate = 0 (success)
+        counter = (counter - 1);
+
+        return Promise.resolve({
+          JobState: counter,
+          Logs: ["{\r\n  \"Event\": \"JobEnd\",\r\n  \"JobId\": \"cee65dc5-8d05-41cc-8657-92a12d213f76\",\r\n  \"Time\": \"04/29/2018 22:00:08.370\",\r\n  \"FilesCreated\": \"1\",\r\n  \"BytesProcessed\": \"4860914\",\r\n  \"ObjectsProcessed\": \"2\",\r\n  \"TotalExpectedSPObjects\": \"2\",\r\n  \"TotalErrors\": \"0\",\r\n  \"TotalWarnings\": \"0\",\r\n  \"TotalRetryCount\": \"0\",\r\n  \"MigrationType\": \"Move\",\r\n  \"MigrationDirection\": \"Import\",\r\n  \"CreatedOrUpdatedFileStatsBySize\": \"{\\\"1-10M\\\":{\\\"Count\\\":1,\\\"TotalSize\\\":4860914,\\\"TotalDownloadTime\\\":24,\\\"TotalCreationTime\\\":2824}}\",\r\n  \"ObjectsStatsByType\": \"{\\\"SPUser\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":0,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPFile\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":3184,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPListItem\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":360,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0}}\",\r\n  \"TotalExpectedBytes\": \"4860914\",\r\n  \"CorrelationId\": \"8559629e-0036-5000-c38d-80b698e0cd79\"\r\n}"]
+        });
+      }
+
+      return Promise.reject('Invalid request');
+    });
+
+    stubAllGetRequests();
+
+    command.action(logger, {
+      options: {
+        verbose: true,
+        webUrl: 'https://contoso.sharepoint.com',
+        sourceUrl: 'abc/abc.pdf',
+        targetUrl: 'abc'
+      }
+    }, () => {
+      try {
+        assert(loggerLogToStderrSpy.lastCall.args[0] === 'DONE');
         done();
       }
       catch (e) {
@@ -159,16 +210,16 @@ describe(commands.FILE_MOVE, () => {
     });
     stubAllGetRequests(rejectFileExists);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
         sourceUrl: 'abc/abc.pdf',
         targetUrl: 'abc'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('File not found.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('File not found.')));
         done();
       }
       catch (e) {
@@ -181,7 +232,7 @@ describe(commands.FILE_MOVE, () => {
     stubAllPostRequests();
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -189,9 +240,9 @@ describe(commands.FILE_MOVE, () => {
         targetUrl: 'abc',
         deleteIfAlreadyExists: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert(cmdInstanceLogSpy.lastCall.calledWith('DONE'));
+        assert(loggerLogToStderrSpy.lastCall.calledWith('DONE'));
         done();
       }
       catch (e) {
@@ -207,7 +258,7 @@ describe(commands.FILE_MOVE, () => {
     stubAllPostRequests(recycleFile404);
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -217,7 +268,7 @@ describe(commands.FILE_MOVE, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.lastCall.calledWith('DONE'));
+        assert(loggerLogToStderrSpy.lastCall.calledWith('DONE'));
         done();
       }
       catch (e) {
@@ -233,16 +284,16 @@ describe(commands.FILE_MOVE, () => {
     stubAllPostRequests(recycleFile);
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         sourceUrl: 'abc/abc.pdf',
         targetUrl: 'abc',
         deleteIfAlreadyExists: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
         done();
       }
       catch (e) {
@@ -258,7 +309,7 @@ describe(commands.FILE_MOVE, () => {
     stubAllPostRequests(recycleFile);
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -266,9 +317,9 @@ describe(commands.FILE_MOVE, () => {
         targetUrl: '/abc/',
         deleteIfAlreadyExists: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
         done();
       }
       catch (e) {
@@ -283,7 +334,7 @@ describe(commands.FILE_MOVE, () => {
     Utils.restore((command as any).getRequestDigest);
     sinon.stub((command as any), 'getRequestDigest').callsFake(() => Promise.reject('error'));
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -291,9 +342,9 @@ describe(commands.FILE_MOVE, () => {
         targetUrl: 'abc',
         deleteIfAlreadyExists: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('error')));
         done();
       }
       catch (e) {
@@ -316,7 +367,7 @@ describe(commands.FILE_MOVE, () => {
     stubAllPostRequests(null, null, waitForJobResult);
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -324,9 +375,9 @@ describe(commands.FILE_MOVE, () => {
         targetUrl: 'abc',
         deleteIfAlreadyExists: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('error1')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('error1')));
         done();
       }
       catch (e) {
@@ -343,7 +394,7 @@ describe(commands.FILE_MOVE, () => {
     stubAllPostRequests(null, null, waitForJobResult);
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -351,9 +402,9 @@ describe(commands.FILE_MOVE, () => {
         targetUrl: 'abc',
         deleteIfAlreadyExists: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('error2')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('error2')));
         done();
       }
       catch (e) {
@@ -362,173 +413,6 @@ describe(commands.FILE_MOVE, () => {
     });
   });
 
-  it('should setTimeout when waitForJobResult JobState is not 0', (done) => {
-    const postRequests = sinon.stub(request, 'post');
-    postRequests.onFirstCall().resolves({
-      JobState: 4,
-      Logs: ["{\r\n  \"Event\": \"JobEnd\",\r\n  \"JobId\": \"7be2c14c-b998-4b30-9b43-c2be0f95d8b9\",\r\n  \"Time\": \"04/29/2018 23:39:29.945\",\r\n  \"FilesCreated\": \"1\",\r\n  \"BytesProcessed\": \"4860914\",\r\n  \"ObjectsProcessed\": \"2\",\r\n  \"TotalExpectedSPObjects\": \"2\",\r\n  \"TotalErrors\": \"0\",\r\n  \"TotalWarnings\": \"0\",\r\n  \"TotalRetryCount\": \"0\",\r\n  \"MigrationType\": \"Move\",\r\n  \"MigrationDirection\": \"Export\",\r\n  \"CreatedOrUpdatedFileStatsBySize\": \"{}\",\r\n  \"ObjectsStatsByType\": \"{}\",\r\n  \"TotalExpectedBytes\": \"4860914\",\r\n  \"CorrelationId\": \"355f629e-707d-5000-634c-4c5cdd1e62d2\"\r\n}", "{\r\n  \"Event\": \"JobLogFileCreate\",\r\n  \"JobId\": \"7be2c14c-b998-4b30-9b43-c2be0f95d8b9\",\r\n  \"Time\": \"04/29/2018 23:39:30.539\",\r\n  \"FileName\": \"Import-7be2c14c-b998-4b30-9b43-c2be0f95d8b9-0.log\",\r\n  \"CorrelationId\": \"355f629e-707d-5000-634c-4c5cdd1e62d2\"\r\n}", "{\r\n  \"Event\": \"JobStart\",\r\n  \"JobId\": \"7be2c14c-b998-4b30-9b43-c2be0f95d8b9\",\r\n  \"Time\": \"04/29/2018 23:39:30.570\",\r\n  \"SiteId\": \"956c8970-f858-42ac-a06f-bbdca4a0374b\",\r\n  \"WebId\": \"d6d96969-217f-4306-b15b-fe35b6b754cc\",\r\n  \"DBId\": \"eb30ff26-a12c-431e-bb10-68fdac21ce28\",\r\n  \"FarmId\": \"67b76b49-9245-4dfc-a1f7-b4503cf6ea69\",\r\n  \"ServerId\": \"2a00b725-2871-4e42-98fd-e41c577ed494\",\r\n  \"SubscriptionId\": \"ea1787c6-7ce2-4e71-be47-5e0deb30f9e4\",\r\n  \"TotalRetryCount\": \"0\",\r\n  \"MigrationType\": \"Copy\",\r\n  \"MigrationDirection\": \"Import\",\r\n  \"CorrelationId\": \"355f629e-707d-5000-634c-4c5cdd1e62d2\"\r\n}"]
-    });
-
-    postRequests.onSecondCall().resolves({
-      JobState: 0,
-      Logs: ["{\r\n  \"Event\": \"JobEnd\",\r\n  \"JobId\": \"cee65dc5-8d05-41cc-8657-92a12d213f76\",\r\n  \"Time\": \"04/29/2018 22:00:08.370\",\r\n  \"FilesCreated\": \"1\",\r\n  \"BytesProcessed\": \"4860914\",\r\n  \"ObjectsProcessed\": \"2\",\r\n  \"TotalExpectedSPObjects\": \"2\",\r\n  \"TotalErrors\": \"0\",\r\n  \"TotalWarnings\": \"0\",\r\n  \"TotalRetryCount\": \"0\",\r\n  \"MigrationType\": \"Move\",\r\n  \"MigrationDirection\": \"Import\",\r\n  \"CreatedOrUpdatedFileStatsBySize\": \"{\\\"1-10M\\\":{\\\"Count\\\":1,\\\"TotalSize\\\":4860914,\\\"TotalDownloadTime\\\":24,\\\"TotalCreationTime\\\":2824}}\",\r\n  \"ObjectsStatsByType\": \"{\\\"SPUser\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":0,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPFile\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":3184,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPListItem\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":360,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0}}\",\r\n  \"TotalExpectedBytes\": \"4860914\",\r\n  \"CorrelationId\": \"8559629e-0036-5000-c38d-80b698e0cd79\"\r\n}"]
-    });
-
-    const jobProgressOptions: any = {
-      webUrl: 'https://contoso.sharepoint.com',
-      accessToken: 'abc',
-      copyJopInfo: 'abc',
-      progressMaxPollAttempts: 2,
-      progressPollInterval: 0,
-      progressRetryAttempts: 5
-    }
-    const log: any = [];
-    const cmdInstance = {
-      log: (msg: string) => {
-        log.push(msg);
-      }
-    };
-
-    try {
-      (command as any).waitForJobResult(jobProgressOptions, cmdInstance).then((resp: any) => {
-        assert(resp === undefined);
-        postRequests.restore();
-        done();
-      }, (e: any) => {
-        assert.fail('waitForJobResult couldn\'t resolve.');
-        postRequests.restore();
-        done();
-      });
-    }
-    catch (e) {
-      done(e);
-    }
-  });
-
-  it('should setTimeout when waitForJobResult reject, but retry limit not reached', (done) => {
-    const postRequests = sinon.stub(request, 'post');
-    // GetCopyJobProgress reject
-    postRequests.onFirstCall().rejects('error');
-    // GetCopyJobProgress #2 JobState = 0
-    postRequests.onSecondCall().resolves({
-      JobState: 0,
-      Logs: ["{\r\n  \"Event\": \"JobEnd\",\r\n  \"JobId\": \"cee65dc5-8d05-41cc-8657-92a12d213f76\",\r\n  \"Time\": \"04/29/2018 22:00:08.370\",\r\n  \"FilesCreated\": \"1\",\r\n  \"BytesProcessed\": \"4860914\",\r\n  \"ObjectsProcessed\": \"2\",\r\n  \"TotalExpectedSPObjects\": \"2\",\r\n  \"TotalErrors\": \"0\",\r\n  \"TotalWarnings\": \"0\",\r\n  \"TotalRetryCount\": \"0\",\r\n  \"MigrationType\": \"Move\",\r\n  \"MigrationDirection\": \"Import\",\r\n  \"CreatedOrUpdatedFileStatsBySize\": \"{\\\"1-10M\\\":{\\\"Count\\\":1,\\\"TotalSize\\\":4860914,\\\"TotalDownloadTime\\\":24,\\\"TotalCreationTime\\\":2824}}\",\r\n  \"ObjectsStatsByType\": \"{\\\"SPUser\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":0,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPFile\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":3184,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPListItem\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":360,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0}}\",\r\n  \"TotalExpectedBytes\": \"4860914\",\r\n  \"CorrelationId\": \"8559629e-0036-5000-c38d-80b698e0cd79\"\r\n}"]
-    });
-
-    const jobProgressOptions: any = {
-      webUrl: 'https://contoso.sharepoint.com',
-      accessToken: 'abc',
-      copyJopInfo: 'abc',
-      progressMaxPollAttempts: 2,
-      progressPollInterval: 0,
-      progressRetryAttempts: 1
-    }
-    const log: any = [];
-    const cmdInstance = {
-      log: (msg: string) => {
-        log.push(msg);
-      }
-    };
-
-    try {
-      (command as any).waitForJobResult(jobProgressOptions, cmdInstance).then((resp: any) => {
-        assert(resp === undefined);
-        postRequests.restore();
-        done();
-      }, (e: any) => {
-        assert.fail('waitForJobResult couldn\'t resolve.');
-        postRequests.restore();
-        done();
-      });
-    }
-    catch (e) {
-      done(e);
-    }
-  });
-
-  it('should show error when waitForJobResult reject and retry limit reached', (done) => {
-    const postRequests = sinon.stub(request, 'post');
-    postRequests.onFirstCall().rejects('error');
-    postRequests.onSecondCall().rejects('error');
-    postRequests.onThirdCall().resolves({
-      JobState: 0,
-      Logs: ["{\r\n  \"Event\": \"JobEnd\",\r\n  \"JobId\": \"cee65dc5-8d05-41cc-8657-92a12d213f76\",\r\n  \"Time\": \"04/29/2018 22:00:08.370\",\r\n  \"FilesCreated\": \"1\",\r\n  \"BytesProcessed\": \"4860914\",\r\n  \"ObjectsProcessed\": \"2\",\r\n  \"TotalExpectedSPObjects\": \"2\",\r\n  \"TotalErrors\": \"0\",\r\n  \"TotalWarnings\": \"0\",\r\n  \"TotalRetryCount\": \"0\",\r\n  \"MigrationType\": \"Move\",\r\n  \"MigrationDirection\": \"Import\",\r\n  \"CreatedOrUpdatedFileStatsBySize\": \"{\\\"1-10M\\\":{\\\"Count\\\":1,\\\"TotalSize\\\":4860914,\\\"TotalDownloadTime\\\":24,\\\"TotalCreationTime\\\":2824}}\",\r\n  \"ObjectsStatsByType\": \"{\\\"SPUser\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":0,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPFile\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":3184,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPListItem\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":360,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0}}\",\r\n  \"TotalExpectedBytes\": \"4860914\",\r\n  \"CorrelationId\": \"8559629e-0036-5000-c38d-80b698e0cd79\"\r\n}"]
-    });
-
-    const jobProgressOptions: any = {
-      webUrl: 'https://contoso.sharepoint.com',
-      accessToken: 'abc',
-      copyJopInfo: 'abc',
-      progressMaxPollAttempts: 2,
-      progressPollInterval: 0,
-      progressRetryAttempts: 1
-    }
-    const log: any = [];
-    const cmdInstance = {
-      log: (msg: string) => {
-        log.push(msg);
-      }
-    };
-
-    try {
-      (command as any).waitForJobResult(jobProgressOptions, cmdInstance).then((resp: any) => {
-        assert.fail('waitForJobResult shouldn\'t resolve, but reject.');
-        postRequests.restore();
-        done();
-      }, (e: any) => {
-        assert(e !== undefined);
-        postRequests.restore();
-        done();
-      });
-    }
-    catch (e) {
-      done(e);
-    }
-  });
-
-  it('should waitForJobResult timeout', (done) => {
-    const postRequests = sinon.stub(request, 'post');
-    // GetCopyJobProgress #1 JobState = 4
-    postRequests.onFirstCall().resolves({
-      JobState: 4,
-      Logs: ["{\r\n  \"Event\": \"JobEnd\",\r\n  \"JobId\": \"7be2c14c-b998-4b30-9b43-c2be0f95d8b9\",\r\n  \"Time\": \"04/29/2018 23:39:29.945\",\r\n  \"FilesCreated\": \"1\",\r\n  \"BytesProcessed\": \"4860914\",\r\n  \"ObjectsProcessed\": \"2\",\r\n  \"TotalExpectedSPObjects\": \"2\",\r\n  \"TotalErrors\": \"0\",\r\n  \"TotalWarnings\": \"0\",\r\n  \"TotalRetryCount\": \"0\",\r\n  \"MigrationType\": \"Move\",\r\n  \"MigrationDirection\": \"Export\",\r\n  \"CreatedOrUpdatedFileStatsBySize\": \"{}\",\r\n  \"ObjectsStatsByType\": \"{}\",\r\n  \"TotalExpectedBytes\": \"4860914\",\r\n  \"CorrelationId\": \"355f629e-707d-5000-634c-4c5cdd1e62d2\"\r\n}", "{\r\n  \"Event\": \"JobLogFileCreate\",\r\n  \"JobId\": \"7be2c14c-b998-4b30-9b43-c2be0f95d8b9\",\r\n  \"Time\": \"04/29/2018 23:39:30.539\",\r\n  \"FileName\": \"Import-7be2c14c-b998-4b30-9b43-c2be0f95d8b9-0.log\",\r\n  \"CorrelationId\": \"355f629e-707d-5000-634c-4c5cdd1e62d2\"\r\n}", "{\r\n  \"Event\": \"JobStart\",\r\n  \"JobId\": \"7be2c14c-b998-4b30-9b43-c2be0f95d8b9\",\r\n  \"Time\": \"04/29/2018 23:39:30.570\",\r\n  \"SiteId\": \"956c8970-f858-42ac-a06f-bbdca4a0374b\",\r\n  \"WebId\": \"d6d96969-217f-4306-b15b-fe35b6b754cc\",\r\n  \"DBId\": \"eb30ff26-a12c-431e-bb10-68fdac21ce28\",\r\n  \"FarmId\": \"67b76b49-9245-4dfc-a1f7-b4503cf6ea69\",\r\n  \"ServerId\": \"2a00b725-2871-4e42-98fd-e41c577ed494\",\r\n  \"SubscriptionId\": \"ea1787c6-7ce2-4e71-be47-5e0deb30f9e4\",\r\n  \"TotalRetryCount\": \"0\",\r\n  \"MigrationType\": \"Copy\",\r\n  \"MigrationDirection\": \"Import\",\r\n  \"CorrelationId\": \"355f629e-707d-5000-634c-4c5cdd1e62d2\"\r\n}"]
-    });
-    // GetCopyJobProgress #2 JobState = 0
-    postRequests.onSecondCall().resolves({
-      JobState: 4,
-      Logs: ["{\r\n  \"Event\": \"JobEnd\",\r\n  \"JobId\": \"cee65dc5-8d05-41cc-8657-92a12d213f76\",\r\n  \"Time\": \"04/29/2018 22:00:08.370\",\r\n  \"FilesCreated\": \"1\",\r\n  \"BytesProcessed\": \"4860914\",\r\n  \"ObjectsProcessed\": \"2\",\r\n  \"TotalExpectedSPObjects\": \"2\",\r\n  \"TotalErrors\": \"0\",\r\n  \"TotalWarnings\": \"0\",\r\n  \"TotalRetryCount\": \"0\",\r\n  \"MigrationType\": \"Move\",\r\n  \"MigrationDirection\": \"Import\",\r\n  \"CreatedOrUpdatedFileStatsBySize\": \"{\\\"1-10M\\\":{\\\"Count\\\":1,\\\"TotalSize\\\":4860914,\\\"TotalDownloadTime\\\":24,\\\"TotalCreationTime\\\":2824}}\",\r\n  \"ObjectsStatsByType\": \"{\\\"SPUser\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":0,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPFile\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":3184,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0},\\\"SPListItem\\\":{\\\"Count\\\":1,\\\"TotalTime\\\":360,\\\"AccumulatedVersions\\\":0,\\\"ObjectsWithVersions\\\":0}}\",\r\n  \"TotalExpectedBytes\": \"4860914\",\r\n  \"CorrelationId\": \"8559629e-0036-5000-c38d-80b698e0cd79\"\r\n}"]
-    });
-
-    const jobProgressOptions: any = {
-      webUrl: 'https://contoso.sharepoint.com',
-      accessToken: 'abc',
-      copyJopInfo: 'abc',
-      progressMaxPollAttempts: 1,
-      progressPollInterval: 0,
-      progressRetryAttempts: 5
-    }
-    const log: any = [];
-    const cmdInstance = {
-      log: (msg: string) => {
-        log.push(msg);
-      }
-    };
-
-    try {
-      (command as any).waitForJobResult(jobProgressOptions, cmdInstance).then((resp: any) => {
-        assert.fail('waitForJobResult shouldn\'t resolve, but reject.');
-        postRequests.restore();
-        done();
-      }, (e: any) => {
-        assert(e !== undefined);
-        postRequests.restore();
-        done();
-      });
-    }
-    catch (e) {
-      done(e);
-    }
-  });
 
   it('should complete successfully where baseUrl has a trailing /', (done) => {
     let actual: string = '';
@@ -545,10 +429,10 @@ describe(commands.FILE_MOVE, () => {
     });
 
     sinon.stub(request, 'post').callsFake((opts) => {
-      actual = JSON.stringify(opts.body);
+      actual = JSON.stringify(opts.data);
       if (
-        opts.body.exportObjectUris[0] === 'https://contoso.sharepoint.com/sites/team-a/library/file1.pdf' &&
-        opts.body.destinationUri === 'https://contoso.sharepoint.com/sites/team-b/library2' &&
+        opts.data.exportObjectUris[0] === 'https://contoso.sharepoint.com/sites/team-a/library/file1.pdf' &&
+        opts.data.destinationUri === 'https://contoso.sharepoint.com/sites/team-b/library2' &&
         opts.url === 'https://contoso.sharepoint.com/sites/team-a/_api/site/CreateCopyJobs'
       ) {
         return Promise.resolve();
@@ -559,7 +443,7 @@ describe(commands.FILE_MOVE, () => {
     });
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/team-a/',
         sourceUrl: 'library/file1.pdf',
@@ -567,7 +451,7 @@ describe(commands.FILE_MOVE, () => {
       }
     }, () => {
       try {
-        assert.equal(actual, expected);
+        assert.strictEqual(actual, expected);
         done();
       }
       catch (e) {
@@ -591,10 +475,10 @@ describe(commands.FILE_MOVE, () => {
     });
 
     sinon.stub(request, 'post').callsFake((opts) => {
-      actual = JSON.stringify(opts.body);
+      actual = JSON.stringify(opts.data);
       if (
-        opts.body.exportObjectUris[0] === 'https://contoso.sharepoint.com/sites/team-a/library/file1.pdf' &&
-        opts.body.destinationUri === 'https://contoso.sharepoint.com/sites/team-b/library2' &&
+        opts.data.exportObjectUris[0] === 'https://contoso.sharepoint.com/sites/team-a/library/file1.pdf' &&
+        opts.data.destinationUri === 'https://contoso.sharepoint.com/sites/team-b/library2' &&
         opts.url === 'https://contoso.sharepoint.com/sites/team-a/_api/site/CreateCopyJobs'
       ) {
         return Promise.resolve();
@@ -606,7 +490,7 @@ describe(commands.FILE_MOVE, () => {
 
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/team-a/',
         sourceUrl: 'library/file1.pdf/',
@@ -614,7 +498,7 @@ describe(commands.FILE_MOVE, () => {
       }
     }, () => {
       try {
-        assert.equal(actual, expected);
+        assert.strictEqual(actual, expected);
         done();
       }
       catch (e) {
@@ -638,10 +522,10 @@ describe(commands.FILE_MOVE, () => {
     });
 
     sinon.stub(request, 'post').callsFake((opts) => {
-      actual = JSON.stringify(opts.body);
+      actual = JSON.stringify(opts.data);
       if (
-        opts.body.exportObjectUris[0] === 'https://contoso.sharepoint.com/sites/team-a/library/file1.pdf' &&
-        opts.body.destinationUri === 'https://contoso.sharepoint.com/sites/team-b/library2' &&
+        opts.data.exportObjectUris[0] === 'https://contoso.sharepoint.com/sites/team-a/library/file1.pdf' &&
+        opts.data.destinationUri === 'https://contoso.sharepoint.com/sites/team-b/library2' &&
         opts.url === 'https://contoso.sharepoint.com/sites/team-a/_api/site/CreateCopyJobs'
       ) {
         return Promise.resolve();
@@ -653,7 +537,7 @@ describe(commands.FILE_MOVE, () => {
 
     stubAllGetRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/team-a/',
         sourceUrl: '/library/file1.pdf/',
@@ -661,7 +545,7 @@ describe(commands.FILE_MOVE, () => {
       }
     }, () => {
       try {
-        assert.equal(actual, expected);
+        assert.strictEqual(actual, expected);
         done();
       }
       catch (e) {
@@ -671,7 +555,7 @@ describe(commands.FILE_MOVE, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -682,7 +566,7 @@ describe(commands.FILE_MOVE, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -692,62 +576,13 @@ describe(commands.FILE_MOVE, () => {
     assert(containsTypeOption);
   });
 
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the webUrl option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo', sourceUrl: 'abc', targetUrl: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo', sourceUrl: 'abc', targetUrl: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the webUrl option is a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', sourceUrl: 'abc', targetUrl: 'abc' } });
-    assert.equal(actual, true);
-  });
-
-  it('fails validation if the sourceUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the targetUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', sourceUrl: 'abc' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FILE_MOVE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', sourceUrl: 'abc', targetUrl: 'abc' } });
+    assert.strictEqual(actual, true);
   });
 });

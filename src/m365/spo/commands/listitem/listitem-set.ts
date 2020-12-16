@@ -1,18 +1,16 @@
-import config from '../../../../config';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import request from '../../../../request';
+import { Logger } from '../../../../cli';
 import {
   CommandOption,
-  CommandValidate,
   CommandTypes
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 import { ListItemInstance } from './ListItemInstance';
-import { ContextInfo, ClientSvcResponseContents, ClientSvcResponse } from '../../spo';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -49,7 +47,7 @@ class SpoListItemSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const listIdArgument = args.options.listId || '';
     const listTitleArgument = args.options.listTitle || '';
     const listRestUrl: string = (args.options.listId ?
@@ -63,7 +61,7 @@ class SpoListItemSetCommand extends SpoCommand {
     ((): Promise<any> => {
       if (args.options.systemUpdate) {
         if (this.verbose) {
-          cmd.log(`Getting list id...`);
+          logger.logToStderr(`Getting list id...`);
         }
 
         const listRequestOptions: any = {
@@ -71,7 +69,7 @@ class SpoListItemSetCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(listRequestOptions)
@@ -87,7 +85,7 @@ class SpoListItemSetCommand extends SpoCommand {
 
         if (args.options.contentType) {
           if (this.verbose) {
-            cmd.log(`Getting content types for list...`);
+            logger.logToStderr(`Getting content types for list...`);
           }
 
           const requestOptions: any = {
@@ -95,7 +93,7 @@ class SpoListItemSetCommand extends SpoCommand {
             headers: {
               'accept': 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           };
 
           return request.get(requestOptions);
@@ -107,23 +105,23 @@ class SpoListItemSetCommand extends SpoCommand {
       .then((response: any): Promise<ContextInfo> => {
         if (args.options.contentType) {
           if (this.debug) {
-            cmd.log('content type lookup response...');
-            cmd.log(response);
+            logger.logToStderr('content type lookup response...');
+            logger.logToStderr(response);
           }
 
           const foundContentType: { Name: string; }[] = response.value.filter((ct: any) => {
             const contentTypeMatch: boolean = ct.Id.StringValue === args.options.contentType || ct.Name === args.options.contentType;
 
             if (this.debug) {
-              cmd.log(`Checking content type value [${ct.Name}]: ${contentTypeMatch}`);
+              logger.logToStderr(`Checking content type value [${ct.Name}]: ${contentTypeMatch}`);
             }
 
             return contentTypeMatch;
           });
 
           if (this.debug) {
-            cmd.log('content type filter output...');
-            cmd.log(foundContentType);
+            logger.logToStderr('content type filter output...');
+            logger.logToStderr(foundContentType);
           }
 
           if (foundContentType.length > 0) {
@@ -136,12 +134,12 @@ class SpoListItemSetCommand extends SpoCommand {
           }
 
           if (this.debug) {
-            cmd.log(`using content type name: ${contentTypeName}`);
+            logger.logToStderr(`using content type name: ${contentTypeName}`);
           }
         }
         if (args.options.systemUpdate) {
           if (this.debug) {
-            cmd.log(`getting request digest for systemUpdate request`);
+            logger.logToStderr(`getting request digest for systemUpdate request`);
           }
 
           return this.getRequestDigest(args.options.webUrl);
@@ -152,13 +150,13 @@ class SpoListItemSetCommand extends SpoCommand {
       })
       .then((res: ContextInfo): Promise<string> => {
         if (this.verbose) {
-          cmd.log(`Updating item in list ${args.options.listId || args.options.listTitle} in site ${args.options.webUrl}...`);
+          logger.logToStderr(`Updating item in list ${args.options.listId || args.options.listTitle} in site ${args.options.webUrl}...`);
         }
 
         formDigestValue = args.options.systemUpdate ? res['FormDigestValue'] : '';
 
         if (args.options.systemUpdate) {
-          return this.requestObjectIdentity(args.options.webUrl, cmd, formDigestValue);
+          return this.requestObjectIdentity(args.options.webUrl, logger, formDigestValue);
         }
 
         return Promise.resolve('');
@@ -187,7 +185,7 @@ class SpoListItemSetCommand extends SpoCommand {
 
         if (args.options.contentType && contentTypeName !== '' && !args.options.systemUpdate) {
           if (this.debug) {
-            cmd.log(`Specifying content type name [${contentTypeName}] in request body`);
+            logger.logToStderr(`Specifying content type name [${contentTypeName}] in request body`);
           }
 
           requestBody.formValues.push({
@@ -202,14 +200,14 @@ class SpoListItemSetCommand extends SpoCommand {
             'Content-Type': 'text/xml',
             'X-RequestDigest': formDigestValue,
           },
-          body: requestBody
+          data: requestBody
         } : {
             url: `${listRestUrl}/items(${args.options.id})/ValidateUpdateListItem()`,
             headers: {
               'accept': 'application/json;odata=nometadata'
             },
-            body: requestBody,
-            json: true
+            data: requestBody,
+            responseType: 'json'
           };
 
         return request.post(requestOptions);
@@ -242,15 +240,15 @@ class SpoListItemSetCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
       })
       .then((response: any): void => {
-        cmd.log(<ListItemInstance>response);
+        logger.log(<ListItemInstance>response);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -300,70 +298,26 @@ class SpoListItemSetCommand extends SpoCommand {
     };
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return `Specify listId or listTitle`;
+    }
 
-      if (!args.options.listId && !args.options.listTitle) {
-        return `Specify listId or listTitle`;
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return `Specify listId or listTitle but not both`;
+    }
 
-      if (args.options.listId && args.options.listTitle) {
-        return `Specify listId or listTitle but not both`;
-      }
+    if (args.options.listId &&
+      !Utils.isValidGuid(args.options.listId)) {
+      return `${args.options.listId} in option listId is not a valid GUID`;
+    }
 
-      if (args.options.listId &&
-        !Utils.isValidGuid(args.options.listId)) {
-        return `${args.options.listId} in option listId is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Update the item with ID of ${chalk.grey('147')} with Title ${chalk.grey('Demo Item')} and content type name
-    ${chalk.grey('Item')} in list with title ${chalk.grey('Demo List')} in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_SET} --contentType Item --listTitle "Demo List" --id 147 --webUrl https://contoso.sharepoint.com/sites/project-x --Title "Demo Item"
-
-    Update an item with Title ${chalk.grey('Demo Multi Managed Metadata Field')} and
-    a single-select metadata field named ${chalk.grey('SingleMetadataField')} in list with
-    title ${chalk.grey('Demo List')} in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_SET} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x  --id 147 --Title "Demo Single Managed Metadata Field" --SingleMetadataField "TermLabel1|fa2f6bfd-1fad-4d18-9c89-289fe6941377;"
-
-    Update an item with ID of ${chalk.grey('147')} with Title ${chalk.grey('Demo Multi Managed Metadata Field')}
-    and a multi-select metadata field named ${chalk.grey('MultiMetadataField')} in list
-    with title ${chalk.grey('Demo List')} in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_SET} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --id 147 --Title "Demo Multi Managed Metadata Field" --MultiMetadataField "TermLabel1|cf8c72a1-0207-40ee-aebd-fca67d20bc8a;TermLabel2|e5cc320f-8b65-4882-afd5-f24d88d52b75;"
-  
-    Update an item with ID of ${chalk.grey('147')} with Title ${chalk.grey('Demo Single Person Field')}
-    and a single-select people field named ${chalk.grey('SinglePeopleField')} in list
-    with title ${chalk.grey('Demo List')} in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_SET} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --id 147 --Title "Demo Single Person Field" --SinglePeopleField "[{'Key':'i:0#.f|membership|markh@conotoso.com'}]"
-      
-    Update an item with ID of ${chalk.grey('147')} with Title ${chalk.grey('Demo Multi Person Field')}
-    and a multi-select people field named ${chalk.grey('MultiPeopleField')} in list
-    with title ${chalk.grey('Demo List')} in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_SET} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --id 147 --Title "Demo Multi Person Field" --MultiPeopleField "[{'Key':'i:0#.f|membership|markh@conotoso.com'},{'Key':'i:0#.f|membership|adamb@conotoso.com'}]"
-    
-    Update an item with ID of ${chalk.grey('147')} with Title ${chalk.grey('Demo Hyperlink Field')}
-    and a hyperlink field named ${chalk.grey('CustomHyperlink')} in list
-    with title ${chalk.grey('Demo List')} in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_SET} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --id 147 --Title "Demo Hyperlink Field" --CustomHyperlink "https://www.bing.com, Bing"
-   `);
+    return true;
   }
 
   private mapRequestBody(options: Options): any {
@@ -377,7 +331,13 @@ class SpoListItemSetCommand extends SpoCommand {
       'systemUpdate',
       'debug',
       'verbose',
-      'output'
+      'output',
+      's',
+      'i',
+      'o',
+      'u',
+      't',
+      '_'
     ];
 
     Object.keys(options).forEach(key => {
@@ -409,19 +369,19 @@ class SpoListItemSetCommand extends SpoCommand {
    * @param webUrl web url
    * @param cmd command cmd
    */
-  private requestObjectIdentity(webUrl: string, cmd: CommandInstance, formDigestValue: string): Promise<string> {
+  private requestObjectIdentity(webUrl: string, logger: Logger, formDigestValue: string): Promise<string> {
     const requestOptions: any = {
       url: `${webUrl}/_vti_bin/client.svc/ProcessQuery`,
       headers: {
         'X-RequestDigest': formDigestValue
       },
-      body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Query Id="1" ObjectPathId="5"><Query SelectAllProperties="false"><Properties><Property Name="ServerRelativeUrl" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Property Id="5" ParentId="3" Name="Web" /><StaticProperty Id="3" TypeId="{3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a}" Name="Current" /></ObjectPaths></Request>`
+      data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Query Id="1" ObjectPathId="5"><Query SelectAllProperties="false"><Properties><Property Name="ServerRelativeUrl" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Property Id="5" ParentId="3" Name="Web" /><StaticProperty Id="3" TypeId="{3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a}" Name="Current" /></ObjectPaths></Request>`
     };
 
     return new Promise<string>((resolve: any, reject: any): void => {
       request.post(requestOptions).then((res: any) => {
         if (this.debug) {
-          cmd.log('Attempt to get _ObjectIdentity_ key values');
+          logger.logToStderr('Attempt to get _ObjectIdentity_ key values');
         }
 
         const json: ClientSvcResponse = JSON.parse(res);

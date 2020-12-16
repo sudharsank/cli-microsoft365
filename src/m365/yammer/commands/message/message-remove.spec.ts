@@ -1,17 +1,17 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./message-remove');
-import * as assert from 'assert';
+import { Cli, Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./message-remove');
 
 describe(commands.YAMMER_MESSAGE_REMOVE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
+  let logger: Logger;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -20,18 +20,16 @@ describe(commands.YAMMER_MESSAGE_REMOVE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
         log.push(msg);
       },
-      prompt: (options: any, cb: (result: { continue: boolean }) => void) => {
-        cb({ continue: false });
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
+        log.push(msg);
       }
     };
     (command as any).items = [];
@@ -39,8 +37,8 @@ describe(commands.YAMMER_MESSAGE_REMOVE, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
-      request.delete
+      request.delete,
+      Cli.prompt
     ]);
   });
 
@@ -53,21 +51,21 @@ describe(commands.YAMMER_MESSAGE_REMOVE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.YAMMER_MESSAGE_REMOVE), true);
+    assert.strictEqual(command.name.startsWith(commands.YAMMER_MESSAGE_REMOVE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('id must be a number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 'nonumber' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: 'nonumber' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('id is required', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: {} });
+    assert.notStrictEqual(actual, true);
   });
 
   it('calls the messaging endpoint with the right parameters and confirmation', (done) => {
@@ -78,9 +76,9 @@ describe(commands.YAMMER_MESSAGE_REMOVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, id: 10123190123123, confirm: true } }, () => {
+    command.action(logger, { options: { debug: true, id: 10123190123123, confirm: true } }, () => {
       try {
-        assert.equal(requestDeleteStub.lastCall.args[0].url, 'https://www.yammer.com/api/v1/messages/10123190123123.json');
+        assert.strictEqual(requestDeleteStub.lastCall.args[0].url, 'https://www.yammer.com/api/v1/messages/10123190123123.json');
         done();
       }
       catch (e) {
@@ -96,14 +94,13 @@ describe(commands.YAMMER_MESSAGE_REMOVE, () => {
       }
       return Promise.reject('Invalid request');
     });
-
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
+    });
 
-    cmdInstance.action({ options: { debug: true, id: 10123190123123, confirm: false } }, () => {
+    command.action(logger, { options: { debug: true, id: 10123190123123, confirm: false } }, () => {
       try {
-        assert.equal(requestDeleteStub.lastCall.args[0].url, 'https://www.yammer.com/api/v1/messages/10123190123123.json');
+        assert.strictEqual(requestDeleteStub.lastCall.args[0].url, 'https://www.yammer.com/api/v1/messages/10123190123123.json');
         done();
       }
       catch (e) {
@@ -120,11 +117,11 @@ describe(commands.YAMMER_MESSAGE_REMOVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
+    });
 
-    cmdInstance.action({ options: { debug: true, id: 10123190123123, confirm: false } }, () => {
+    command.action(logger, { options: { debug: true, id: 10123190123123, confirm: false } }, () => {
       try {
         assert(requestDeleteStub.notCalled);
         done();
@@ -144,9 +141,9 @@ describe(commands.YAMMER_MESSAGE_REMOVE, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, id: 10123190123123, confirm: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: 10123190123123, confirm: true } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("An error has occurred.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("An error has occurred.")));
         done();
       }
       catch (e) {
@@ -156,12 +153,12 @@ describe(commands.YAMMER_MESSAGE_REMOVE, () => {
   });
 
   it('passes validation with parameters', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 10123123 } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: 10123123 } });
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -169,39 +166,5 @@ describe(commands.YAMMER_MESSAGE_REMOVE, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.YAMMER_MESSAGE_REMOVE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

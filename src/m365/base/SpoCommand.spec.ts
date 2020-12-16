@@ -1,12 +1,13 @@
-import * as sinon from 'sinon';
 import * as assert from 'assert';
-import SpoCommand from './SpoCommand';
-import request from '../../request';
-import auth from '../../Auth';
-import Utils from '../../Utils';
-import { CommandError } from '../../Command';
-import { FormDigestInfo } from '../spo/spo';
+import * as sinon from 'sinon';
 import appInsights from '../../appInsights';
+import auth from '../../Auth';
+import { Logger } from '../../cli';
+import { CommandError } from '../../Command';
+import request from '../../request';
+import Utils from '../../Utils';
+import { FormDigestInfo } from '../spo/spo';
+import SpoCommand from './SpoCommand';
 
 class MockCommand extends SpoCommand {
   public get name(): string {
@@ -17,7 +18,7 @@ class MockCommand extends SpoCommand {
     return 'Mock command';
   }
 
-  public commandAction(cmd: CommandInstance, args: {}, cb: () => void): void {
+  public commandAction(logger: Logger, args: {}, cb: () => void): void {
   }
 
   public commandHelp(args: any, log: (message: string) => void): void {
@@ -29,8 +30,8 @@ class MockCommand extends SpoCommand {
 }
 
 describe('SpoCommand', () => {
-  let cmdInstanceLogSpy: sinon.SinonSpy;
-  let cmdInstance: any;
+  let loggerLogSpy: sinon.SinonSpy;
+  let logger: Logger;
   let log: string[];
 
   before(() => {
@@ -40,13 +41,19 @@ describe('SpoCommand', () => {
 
   beforeEach(() => {
     log = [];
-    cmdInstance = {
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
 
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
@@ -71,18 +78,15 @@ describe('SpoCommand', () => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.reject('An error has occurred'));
     const command = new MockCommand();
 
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
-    cmdInstance.action({ options: {} }, (err?: any) => {
+    command.action(logger, { options: {} } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -97,16 +101,13 @@ describe('SpoCommand', () => {
   it('doesn\'t execute command when error occurred while restoring auth info', (done) => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.reject('An error has occurred'));
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     const commandCommandActionSpy = sinon.spy(command, 'commandAction');
-    cmdInstance.action({ options: {} }, () => {
+    command.action(logger, { options: {} }, () => {
       try {
         assert(commandCommandActionSpy.notCalled);
         done();
@@ -131,13 +132,10 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     let futureDate = new Date();
@@ -150,10 +148,10 @@ describe('SpoCommand', () => {
       WebFullUrl: 'https://contoso.sharepoint.com'
     }
 
-    command.ensureFormDigest('https://contoso.sharepoint.com', cmdInstance, ctx, false);
+    command.ensureFormDigest('https://contoso.sharepoint.com', logger, ctx, false);
 
     try {
-      assert(cmdInstanceLogSpy.notCalled);
+      assert(loggerLogSpy.notCalled);
       done();
     }
     catch (e) {
@@ -172,13 +170,10 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     let futureDate = new Date();
@@ -191,10 +186,10 @@ describe('SpoCommand', () => {
       WebFullUrl: 'https://contoso.sharepoint.com'
     }
 
-    command.ensureFormDigest('https://contoso.sharepoint.com', cmdInstance, ctx, true);
+    command.ensureFormDigest('https://contoso.sharepoint.com', logger, ctx, true);
 
     try {
-      assert(cmdInstanceLogSpy.notCalled);
+      assert(loggerLogSpy.notCalled);
       done();
     }
     catch (e) {
@@ -213,20 +208,17 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     command
-      .ensureFormDigest('https://contoso.sharepoint.com', cmdInstance, undefined, false)
+      .ensureFormDigest('https://contoso.sharepoint.com', logger, undefined, false)
       .then(ctx => {
         try {
-          assert.notEqual(typeof ctx, 'undefined');
+          assert.notStrictEqual(typeof ctx, 'undefined');
           done();
         }
         catch (e) {
@@ -248,13 +240,10 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     let pastDate = new Date();
@@ -267,10 +256,10 @@ describe('SpoCommand', () => {
       WebFullUrl: 'https://contoso.sharepoint.com'
     }
 
-    command.ensureFormDigest('https://contoso.sharepoint.com', cmdInstance, ctx, false);
+    command.ensureFormDigest('https://contoso.sharepoint.com', logger, ctx, false);
 
     try {
-      assert(cmdInstanceLogSpy.notCalled);
+      assert(loggerLogSpy.notCalled);
       done();
     }
     catch (e) {
@@ -289,13 +278,10 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     let pastDate = new Date();
@@ -308,10 +294,10 @@ describe('SpoCommand', () => {
       WebFullUrl: 'https://contoso.sharepoint.com'
     }
 
-    command.ensureFormDigest('https://contoso.sharepoint.com', cmdInstance, ctx, true);
+    command.ensureFormDigest('https://contoso.sharepoint.com', logger, ctx, true);
 
     try {
-      assert(cmdInstanceLogSpy.notCalled);
+      assert(loggerLogSpy.notCalled);
       done();
     }
     catch (e) {
@@ -328,13 +314,10 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     let pastDate = new Date();
@@ -347,7 +330,7 @@ describe('SpoCommand', () => {
       WebFullUrl: 'https://contoso.sharepoint.com'
     }
 
-    command.ensureFormDigest('https://contoso.sharepoint.com', cmdInstance, ctx, true).catch((err?: any) => {
+    command.ensureFormDigest('https://contoso.sharepoint.com', logger, ctx, true).catch((err?: any) => {
       try {
         assert(err === "Invalid request");
         done();
@@ -369,20 +352,17 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     (command as any)
-      .getSpoUrl(cmdInstance, false)
+      .getSpoUrl(logger, false)
       .then((spoUrl: string) => {
         try {
-          assert.equal(spoUrl, 'https://contoso.sharepoint.com');
+          assert.strictEqual(spoUrl, 'https://contoso.sharepoint.com');
           done();
         }
         catch (e) {
@@ -402,20 +382,17 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     (command as any)
-      .getSpoUrl(cmdInstance, true)
+      .getSpoUrl(logger, true)
       .then((spoUrl: string) => {
         try {
-          assert.equal(spoUrl, 'https://contoso.sharepoint.com');
+          assert.strictEqual(spoUrl, 'https://contoso.sharepoint.com');
           done();
         }
         catch (e) {
@@ -435,20 +412,17 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     (command as any)
-      .getSpoUrl(cmdInstance, false)
+      .getSpoUrl(logger, false)
       .then((spoUrl: string) => {
         try {
-          assert.equal(spoUrl, 'https://contoso.sharepoint.com');
+          assert.strictEqual(spoUrl, 'https://contoso.sharepoint.com');
           done();
         }
         catch (e) {
@@ -467,22 +441,19 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
 
     (command as any)
-      .getSpoUrl(cmdInstance, false)
+      .getSpoUrl(logger, false)
       .then(() => {
         done('Expected error');
       }, (err: string) => {
         try {
-          assert.equal(err, 'An error has occurred');
+          assert.strictEqual(err, 'An error has occurred');
           done();
         }
         catch (e) {
@@ -493,23 +464,20 @@ describe('SpoCommand', () => {
 
   it('returns error when retrieving SPO admin URL failed', (done) => {
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     sinon.stub(command as any, 'getSpoUrl').callsFake(() => Promise.reject('An error has occurred'));
 
     (command as any)
-      .getSpoAdminUrl(cmdInstance, false)
+      .getSpoAdminUrl(logger, false)
       .then(() => {
         done('Expected error');
       }, (err: string) => {
         try {
-          assert.equal(err, 'An error has occurred');
+          assert.strictEqual(err, 'An error has occurred');
           done();
         }
         catch (e) {
@@ -531,22 +499,19 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     sinon.stub(command as any, 'getSpoAdminUrl').callsFake(() => Promise.resolve('https://contoso-admin.sharepoint.com'));
     sinon.stub(command as any, 'getRequestDigest').callsFake(() => Promise.resolve({ FormDigestValue: 'abc' }));
 
     (command as any)
-      .getTenantId(cmdInstance, false)
+      .getTenantId(logger, false)
       .then((tenantId: string) => {
         try {
-          assert.equal(tenantId, 'tenantId');
+          assert.strictEqual(tenantId, 'tenantId');
           done();
         }
         catch (e) {
@@ -568,22 +533,19 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     sinon.stub(command as any, 'getSpoAdminUrl').callsFake(() => Promise.resolve('https://contoso-admin.sharepoint.com'));
     sinon.stub(command as any, 'getRequestDigest').callsFake(() => Promise.resolve({ FormDigestValue: 'abc' }));
 
     (command as any)
-      .getTenantId(cmdInstance, true)
+      .getTenantId(logger, true)
       .then((tenantId: string) => {
         try {
-          assert.equal(tenantId, 'tenantId');
+          assert.strictEqual(tenantId, 'tenantId');
           done();
         }
         catch (e) {
@@ -605,22 +567,19 @@ describe('SpoCommand', () => {
     });
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     sinon.stub(command as any, 'getSpoAdminUrl').callsFake(() => Promise.resolve('https://contoso-admin.sharepoint.com'));
     sinon.stub(command as any, 'getRequestDigest').callsFake(() => Promise.resolve({ FormDigestValue: 'abc' }));
 
     (command as any)
-      .getTenantId(cmdInstance, false)
+      .getTenantId(logger, false)
       .then((tenantId: string) => {
         try {
-          assert.equal(tenantId, 'tenantId');
+          assert.strictEqual(tenantId, 'tenantId');
           done();
         }
         catch (e) {
@@ -633,24 +592,21 @@ describe('SpoCommand', () => {
     sinon.stub(request, 'post').callsFake((opts) => Promise.reject('An error has occurred'));
 
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'spo command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     sinon.stub(command as any, 'getSpoAdminUrl').callsFake(() => Promise.resolve('https://contoso-admin.sharepoint.com'));
     sinon.stub(command as any, 'getRequestDigest').callsFake(() => Promise.resolve({ FormDigestValue: 'abc' }));
 
     (command as any)
-      .getTenantId(cmdInstance, false)
+      .getTenantId(logger, false)
       .then(() => {
         done('Error expected');
       }, (err: any) => {
         try {
-          assert.equal(err, 'An error has occurred');
+          assert.strictEqual(err, 'An error has occurred');
           done();
         }
         catch (e) {

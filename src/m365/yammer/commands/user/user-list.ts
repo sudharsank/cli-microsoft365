@@ -1,10 +1,9 @@
-import { CommandOption, CommandValidate } from '../../../../Command';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import YammerCommand from '../../../base/YammerCommand';
 import commands from '../../commands';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -44,7 +43,11 @@ class YammerUserListCommand extends YammerCommand {
     return telemetryProps;
   }
 
-  private getAllItems(cmd: CommandInstance, args: CommandArgs, page: number): Promise<void> {
+  public defaultProperties(): string[] | undefined {
+    return ['id', 'full_name', 'email'];
+  }
+
+  private getAllItems(logger: Logger, args: CommandArgs, page: number): Promise<void> {
     return new Promise<void>((resolve: () => void, reject: (error: any) => void): void => {
       if (page === 1) {
         this.items = [];
@@ -73,7 +76,7 @@ class YammerUserListCommand extends YammerCommand {
           accept: 'application/json;odata.metadata=none',
           'content-type': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -97,7 +100,7 @@ class YammerUserListCommand extends YammerCommand {
             // if the groups endpoint is used, the more_available will tell if a new retrieval is required
             // if the user endpoint is used, we need to page by 50 items (hardcoded)
             if (res.more_available === true || this.items.length % 50 === 0) {
-              this.getAllItems(cmd, args, ++page)
+              this.getAllItems(logger, args, ++page)
                 .then((): void => {
                   resolve();
                 }, (err: any): void => {
@@ -114,27 +117,15 @@ class YammerUserListCommand extends YammerCommand {
     });
   };
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this.items = []; // this will reset the items array in interactive mode
 
     this
-      .getAllItems(cmd, args, 1)
+      .getAllItems(logger, args, 1)
       .then((): void => {
-        if (args.options.output === 'json') {
-          cmd.log(this.items);
-        }
-        else {
-          cmd.log(this.items.map((n: any) => {
-            const item: any = {
-              id: n.id,
-              full_name: n.full_name,
-              email: n.email
-            };
-            return item;
-          }));
-        }
+        logger.log(this.items);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   };
 
   public options(): CommandOption[] {
@@ -166,57 +157,28 @@ class YammerUserListCommand extends YammerCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.groupId && typeof args.options.groupId !== 'number') {
+      return `${args.options.groupId} is not a number`;
+    }
 
-      if (args.options.groupId && typeof args.options.groupId !== 'number') {
-        return `${args.options.groupId} is not a number`;
-      }
+    if (args.options.limit && typeof args.options.limit !== 'number') {
+      return `${args.options.limit} is not a number`;
+    }
 
-      if (args.options.limit && typeof args.options.limit !== 'number') {
-        return `${args.options.limit} is not a number`;
-      }
+    if (args.options.sortBy && args.options.sortBy !== 'messages' && args.options.sortBy !== 'followers') {
+      return `sortBy accepts only the values "messages" or "followers"`;
+    }
 
-      if (args.options.sortBy && args.options.sortBy !== 'messages' && args.options.sortBy !== 'followers') {
-        return `sortBy accepts only the values "messages" or "followers"`;
-      }
+    if (args.options.letter && !/^(?!\d)[a-zA-Z]+$/i.test(args.options.letter)) {
+      return `Value of 'letter' is invalid. Only characters within the ranges [A - Z], [a - z] are allowed.`;
+    }
 
-      if (args.options.letter && !/^(?!\d)[a-zA-Z]+$/i.test(args.options.letter)) {
-        return `Value of 'letter' is invalid. Only characters within the ranges [A - Z], [a - z] are allowed.`;
-      }
+    if (args.options.letter && args.options.letter.length !== 1) {
+      return `Only one char as value of 'letter' accepted.`;
+    }
 
-      if (args.options.letter && args.options.letter.length !== 1) {
-        return `Only one char as value of 'letter' accepted.`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-  
-    ${chalk.yellow('Attention:')} In order to use this command, you need to grant the Azure AD
-    application used by the CLI for Microsoft 365 the permission to the Yammer API.
-    To do this, execute the ${chalk.blue('cli consent --service yammer')} command.
-    
-  Examples:
-    
-    Returns all Yammer network users
-      ${this.name}
-
-    Returns all Yammer network users with usernames beginning with "a"
-      ${this.name} --letter a
-
-    Returns all Yammer network users sorted alphabetically in descending order
-      ${this.name} --reverse
-
-    Returns the first 10 Yammer network users within the group 5785177.
-      ${this.name} --groupId 5785177 --limit 10
-    `);
+    return true;
   }
 }
 

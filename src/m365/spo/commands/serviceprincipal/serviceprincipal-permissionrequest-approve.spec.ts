@@ -1,19 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./serviceprincipal-permissionrequest-approve');
-import * as assert from 'assert';
-import request from '../../../../request';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import config from '../../../../config';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./serviceprincipal-permissionrequest-approve');
 
 describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
   
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -24,23 +24,23 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -56,11 +56,11 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE), true);
+    assert.strictEqual(command.name.startsWith(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('approves the specified permission request (debug)', (done) => {
@@ -68,7 +68,7 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="16" ObjectPathId="15" /><ObjectPath Id="18" ObjectPathId="17" /><ObjectPath Id="20" ObjectPathId="19" /><ObjectPath Id="22" ObjectPathId="21" /><Query Id="23" ObjectPathId="21"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Constructor Id="15" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="17" ParentId="15" Name="PermissionRequests" /><Method Id="19" ParentId="17" Name="GetById"><Parameters><Parameter Type="Guid">{4dc4c043-25ee-40f2-81d3-b3bf63da7538}</Parameter></Parameters></Method><Method Id="21" ParentId="19" Name="Approve" /></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="16" ObjectPathId="15" /><ObjectPath Id="18" ObjectPathId="17" /><ObjectPath Id="20" ObjectPathId="19" /><ObjectPath Id="22" ObjectPathId="21" /><Query Id="23" ObjectPathId="21"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Constructor Id="15" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="17" ParentId="15" Name="PermissionRequests" /><Method Id="19" ParentId="17" Name="GetById"><Parameters><Parameter Type="Guid">{4dc4c043-25ee-40f2-81d3-b3bf63da7538}</Parameter></Parameters></Method><Method Id="21" ParentId="19" Name="Approve" /></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7213.1200", "ErrorInfo": null, "TraceCorrelationId": "63553a9e-101c-4000-d6f5-91ba841ffc9d"
@@ -88,9 +88,9 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: true, requestId: '4dc4c043-25ee-40f2-81d3-b3bf63da7538' } }, () => {
+    command.action(logger, { options: { debug: true, requestId: '4dc4c043-25ee-40f2-81d3-b3bf63da7538' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           ClientId: "cd4043e7-b749-420b-bd07-aa7c3912ed22",
           ConsentType: "AllPrincipals",
           ObjectId: "50NAzUm3C0K9B6p8ORLtIsQccg4rMERGvFGRtBsk2fA",
@@ -111,7 +111,7 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="16" ObjectPathId="15" /><ObjectPath Id="18" ObjectPathId="17" /><ObjectPath Id="20" ObjectPathId="19" /><ObjectPath Id="22" ObjectPathId="21" /><Query Id="23" ObjectPathId="21"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Constructor Id="15" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="17" ParentId="15" Name="PermissionRequests" /><Method Id="19" ParentId="17" Name="GetById"><Parameters><Parameter Type="Guid">{4dc4c043-25ee-40f2-81d3-b3bf63da7538}</Parameter></Parameters></Method><Method Id="21" ParentId="19" Name="Approve" /></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="16" ObjectPathId="15" /><ObjectPath Id="18" ObjectPathId="17" /><ObjectPath Id="20" ObjectPathId="19" /><ObjectPath Id="22" ObjectPathId="21" /><Query Id="23" ObjectPathId="21"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Constructor Id="15" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="17" ParentId="15" Name="PermissionRequests" /><Method Id="19" ParentId="17" Name="GetById"><Parameters><Parameter Type="Guid">{4dc4c043-25ee-40f2-81d3-b3bf63da7538}</Parameter></Parameters></Method><Method Id="21" ParentId="19" Name="Approve" /></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7213.1200", "ErrorInfo": null, "TraceCorrelationId": "63553a9e-101c-4000-d6f5-91ba841ffc9d"
@@ -131,9 +131,9 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, requestId: '4dc4c043-25ee-40f2-81d3-b3bf63da7538' } }, () => {
+    command.action(logger, { options: { debug: false, requestId: '4dc4c043-25ee-40f2-81d3-b3bf63da7538' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           ClientId: "cd4043e7-b749-420b-bd07-aa7c3912ed22",
           ConsentType: "AllPrincipals",
           ObjectId: "50NAzUm3C0K9B6p8ORLtIsQccg4rMERGvFGRtBsk2fA",
@@ -159,9 +159,9 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
         }
       ]));
     });
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Permission entry already exists.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Permission entry already exists.')));
         done();
       }
       catch (e) {
@@ -172,9 +172,9 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
 
   it('correctly handles random API error', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => Promise.reject('An error has occurred'));
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -185,11 +185,11 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
 
   it('defines alias', () => {
     const alias = command.alias();
-    assert.notEqual(typeof alias, 'undefined');
+    assert.notStrictEqual(typeof alias, 'undefined');
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -200,7 +200,7 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
   });
 
   it('allows specifying requestId', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--requestId') > -1) {
@@ -210,52 +210,13 @@ describe(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE, () => {
     assert(containsOption);
   });
 
-  it('fails validation if the requestId option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the requestId option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { requestId: '123' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { requestId: '123' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the requestId is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { requestId: '4dc4c043-25ee-40f2-81d3-b3bf63da7538' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SERVICEPRINCIPAL_PERMISSIONREQUEST_APPROVE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { requestId: '4dc4c043-25ee-40f2-81d3-b3bf63da7538' } });
+    assert.strictEqual(actual, true);
   });
 });

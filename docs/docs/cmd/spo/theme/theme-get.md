@@ -5,19 +5,15 @@ Gets custom theme information
 ## Usage
 
 ```sh
-spo theme get [options]
+m365 spo theme get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-n, --name <name>`|The name of the theme to retrieve
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type `json,text` Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-n, --name <name>`
+: The name of the theme to retrieve
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -27,7 +23,7 @@ Option|Description
 Get information about a theme
 
 ```sh
-spo theme get --name Contoso-Blue
+m365 spo theme get --name Contoso-Blue
 ```
 
 ## More information

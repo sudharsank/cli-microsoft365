@@ -5,33 +5,31 @@ Removes the specified site design scheduled for execution
 ## Usage
 
 ```sh
-spo sitedesign task remove [options]
+m365 spo sitedesign task remove [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --taskId <taskId>`|The ID of the site design task to remove
-`--confirm`|Don't prompt for confirming removing the site design task
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --taskId <taskId>`
+: The ID of the site design task to remove
+
+`--confirm`
+: Don't prompt for confirming removing the site design task
+
+--8<-- "docs/cmd/_global.md"
 
 ## Examples
 
 Removes the specified site design task with taskId _6ec3ca5b-d04b-4381-b169-61378556d76e_ scheduled for execution without prompting confirmation
 
 ```sh
-spo sitedesign task remove --taskId 6ec3ca5b-d04b-4381-b169-61378556d76e --confirm
+m365 spo sitedesign task remove --taskId 6ec3ca5b-d04b-4381-b169-61378556d76e --confirm
 ```
 
 Removes the specified site design task with taskId _6ec3ca5b-d04b-4381-b169-61378556d76e_ scheduled for execution with prompt for confirmation before removing
 
 ```sh
-spo sitedesign task remove --taskId 6ec3ca5b-d04b-4381-b169-61378556d76e
+m365 spo sitedesign task remove --taskId 6ec3ca5b-d04b-4381-b169-61378556d76e
 ```
 
 ## More information

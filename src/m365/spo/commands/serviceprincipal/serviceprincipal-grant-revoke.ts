@@ -1,15 +1,15 @@
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandError, CommandOption, CommandValidate
+    CommandError, CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
+import config from '../../../../config';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -32,16 +32,16 @@ class SpoServicePrincipalGrantRevokeCommand extends SpoCommand {
     return [commands.SP_GRANT_REVOKE];
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
 
         if (this.verbose) {
-          cmd.log(`Retrieving request digest...`);
+          logger.logToStderr(`Retrieving request digest...`);
         }
 
         return this.getRequestDigest(spoAdminUrl);
@@ -52,7 +52,7 @@ class SpoServicePrincipalGrantRevokeCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectPath Id="12" ObjectPathId="11" /><ObjectPath Id="14" ObjectPathId="13" /><Method Name="DeleteObject" Id="15" ObjectPathId="13" /><Query Id="16" ObjectPathId="13"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Constructor Id="9" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="11" ParentId="9" Name="PermissionGrants" /><Method Id="13" ParentId="11" Name="GetByObjectId"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.grantId)}</Parameter></Parameters></Method></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectPath Id="12" ObjectPathId="11" /><ObjectPath Id="14" ObjectPathId="13" /><Method Name="DeleteObject" Id="15" ObjectPathId="13" /><Query Id="16" ObjectPathId="13"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Constructor Id="9" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="11" ParentId="9" Name="PermissionGrants" /><Method Id="13" ParentId="11" Name="GetByObjectId"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.grantId)}</Parameter></Parameters></Method></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -66,11 +66,11 @@ class SpoServicePrincipalGrantRevokeCommand extends SpoCommand {
         }
         else {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -81,36 +81,6 @@ class SpoServicePrincipalGrantRevokeCommand extends SpoCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.grantId) {
-        return 'Required parameter grantId missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.SERVICEPRINCIPAL_GRANT_REVOKE).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-        
-  Remarks:
-
-    The permission grant you want to revoke is denoted using its ${chalk.grey('ObjectId')}.
-    You can retrieve it using the ${chalk.grey(`${commands.SERVICEPRINCIPAL_GRANT_LIST}`)} command.
-
-  Examples:
-  
-    Revoke permission grant with ObjectId
-    ${chalk.grey('50NAzUm3C0K9B6p8ORLtIsQccg4rMERGvFGRtBsk2fA')}
-      ${commands.SERVICEPRINCIPAL_GRANT_REVOKE} --grantId 50NAzUm3C0K9B6p8ORLtIsQccg4rMERGvFGRtBsk2fA
-`);
   }
 }
 

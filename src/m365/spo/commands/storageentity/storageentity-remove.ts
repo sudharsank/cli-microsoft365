@@ -1,17 +1,15 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate,
-  CommandError
+  CommandError, CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -38,16 +36,16 @@ class SpoStorageEntityRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const removeTenantProperty = (): void => {
       let spoAdminUrl: string = '';
 
       if (this.verbose) {
-        cmd.log(`Removing tenant property ${args.options.key} from ${args.options.appCatalogUrl}...`);
+        logger.logToStderr(`Removing tenant property ${args.options.key} from ${args.options.appCatalogUrl}...`);
       }
 
       this
-        .getSpoAdminUrl(cmd, this.debug)
+        .getSpoAdminUrl(logger, this.debug)
         .then((_spoAdminUrl: string): Promise<ContextInfo> => {
           spoAdminUrl = _spoAdminUrl;
           return this.getRequestDigest(spoAdminUrl);
@@ -58,7 +56,7 @@ class SpoStorageEntityRemoveCommand extends SpoCommand {
             headers: {
               'X-RequestDigest': res.FormDigestValue
             },
-            body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="31" ObjectPathId="30" /><ObjectPath Id="33" ObjectPathId="32" /><ObjectPath Id="35" ObjectPathId="34" /><Method Name="RemoveStorageEntity" Id="36" ObjectPathId="34"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.key)}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="30" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /><Method Id="32" ParentId="30" Name="GetSiteByUrl"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.appCatalogUrl)}</Parameter></Parameters></Method><Property Id="34" ParentId="32" Name="RootWeb" /></ObjectPaths></Request>`
+            data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="31" ObjectPathId="30" /><ObjectPath Id="33" ObjectPathId="32" /><ObjectPath Id="35" ObjectPathId="34" /><Method Name="RemoveStorageEntity" Id="36" ObjectPathId="34"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.key)}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="30" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /><Method Id="32" ParentId="30" Name="GetSiteByUrl"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.appCatalogUrl)}</Parameter></Parameters></Method><Property Id="34" ParentId="32" Name="RootWeb" /></ObjectPaths></Request>`
           };
 
           return request.post(requestOptions);
@@ -71,18 +69,18 @@ class SpoStorageEntityRemoveCommand extends SpoCommand {
           }
           else {
             if (this.verbose) {
-              cmd.log(vorpal.chalk.green('DONE'));
+              logger.logToStderr(chalk.green('DONE'));
             }
             cb();
           }
-        }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
     }
 
     if (args.options.confirm) {
       removeTenantProperty();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -118,47 +116,14 @@ class SpoStorageEntityRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      const result: boolean | string = SpoCommand.isValidSharePointUrl(args.options.appCatalogUrl);
-      if (result === false) {
-        return 'Missing required option appCatalogUrl';
-      }
-      else {
-        return result;
-      }
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.STORAGEENTITY_REMOVE).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-    
-  Remarks:
-
-    Tenant properties are stored in the app catalog site associated with that
-    tenant. To remove a property, you have to specify the absolute URL of the
-    app catalog site. If you specify the URL of a site different than the app
-    catalog, you will get an access denied error.
-
-  Examples:
-  
-    Remove the ${chalk.grey('AnalyticsId')} tenant property. Yields a confirmation prompt
-    before actually removing the property
-      ${commands.STORAGEENTITY_REMOVE} --key AnalyticsId --appCatalogUrl https://contoso.sharepoint.com/sites/appcatalog
-
-    Remove the ${chalk.grey('AnalyticsId')} tenant property. Suppresses the confirmation
-    prompt
-      ${commands.STORAGEENTITY_REMOVE} --key AnalyticsId --confirm --appCatalogUrl https://contoso.sharepoint.com/sites/appcatalog
-
-  More information:
-
-    SharePoint Framework Tenant Properties
-      https://docs.microsoft.com/en-us/sharepoint/dev/spfx/tenant-properties
-`);
+  public validate(args: CommandArgs): boolean | string {
+    const result: boolean | string = SpoCommand.isValidSharePointUrl(args.options.appCatalogUrl);
+    if (result === false) {
+      return 'Missing required option appCatalogUrl';
+    }
+    else {
+      return result;
+    }
   }
 }
 

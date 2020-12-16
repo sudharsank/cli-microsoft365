@@ -5,24 +5,20 @@ Lists all modern pages in the given site
 ## Usage
 
 ```sh
-spo page list [options]
+m365 spo page list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|URL of the site from which to retrieve available pages
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: URL of the site from which to retrieve available pages
+
+--8<-- "docs/cmd/_global.md"
 
 ## Examples
 
 List all modern pages in the specific site
 
 ```sh
-spo page list --webUrl https://contoso.sharepoint.com/sites/team-a
+m365 spo page list --webUrl https://contoso.sharepoint.com/sites/team-a
 ```

@@ -1,20 +1,21 @@
-import commands from '../../commands';
-// import Command, { CommandOption, CommandError, CommandValidate, CommandCancel } from '../../../../Command';
-import Command, { CommandOption, CommandValidate, CommandError, CommandCancel } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
+import * as fs from 'fs';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./team-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import * as fs from 'fs';
+import commands from '../../commands';
+const command: Command = require('./team-add');
 
 describe(commands.TEAMS_TEAM_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -23,24 +24,25 @@ describe(commands.TEAMS_TEAM_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       request.get,
       fs.existsSync,
@@ -58,63 +60,63 @@ describe(commands.TEAMS_TEAM_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TEAMS_TEAM_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.TEAMS_TEAM_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('passes validation if name and description are passed when no template is passed', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         name: 'Architecture',
         description: 'Architecture Discussion'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
     done();
   });
 
   it('passes validation if name and description are not passed when a template is supplied', (done) => {
     sinon.stub(fs, 'existsSync').returns(true);
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         templatePath: 'template.json'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
     done();
   });
 
   it('fails validation if description is not passed when no template is supplied', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         name: 'Architecture'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('fails validation if name is not passed when no template is supplied', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         description: 'Architecture Discussion'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('fails validation if template not found', (done) => {
     sinon.stub(fs, 'existsSync').returns(false);
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         templatePath: 'abc'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
@@ -145,8 +147,7 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         name: 'Architecture',
@@ -154,13 +155,13 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       }
     }, () => {
       try {
-        assert.deepEqual(requestStub.getCall(0).args[0].body, {
+        assert.deepEqual(requestStub.getCall(0).args[0].data, {
           "template@odata.bind": "https://graph.microsoft.com/beta/teamsTemplates('standard')",
           displayName: 'Architecture',
           description: 'Architecture Discussion'
         });
         assert(getRequestStub.called);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -202,21 +203,20 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         templatePath: 'template.json'
       }
     }, () => {
       try {
-        assert.deepEqual(requestStub.getCall(0).args[0].body, {
+        assert.deepEqual(requestStub.getCall(0).args[0].data, {
           "template@odata.bind": "https://graph.microsoft.com/beta/teamsTemplates('standard')",
           displayName: 'Sample Engineering Team',
           description: 'This is a sample engineering team, used to showcase the range of properties supported by this API'
         });
         assert(getRequestStub.called);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -258,8 +258,7 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         name: 'Sample Classroom Team',
@@ -267,13 +266,13 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       }
     }, () => {
       try {
-        assert.deepEqual(requestStub.getCall(0).args[0].body, {
+        assert.deepEqual(requestStub.getCall(0).args[0].data, {
           "template@odata.bind": "https://graph.microsoft.com/beta/teamsTemplates('standard')",
           displayName: 'Sample Classroom Team',
           description: 'This is a sample engineering team, used to showcase the range of properties supported by this API'
         });
         assert(getRequestStub.called);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -315,8 +314,7 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         description: 'This is a sample classroom team, used to showcase the range of properties supported by this API',
@@ -324,13 +322,13 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       }
     }, () => {
       try {
-        assert.deepEqual(requestStub.getCall(0).args[0].body, {
+        assert.deepEqual(requestStub.getCall(0).args[0].data, {
           "template@odata.bind": "https://graph.microsoft.com/beta/teamsTemplates('standard')",
           displayName: 'Sample Engineering Team',
           description: 'This is a sample classroom team, used to showcase the range of properties supported by this API'
         });
         assert(getRequestStub.called);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -372,8 +370,7 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         name: 'Sample Classroom Team',
@@ -382,13 +379,13 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       }
     }, () => {
       try {
-        assert.deepEqual(requestStub.getCall(0).args[0].body, {
+        assert.deepEqual(requestStub.getCall(0).args[0].data, {
           "template@odata.bind": "https://graph.microsoft.com/beta/teamsTemplates('standard')",
           displayName: 'Sample Classroom Team',
           description: 'This is a sample classroom team, used to showcase the range of properties supported by this API'
         });
         assert(getRequestStub.called);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -473,8 +470,7 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       return {} as any;
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         wait: true,
@@ -484,12 +480,12 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       }
     }, () => {
       try {
-        assert.deepEqual(requestStub.getCall(0).args[0].body, {
+        assert.deepEqual(requestStub.getCall(0).args[0].data, {
           "template@odata.bind": "https://graph.microsoft.com/beta/teamsTemplates('standard')",
           displayName: 'Sample Classroom Team',
           description: 'This is a sample classroom team, used to showcase the range of properties supported by this API'
         });
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -503,16 +499,15 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         name: 'Architecture',
         description: 'Architecture Discussion'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -579,22 +574,21 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       return {} as any;
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         wait: true,
         name: 'Sample Classroom Team',
         description: 'This is a sample classroom team, used to showcase the range of properties supported by this API',
         templatePath: 'template.json',
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.deepEqual(requestStub.getCall(0).args[0].body, {
+        assert.deepEqual(requestStub.getCall(0).args[0].data, {
           "template@odata.bind": "https://graph.microsoft.com/beta/teamsTemplates('standard')",
           displayName: 'Sample Classroom Team',
           description: 'This is a sample classroom team, used to showcase the range of properties supported by this API'
         });
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -661,22 +655,21 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       return {} as any;
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         wait: true,
         name: 'Sample Classroom Team',
         description: 'This is a sample classroom team, used to showcase the range of properties supported by this API',
         templatePath: 'template.json',
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.deepEqual(requestStub.getCall(0).args[0].body, {
+        assert.deepEqual(requestStub.getCall(0).args[0].data, {
           "template@odata.bind": "https://graph.microsoft.com/beta/teamsTemplates('standard')",
           displayName: 'Sample Classroom Team',
           description: 'This is a sample classroom team, used to showcase the range of properties supported by this API'
         });
-        assert(cmdInstanceLogSpy.called);
+        assert(loggerLogSpy.called);
         done();
       }
       catch (e) {
@@ -685,26 +678,8 @@ describe(commands.TEAMS_TEAM_ADD, () => {
     });
   });
 
-  it('can be cancelled', () => {
-    assert(command.cancel());
-  });
-
-  it('clears pending connection on cancel', () => {
-    (command as any).timeout = {};
-    const clearTimeoutSpy = sinon.spy(global, 'clearTimeout');
-    (command.cancel() as CommandCancel)();
-    Utils.restore(global.clearTimeout);
-    assert(clearTimeoutSpy.called);
-  });
-
-  it('doesn\'t fail on cancel if no connection pending', () => {
-    (command as any).timeout = undefined;
-    (command.cancel() as CommandCancel)();
-    assert(true);
-  });
-
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -712,39 +687,5 @@ describe(commands.TEAMS_TEAM_ADD, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TEAMS_TEAM_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

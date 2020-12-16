@@ -1,14 +1,14 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import { ContextInfo } from '../../spo';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -44,11 +44,11 @@ class SpoSiteDesignAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let spoUrl: string = '';
 
     this
-      .getSpoUrl(cmd, this.debug)
+      .getSpoUrl(logger, this.debug)
       .then((_spoUrl: string): Promise<ContextInfo> => {
         spoUrl = _spoUrl;
         return this.getRequestDigest(spoUrl);
@@ -80,21 +80,21 @@ class SpoSiteDesignAddCommand extends SpoCommand {
             'content-type': 'application/json;charset=utf-8',
             accept: 'application/json;odata=nometadata'
           },
-          body: { info: info },
-          json: true
+          data: { info: info },
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -134,70 +134,21 @@ class SpoSiteDesignAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.title) {
-        return 'Required parameter title missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.webTemplate !== 'TeamSite' &&
+      args.options.webTemplate !== 'CommunicationSite') {
+      return `${args.options.webTemplate} is not a valid web template type. Allowed values TeamSite|CommunicationSite`;
+    }
+
+    const siteScripts = args.options.siteScripts.split(',');
+    for (let i: number = 0; i < siteScripts.length; i++) {
+      const trimmedId: string = siteScripts[i].trim();
+      if (!Utils.isValidGuid(trimmedId)) {
+        return `${trimmedId} is not a valid GUID`;
       }
+    }
 
-      if (!args.options.webTemplate) {
-        return 'Required parameter webTemplate missing';
-      }
-
-      if (args.options.webTemplate !== 'TeamSite' &&
-        args.options.webTemplate !== 'CommunicationSite') {
-        return `${args.options.webTemplate} is not a valid web template type. Allowed values TeamSite|CommunicationSite`;
-      }
-
-      if (!args.options.siteScripts) {
-        return 'Required parameter siteScripts missing';
-      }
-
-      const siteScripts = args.options.siteScripts.split(',');
-      for (let i: number = 0; i < siteScripts.length; i++) {
-        const trimmedId: string = siteScripts[i].trim();
-        if (!Utils.isValidGuid(trimmedId)) {
-          return `${trimmedId} is not a valid GUID`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    Each time you execute the ${chalk.blue(this.name)} command, it will create
-    a new site design with a unique ID. Before creating a site design, be sure
-    that another design with the same name doesn't already exist.
-
-    When specifying IDs of site scripts to use with your site design, ensure
-    that the IDs refer to existing site scripts or provisioning sites using
-    the design will lead to unexpected results.
-
-  Examples:
-
-    Create new site design for provisioning modern team sites
-      ${this.name} --title "Contoso team site" --webTemplate TeamSite --siteScripts "19b0e1b2-e3d1-473f-9394-f08c198ef43e,b2307a39-e878-458b-bc90-03bc578531d6"
-
-    Create new default site design for provisioning modern communication sites
-      ${this.name} --title "Contoso communication site" --webTemplate CommunicationSite --siteScripts "19b0e1b2-e3d1-473f-9394-f08c198ef43e" --isDefault
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-
-    Customize a default site design
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/customize-default-site-design
-
-    Site design JSON schema
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-json-schema
-`);
+    return true;
   }
 }
 

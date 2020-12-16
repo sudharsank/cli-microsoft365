@@ -1,10 +1,10 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as sinon from 'sinon';
-import { Finding } from '../Finding';
-import { Project, TsFile } from '../../model';
-import { FN016003_TS_aadhttpclient_instance } from './FN016003_TS_aadhttpclient_instance';
 import Utils from '../../../../../../Utils';
+import { Project, TsFile } from '../../model';
+import { Finding } from '../Finding';
+import { FN016003_TS_aadhttpclient_instance } from './FN016003_TS_aadhttpclient_instance';
 import { TsRule } from './TsRule';
 
 describe('FN016003_TS_aadhttpclient_instance', () => {
@@ -24,7 +24,7 @@ describe('FN016003_TS_aadhttpclient_instance', () => {
   });
 
   it('returns empty resolution by default', () => {
-    assert.equal(rule.resolution, '');
+    assert.strictEqual(rule.resolution, '');
   });
 
   it('doesn\'t return notifications if no .ts files found', () => {
@@ -33,7 +33,7 @@ describe('FN016003_TS_aadhttpclient_instance', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if specified .ts file not found', () => {
@@ -45,7 +45,7 @@ describe('FN016003_TS_aadhttpclient_instance', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if AadHttpClient not assigned to a variable', () => {
@@ -58,7 +58,7 @@ describe('FN016003_TS_aadhttpclient_instance', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('uses a comment as resource when AadHttpClient created with one argument', () => {

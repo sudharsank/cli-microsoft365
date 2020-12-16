@@ -1,19 +1,18 @@
-import commands from '../../commands';
-import Command from '../../../../Command';
-import { CommandValidate, CommandOption, CommandTypes } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./listitem-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandTypes } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
 import { FolderExtensions } from '../../FolderExtensions';
+const command: Command = require('./listitem-add');
 
 describe(commands.LISTITEM_ADD, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
+  let logger: Logger;
   let ensureFolderStub: sinon.SinonStub;
 
   const expectedTitle = `List Item 1`;
@@ -26,7 +25,7 @@ describe(commands.LISTITEM_ADD, () => {
 
   let postFakes = (opts: any) => {
     if ((opts.url as string).indexOf('AddValidateUpdateItemUsingPath') > -1) {
-      const bodyString = JSON.stringify(opts.body);
+      const bodyString = JSON.stringify(opts.data);
       const ctMatch = bodyString.match(/\"?FieldName\"?:\s*\"?ContentType\"?,\s*\"?FieldValue\"?:\s*\"?(\w*)\"?/i);
       actualContentType = ctMatch ? ctMatch[1] : "";
       if (bodyString.indexOf("fail adding me") > -1) return Promise.resolve({ value: [] })
@@ -44,7 +43,7 @@ describe(commands.LISTITEM_ADD, () => {
       return Promise.resolve({ ServerRelativeUrl: '/sites/project-xxx/Lists/Demo%20List' });
     }
     if ((opts.url as string).indexOf('/items(') > -1) {
-      actualId = opts.url.match(/\/items\((\d+)\)/i)[1];
+      actualId = parseInt(opts.url.match(/\/items\((\d+)\)/i)[1]);
       return Promise.resolve(
         {
           "Attachments": false,
@@ -70,14 +69,15 @@ describe(commands.LISTITEM_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -85,7 +85,6 @@ describe(commands.LISTITEM_ADD, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       request.get
     ]);
@@ -101,15 +100,15 @@ describe(commands.LISTITEM_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.LISTITEM_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.LISTITEM_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -120,7 +119,7 @@ describe(commands.LISTITEM_ADD, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -131,42 +130,37 @@ describe(commands.LISTITEM_ADD, () => {
   });
 
   it('configures command types', () => {
-    assert.notEqual(typeof command.types(), 'undefined', 'command types undefined');
-    assert.notEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
+    assert.notStrictEqual(typeof command.types(), 'undefined', 'command types undefined');
+    assert.notStrictEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
   });
 
   it('fails validation if listTitle and listId option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if listTitle and listId are specified together', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Demo List', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { title: 'Demo List' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Demo List', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the webUrl option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo', listTitle: 'Demo List' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo', listTitle: 'Demo List' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the webUrl option is a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Demo List' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Demo List' } });
     assert(actual);
   });
 
   it('fails validation if the listId option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: 'foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: 'foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the listId option is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
     assert(actual);
   });
 
@@ -183,9 +177,9 @@ describe(commands.LISTITEM_ADD, () => {
       Title: "fail adding me"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(actualId, 0);
+        assert.strictEqual(actualId, 0);
         done();
       }
       catch (e) {
@@ -208,9 +202,9 @@ describe(commands.LISTITEM_ADD, () => {
       Title: expectedTitle
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(actualId, expectedId);
+        assert.strictEqual(actualId, expectedId);
         done();
       }
       catch (e) {
@@ -229,9 +223,9 @@ describe(commands.LISTITEM_ADD, () => {
       Title: expectedTitle
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(actualId, expectedId);
+        assert.strictEqual(actualId, expectedId);
         done();
       }
       catch (e) {
@@ -252,7 +246,7 @@ describe(commands.LISTITEM_ADD, () => {
       Title: expectedTitle
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(expectedContentType == actualContentType);
         done();
@@ -276,7 +270,7 @@ describe(commands.LISTITEM_ADD, () => {
       Title: expectedTitle
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(expectedContentType == actualContentType);
         done();
@@ -292,7 +286,7 @@ describe(commands.LISTITEM_ADD, () => {
     sinon.stub(request, 'get').callsFake(getFakes);
     sinon.stub(request, 'post').callsFake(postFakes);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         listTitle: 'Demo List',
@@ -303,8 +297,8 @@ describe(commands.LISTITEM_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(ensureFolderStub.lastCall.args[0], 'https://contoso.sharepoint.com/sites/project-x');
-        assert.equal(ensureFolderStub.lastCall.args[1], '/sites/project-xxx/Lists/Demo%20List/InsideFolder2');
+        assert.strictEqual(ensureFolderStub.lastCall.args[0], 'https://contoso.sharepoint.com/sites/project-x');
+        assert.strictEqual(ensureFolderStub.lastCall.args[1], '/sites/project-xxx/Lists/Demo%20List/InsideFolder2');
         done();
       }
       catch (e) {
@@ -317,7 +311,7 @@ describe(commands.LISTITEM_ADD, () => {
     sinon.stub(request, 'get').callsFake(getFakes);
     sinon.stub(request, 'post').callsFake(postFakes);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         listTitle: 'Demo List',
@@ -328,8 +322,8 @@ describe(commands.LISTITEM_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(ensureFolderStub.lastCall.args[0], 'https://contoso.sharepoint.com/sites/project-x');
-        assert.equal(ensureFolderStub.lastCall.args[1], '/sites/project-xxx/Lists/Demo%20List/InsideFolder2/Folder3');
+        assert.strictEqual(ensureFolderStub.lastCall.args[0], 'https://contoso.sharepoint.com/sites/project-x');
+        assert.strictEqual(ensureFolderStub.lastCall.args[1], '/sites/project-xxx/Lists/Demo%20List/InsideFolder2/Folder3');
         done();
       }
       catch (e) {
@@ -342,7 +336,7 @@ describe(commands.LISTITEM_ADD, () => {
     sinon.stub(request, 'get').callsFake(getFakes);
     const postStubs = sinon.stub(request, 'post').callsFake(postFakes);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         listTitle: 'Demo List',
@@ -354,8 +348,8 @@ describe(commands.LISTITEM_ADD, () => {
     }, () => {
       try {
         const addValidateUpdateItemUsingPathRequest = postStubs.getCall(postStubs.callCount - 1).args[0];
-        const info = addValidateUpdateItemUsingPathRequest.body.listItemCreateInfo;
-        assert.equal(info.FolderPath.DecodedUrl, '/sites/project-xxx/Lists/Demo%20List/InsideFolder2/Folder3');
+        const info = addValidateUpdateItemUsingPathRequest.data.listItemCreateInfo;
+        assert.strictEqual(info.FolderPath.DecodedUrl, '/sites/project-xxx/Lists/Demo%20List/InsideFolder2/Folder3');
         done();
       }
       catch (e) {
@@ -364,11 +358,11 @@ describe(commands.LISTITEM_ADD, () => {
     });
   });
 
-  it('ignores global options when creating request body', (done) => {
+  it('ignores global options when creating request data', (done) => {
     sinon.stub(request, 'get').callsFake(getFakes);
     const postStubs = sinon.stub(request, 'post').callsFake(postFakes);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         verbose: true,
@@ -381,7 +375,7 @@ describe(commands.LISTITEM_ADD, () => {
       }
     }, () => {
       try {
-        assert.deepEqual(postStubs.firstCall.args[0].body, {
+        assert.deepEqual(postStubs.firstCall.args[0].data, {
           formValues: [{ FieldName: 'Title', FieldValue: 'List Item 1' }, { FieldName: 'ContentType', FieldValue: 'Item' }],
           listItemCreateInfo: { FolderPath: { DecodedUrl: '/sites/project-xxx/Lists/Demo%20List/InsideFolder2/Folder3' } }
         });
@@ -391,39 +385,5 @@ describe(commands.LISTITEM_ADD, () => {
         done(e);
       }
     });
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.LISTITEM_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

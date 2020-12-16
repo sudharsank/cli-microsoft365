@@ -1,14 +1,12 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { Feature } from './Feature';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -34,29 +32,29 @@ class SpoFeatureListCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const scope: string = (args.options.scope) ? args.options.scope : 'Web';
     const requestOptions: any = {
       url: `${args.options.url}/_api/${scope}/Features?$select=DisplayName,DefinitionId`,
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get<{ value: Feature[] }>(requestOptions)
       .then((features: { value: Feature[] }): void => {
         if (features.value && features.value.length > 0) {
-          cmd.log(features.value);
+          logger.log(features.value);
         }
         else {
           if (this.verbose) {
-            cmd.log('No activated Features found');
+            logger.logToStderr('No activated Features found');
           }
         }
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -76,34 +74,15 @@ class SpoFeatureListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.url) {
-        return 'Required parameter url missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.scope) {
+      if (args.options.scope !== 'Site' &&
+        args.options.scope !== 'Web') {
+        return `${args.options.scope} is not a valid Feature scope. Allowed values are Site|Web`;
       }
+    }
 
-      if (args.options.scope) {
-        if (args.options.scope !== 'Site' &&
-          args.options.scope !== 'Web') {
-          return `${args.options.scope} is not a valid Feature scope. Allowed values are Site|Web`;
-        }
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.url);
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    log(vorpal.find(commands.FEATURE_LIST).helpInformation());
-    log(
-      `  Examples:
-  
-    Return details about Features activated in the specified site collection
-      ${commands.FEATURE_LIST} --url https://contoso.sharepoint.com/sites/test --scope Site
-
-    Return details about Features activated in the specified site
-      ${commands.FEATURE_LIST} --url https://contoso.sharepoint.com/sites/test --scope Web
-      `);
+    return SpoCommand.isValidSharePointUrl(args.options.url);
   }
 }
 

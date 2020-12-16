@@ -1,14 +1,14 @@
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import config from '../../../../config';
-import commands from '../../commands';
-import request from '../../../../request';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import { CommandOption, CommandValidate, CommandCancel } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { ClientSvcResponse, ClientSvcResponseContents, FormDigestInfo } from '../../spo';
 import { SpoOperation } from './SpoOperation';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -60,25 +60,25 @@ class SpoSiteClassicSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this.dots = '';
 
     this
-      .getTenantId(cmd, this.debug)
+      .getTenantId(logger, this.debug)
       .then((_tenantId: string): Promise<string> => {
         this.tenantId = _tenantId;
 
-        return this.getSpoAdminUrl(cmd, this.debug)
+        return this.getSpoAdminUrl(logger, this.debug)
       })
       .then((_spoAdminUrl: string): Promise<FormDigestInfo> => {
         this.spoAdminUrl = _spoAdminUrl;
 
-        return this.ensureFormDigest(this.spoAdminUrl, cmd, this.context, this.debug);
+        return this.ensureFormDigest(this.spoAdminUrl, logger, this.context, this.debug);
       })
       .then((res: FormDigestInfo): Promise<string> => {
         this.context = res;
         if (this.verbose) {
-          cmd.log(`Setting basic properties ${args.options.url}...`);
+          logger.logToStderr(`Setting basic properties ${args.options.url}...`);
         }
 
         const basicProperties: string[] = [
@@ -141,7 +141,7 @@ class SpoSiteClassicSetCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': this.context.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions>${updates.join('')}<ObjectPath Id="14" ObjectPathId="13" /><ObjectIdentityQuery Id="15" ObjectPathId="5" /><Query Id="16" ObjectPathId="13"><Query SelectAllProperties="false"><Properties><Property Name="IsComplete" ScalarProperty="true" /><Property Name="PollingInterval" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Identity Id="5" Name="53d8499e-d0d2-5000-cb83-9ade5be42ca4|${(this.tenantId as string).substr(pos, (this.tenantId as string).indexOf('&') - pos)}&#xA;SiteProperties&#xA;${encodeURIComponent(args.options.url)}" /><Method Id="13" ParentId="5" Name="Update" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions>${updates.join('')}<ObjectPath Id="14" ObjectPathId="13" /><ObjectIdentityQuery Id="15" ObjectPathId="5" /><Query Id="16" ObjectPathId="13"><Query SelectAllProperties="false"><Properties><Property Name="IsComplete" ScalarProperty="true" /><Property Name="PollingInterval" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Identity Id="5" Name="53d8499e-d0d2-5000-cb83-9ade5be42ca4|${(this.tenantId as string).substr(pos, (this.tenantId as string).indexOf('&') - pos)}&#xA;SiteProperties&#xA;${encodeURIComponent(args.options.url)}" /><Method Id="13" ParentId="5" Name="Update" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -167,13 +167,13 @@ class SpoSiteClassicSetCommand extends SpoCommand {
             }
 
             this.timeout = setTimeout(() => {
-              this.waitUntilFinished(JSON.stringify(operation._ObjectIdentity_), this.spoAdminUrl as string, resolve, reject, cmd, this.context as FormDigestInfo, this.dots, this.timeout);
+              this.waitUntilFinished(JSON.stringify(operation._ObjectIdentity_), this.spoAdminUrl as string, resolve, reject, logger, this.context as FormDigestInfo, this.dots, this.timeout);
             }, operation.PollingInterval);
           }
         });
       })
       .then((): Promise<FormDigestInfo> => {
-        return this.ensureFormDigest(this.spoAdminUrl as string, cmd, this.context, this.debug);
+        return this.ensureFormDigest(this.spoAdminUrl as string, logger, this.context, this.debug);
       })
       .then((res: FormDigestInfo): Promise<void> => {
         this.context = res;
@@ -184,7 +184,7 @@ class SpoSiteClassicSetCommand extends SpoCommand {
           }
 
           Promise.all(args.options.owners.split(',').map(o => {
-            return this.setAdmin(cmd, args.options.url, o.trim());
+            return this.setAdmin(logger, args.options.url, o.trim());
           }))
             .then((): void => {
               resolve();
@@ -203,7 +203,7 @@ class SpoSiteClassicSetCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': (this.context as FormDigestInfo).FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="7" ObjectPathId="5" Name="LockState"><Parameter Type="String">${Utils.escapeXml(args.options.lockState)}</Parameter></SetProperty><ObjectPath Id="9" ObjectPathId="8" /><ObjectIdentityQuery Id="10" ObjectPathId="5" /><Query Id="11" ObjectPathId="8"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Method Id="5" ParentId="3" Name="GetSitePropertiesByUrl"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.url)}</Parameter><Parameter Type="Boolean">false</Parameter></Parameters></Method><Method Id="8" ParentId="5" Name="Update" /><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="7" ObjectPathId="5" Name="LockState"><Parameter Type="String">${Utils.escapeXml(args.options.lockState)}</Parameter></SetProperty><ObjectPath Id="9" ObjectPathId="8" /><ObjectIdentityQuery Id="10" ObjectPathId="5" /><Query Id="11" ObjectPathId="8"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Method Id="5" ParentId="3" Name="GetSitePropertiesByUrl"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.url)}</Parameter><Parameter Type="Boolean">false</Parameter></Parameters></Method><Method Id="8" ParentId="5" Name="Update" /><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -229,32 +229,24 @@ class SpoSiteClassicSetCommand extends SpoCommand {
             }
 
             this.timeout = setTimeout(() => {
-              this.waitUntilFinished(JSON.stringify(operation._ObjectIdentity_), this.spoAdminUrl as string, resolve, reject, cmd, this.context as FormDigestInfo, this.dots, this.timeout);
+              this.waitUntilFinished(JSON.stringify(operation._ObjectIdentity_), this.spoAdminUrl as string, resolve, reject, logger, this.context as FormDigestInfo, this.dots, this.timeout);
             }, operation.PollingInterval);
           }
         });
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
-  public cancel(): CommandCancel {
-    return (): void => {
-      if (this.timeout) {
-        clearTimeout(this.timeout);
-      }
-    }
-  }
-
-  private setAdmin(cmd: CommandInstance, siteUrl: string, principal: string): Promise<void> {
+  private setAdmin(logger: Logger, siteUrl: string, principal: string): Promise<void> {
     return new Promise<void>((resolve: () => void, reject: (error: any) => void): void => {
       this
-        .ensureFormDigest(this.spoAdminUrl as string, cmd, this.context, this.debug)
+        .ensureFormDigest(this.spoAdminUrl as string, logger, this.context, this.debug)
         .then((res: FormDigestInfo): Promise<string> => {
           this.context = res;
           const requestOptions: any = {
@@ -262,7 +254,7 @@ class SpoSiteClassicSetCommand extends SpoCommand {
             headers: {
               'X-RequestDigest': this.context.FormDigestValue
             },
-            body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="48" ObjectPathId="47" /></Actions><ObjectPaths><Method Id="47" ParentId="34" Name="SetSiteAdmin"><Parameters><Parameter Type="String">${Utils.escapeXml(siteUrl)}</Parameter><Parameter Type="String">${Utils.escapeXml(principal)}</Parameter><Parameter Type="Boolean">true</Parameter></Parameters></Method><Constructor Id="34" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
+            data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="48" ObjectPathId="47" /></Actions><ObjectPaths><Method Id="47" ParentId="34" Name="SetSiteAdmin"><Parameters><Parameter Type="String">${Utils.escapeXml(siteUrl)}</Parameter><Parameter Type="String">${Utils.escapeXml(principal)}</Parameter><Parameter Type="Boolean">true</Parameter></Parameters></Method><Constructor Id="34" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
           };
 
           return request.post(requestOptions);
@@ -340,132 +332,67 @@ class SpoSiteClassicSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.url) {
-        return 'Required option url missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.sharing &&
+      ['Disabled', 'ExternalUserSharingOnly', 'ExternalUserAndGuestSharing', 'ExistingExternalUserSharingOnly'].indexOf(args.options.sharing) === -1) {
+      return `${args.options.sharing} is not a valid value for the sharing option. Allowed values Disabled|ExternalUserSharingOnly|ExternalUserAndGuestSharing|ExistingExternalUserSharingOnly`;
+    }
 
-      if (args.options.sharing &&
-        ['Disabled', 'ExternalUserSharingOnly', 'ExternalUserAndGuestSharing', 'ExistingExternalUserSharingOnly'].indexOf(args.options.sharing) === -1) {
-        return `${args.options.sharing} is not a valid value for the sharing option. Allowed values Disabled|ExternalUserSharingOnly|ExternalUserAndGuestSharing|ExistingExternalUserSharingOnly`;
-      }
+    if (args.options.resourceQuota &&
+      typeof args.options.resourceQuota !== 'number') {
+      return `${args.options.resourceQuota} is not a number`;
+    }
 
-      if (args.options.resourceQuota &&
-        typeof args.options.resourceQuota !== 'number') {
-        return `${args.options.resourceQuota} is not a number`;
-      }
+    if (args.options.resourceQuotaWarningLevel &&
+      typeof args.options.resourceQuotaWarningLevel !== 'number') {
+      return `${args.options.resourceQuotaWarningLevel} is not a number`;
+    }
 
-      if (args.options.resourceQuotaWarningLevel &&
-        typeof args.options.resourceQuotaWarningLevel !== 'number') {
-        return `${args.options.resourceQuotaWarningLevel} is not a number`;
-      }
+    if (args.options.resourceQuota &&
+      args.options.resourceQuotaWarningLevel &&
+      args.options.resourceQuotaWarningLevel > args.options.resourceQuota) {
+      return `resourceQuotaWarningLevel must not exceed the resourceQuota`;
+    }
 
-      if (args.options.resourceQuota &&
-        args.options.resourceQuotaWarningLevel &&
-        args.options.resourceQuotaWarningLevel > args.options.resourceQuota) {
-        return `resourceQuotaWarningLevel must not exceed the resourceQuota`;
-      }
+    if (args.options.storageQuota &&
+      typeof args.options.storageQuota !== 'number') {
+      return `${args.options.storageQuota} is not a number`;
+    }
 
-      if (args.options.storageQuota &&
-        typeof args.options.storageQuota !== 'number') {
-        return `${args.options.storageQuota} is not a number`;
-      }
+    if (args.options.storageQuotaWarningLevel &&
+      typeof args.options.storageQuotaWarningLevel !== 'number') {
+      return `${args.options.storageQuotaWarningLevel} is not a number`;
+    }
 
-      if (args.options.storageQuotaWarningLevel &&
-        typeof args.options.storageQuotaWarningLevel !== 'number') {
-        return `${args.options.storageQuotaWarningLevel} is not a number`;
-      }
+    if (args.options.storageQuota &&
+      args.options.storageQuotaWarningLevel &&
+      args.options.storageQuotaWarningLevel > args.options.storageQuota) {
+      return `storageQuotaWarningLevel must not exceed the storageQuota`;
+    }
 
-      if (args.options.storageQuota &&
-        args.options.storageQuotaWarningLevel &&
-        args.options.storageQuotaWarningLevel > args.options.storageQuota) {
-        return `storageQuotaWarningLevel must not exceed the storageQuota`;
-      }
+    if (args.options.allowSelfServiceUpgrade &&
+      args.options.allowSelfServiceUpgrade !== 'true' &&
+      args.options.allowSelfServiceUpgrade !== 'false') {
+      return `${args.options.allowSelfServiceUpgrade} is not a valid boolean value`;
+    }
 
-      if (args.options.allowSelfServiceUpgrade &&
-        args.options.allowSelfServiceUpgrade !== 'true' &&
-        args.options.allowSelfServiceUpgrade !== 'false') {
-        return `${args.options.allowSelfServiceUpgrade} is not a valid boolean value`;
-      }
+    if (args.options.lockState &&
+      ['Unlock', 'NoAdditions', 'ReadOnly', 'NoAccess'].indexOf(args.options.lockState) === -1) {
+      return `${args.options.lockState} is not a valid value for the lockState option. Allowed values Unlock|NoAdditions|ReadOnly|NoAccess`;
+    }
 
-      if (args.options.lockState &&
-        ['Unlock', 'NoAdditions', 'ReadOnly', 'NoAccess'].indexOf(args.options.lockState) === -1) {
-        return `${args.options.lockState} is not a valid value for the lockState option. Allowed values Unlock|NoAdditions|ReadOnly|NoAccess`;
-      }
+    if (args.options.noScriptSite &&
+      args.options.noScriptSite !== 'true' &&
+      args.options.noScriptSite !== 'false') {
+      return `${args.options.noScriptSite} is not a valid boolean value`;
+    }
 
-      if (args.options.noScriptSite &&
-        args.options.noScriptSite !== 'true' &&
-        args.options.noScriptSite !== 'false') {
-        return `${args.options.noScriptSite} is not a valid boolean value`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-
-  Remarks:
-
-    The value of the ${chalk.blue('--resourceQuota')} option must not exceed
-    the company's aggregate available Sandboxed Solutions quota.
-    For more information, see Resource Usage Limits on Sandboxed Solutions
-    in SharePoint 2010: http://msdn.microsoft.com/en-us/library/gg615462.aspx.
-
-    The value of the ${chalk.blue('--resourceQuotaWarningLevel')} option
-    must not exceed the value of the ${chalk.blue('--resourceQuota')} option
-    or the current value of the ${chalk.grey(`UserCodeMaximumLevel`)} property.
-
-    The value of the ${chalk.blue('--storageQuota')} option must not exceed
-    the company's available quota.
-
-    The value of the ${chalk.blue('--storageQuotaWarningLevel')} option must not
-    exceed the the value of the ${chalk.blue('--storageQuota')} option or
-    the current value of the ${chalk.gray('StorageMaximumLevel')} property.
-
-    When updating site owners using the ${chalk.blue('--owners')} option,
-    the command doesn't remove existing users but adds the users specified
-    in the option to the list of already configured owners.
-    When specifying owners, you can specify both users and groups.
-
-    For more information on locking classic sites see
-    https://technet.microsoft.com/en-us/library/cc263238.aspx.
-
-    For more information on configuring no script sites see
-    https://support.office.com/en-us/article/Turn-scripting-capabilities-on-or-off-1f2c515f-5d7e-448a-9fd7-835da935584f.
-
-    Setting site properties is by default asynchronous and depending on
-    the current state of Microsoft 365, might take up to few minutes. If you're
-    building a script with steps that require the site to be fully configured,
-    you should use the ${chalk.blue('--wait')} flag. When using this flag,
-    the ${chalk.blue(this.getCommandName())} command will keep running until
-    it received confirmation from Microsoft 365 that the site has been fully
-    configured.
-
-  Examples:
-
-    Change the title of the site collection. Don't wait for the configuration
-    to complete
-      ${this.getCommandName()} --url https://contoso.sharepoint.com/sites/team --title Team
-
-    Add the specified user accounts as site collection administrators
-      ${this.getCommandName()} --url https://contoso.sharepoint.com/sites/team --owners "joe@contoso.com,steve@contoso.com"
-
-    Lock the site preventing users from accessing it. Wait for the configuration
-    to complete
-      ${this.getCommandName()} --url https://contoso.sharepoint.com/sites/team --LockState NoAccess --wait
-`);
+    return true;
   }
 }
 

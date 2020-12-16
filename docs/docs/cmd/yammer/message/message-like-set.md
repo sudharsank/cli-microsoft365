@@ -5,20 +5,21 @@ Likes or unlikes a Yammer message
 ## Usage
 
 ```sh
-yammer message like set [options]
+m365 yammer message like set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--id <id>`|The id of the Yammer message
-`--enable [enable]`|Set to `true` to like a message. Set to `false` to unlike it. Default `true`
-`--confirm`|Don't prompt for confirmation before unliking a message
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--id <id>`
+: The id of the Yammer message
+
+`--enable [enable]`
+: Set to `true` to like a message. Set to `false` to unlike it. Default `true`
+
+`--confirm`
+: Don't prompt for confirmation before unliking a message
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,17 +31,17 @@ Option|Description
 Likes the message with the ID `5611239081`
 
 ```sh
-yammer message like set --id 5611239081
+m365 yammer message like set --id 5611239081
 ```
 
 Unlike the message with the ID `5611239081`
 
 ```sh
-yammer message like set --id 5611239081 --enable false
+m365 yammer message like set --id 5611239081 --enable false
 ```
 
 Unlike the message with the ID `5611239081` without asking for confirmation
 
 ```sh
-yammer message like set --id 5611239081 --enable false --confirm
+m365 yammer message like set --id 5611239081 --enable false --confirm
 ```

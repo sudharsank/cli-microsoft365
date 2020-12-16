@@ -1,14 +1,13 @@
-import config from '../../../../config';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import Utils from '../../../../Utils';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -68,27 +67,27 @@ class TeamsSetCommand extends GraphCommand {
     return requestBody;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const body: any = this.mapRequestBody(args.options);
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const data: any = this.mapRequestBody(args.options);
 
     const requestOptions: any = {
       url: `${this.resource}/beta/groups/${encodeURIComponent(args.options.teamId)}`,
       headers: {
         accept: 'application/json;odata.metadata=none'
       },
-      body: body,
-      json: true
+      data: data,
+      responseType: 'json'
     };
 
     request
       .patch(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -124,43 +123,18 @@ class TeamsSetCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
+
+    if (args.options.visibility) {
+      if (args.options.visibility.toLowerCase() !== 'private' && args.options.visibility.toLowerCase() !== 'public') {
+        return `${args.options.visibility} is not a valid visibility type. Allowed values are Private|Public`;
       }
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      if (args.options.visibility) {
-        if (args.options.visibility.toLowerCase() !== 'private' && args.options.visibility.toLowerCase() !== 'public') {
-          return `${args.options.visibility} is not a valid visibility type. Allowed values are Private|Public`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently in preview
-    and is subject to change once the API reached general availability.
-
-  Examples:
-  
-    Set Microsoft Teams team visibility as Private
-      ${chalk.grey(config.delimiter)} ${this.name} --teamId '00000000-0000-0000-0000-000000000000' --visibility Private
-
-    Set Microsoft Teams team classification as MBI
-      ${chalk.grey(config.delimiter)} ${this.name} --teamId '00000000-0000-0000-0000-000000000000' --classification MBI
-`);
+    return true;
   }
 }
 

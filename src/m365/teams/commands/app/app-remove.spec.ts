@@ -1,18 +1,19 @@
-import * as sinon from 'sinon';
 import * as assert from 'assert';
+import * as chalk from 'chalk';
+import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-import request from '../../../../request';
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
 import auth from '../../../../Auth';
-const command: Command = require('./app-remove');
+import { Cli, Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./app-remove');
 
 describe(commands.TEAMS_APP_REMOVE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let requests: any[];
 
   before(() => {
@@ -22,29 +23,27 @@ describe(commands.TEAMS_APP_REMOVE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
         log.push(msg);
       },
-      prompt: (options: any, cb: (result: { continue: boolean }) => void) => {
-        cb({ continue: false });
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
+        log.push(msg);
       }
     };
     requests = [];
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
-      request.delete
+      request.delete,
+      Cli.prompt
     ]);
   });
 
@@ -57,36 +56,28 @@ describe(commands.TEAMS_APP_REMOVE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TEAMS_APP_REMOVE), true);
+    assert.strictEqual(command.name.startsWith(commands.TEAMS_APP_REMOVE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
-  });
-
-  it('fails validation if the id is not provided.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {}
-    });
-    assert.notEqual(actual, true);
-    done();
+    assert.notStrictEqual(command.description, null);
   });
 
   it('fails validation if the id is not a valid GUID.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: { id: 'invalid' }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('validates for a correct input.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         id: "e3e29acb-8c79-412b-b746-e6c39ff4cd22"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
     done();
   });
 
@@ -101,8 +92,7 @@ describe(commands.TEAMS_APP_REMOVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false, id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22`, confirm: true } }, () => {
+    command.action(logger, { options: { debug: false, id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22`, confirm: true } }, () => {
       try {
         assert(removeTeamsAppCalled);
         done();
@@ -123,11 +113,10 @@ describe(commands.TEAMS_APP_REMOVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: true, filePath: 'teamsapp.zip', id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22`, confirm: true } }, () => {
+    command.action(logger, { options: { debug: true, filePath: 'teamsapp.zip', id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22`, confirm: true } }, () => {
       try {
         assert(removeTeamsAppCalled);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       } catch (e) {
         done(e);
@@ -146,11 +135,10 @@ describe(commands.TEAMS_APP_REMOVE, () => {
       return Promise.reject('Invalid request');      
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({ options: { debug: true, filePath: 'teamsapp.zip', id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22` } }, () => {
+    });
+    command.action(logger, { options: { debug: true, filePath: 'teamsapp.zip', id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22` } }, () => {
       try {
         assert(removeTeamsAppCalled);
         done();
@@ -161,11 +149,10 @@ describe(commands.TEAMS_APP_REMOVE, () => {
   });
 
   it('aborts removing Teams app when prompt not confirmed', (done) => {
-    cmdInstance.action = command.action();
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({ options: { debug: false, id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22` } }, () => {
+    });
+    command.action(logger, { options: { debug: false, id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22` } }, () => {
       try {
         assert(requests.length === 0);
         done();
@@ -181,10 +168,9 @@ describe(commands.TEAMS_APP_REMOVE, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false, filePath: 'teamsapp.zip', id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22`, confirm: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, filePath: 'teamsapp.zip', id: `e3e29acb-8c79-412b-b746-e6c39ff4cd22`, confirm: true } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       } catch (e) {
         done(e);
@@ -193,7 +179,7 @@ describe(commands.TEAMS_APP_REMOVE, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -201,39 +187,5 @@ describe(commands.TEAMS_APP_REMOVE, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TEAMS_APP_REMOVE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

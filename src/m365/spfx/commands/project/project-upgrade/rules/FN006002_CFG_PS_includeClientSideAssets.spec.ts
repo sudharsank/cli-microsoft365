@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN006002_CFG_PS_includeClientSideAssets } from './FN006002_CFG_PS_includeClientSideAssets';
 
 describe('FN006002_CFG_PS_includeClientSideAssets', () => {
@@ -23,7 +23,7 @@ describe('FN006002_CFG_PS_includeClientSideAssets', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if package-solution.json is not available', () => {
@@ -31,6 +31,6 @@ describe('FN006002_CFG_PS_includeClientSideAssets', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

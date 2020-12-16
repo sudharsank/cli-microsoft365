@@ -5,22 +5,24 @@ Enables site classification configuration
 ## Usage
 
 ```sh
-aad siteclassification enable [options]
+m365 aad siteclassification enable [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-c, --classifications <classifications>`|Comma-separated list of classifications to enable in the tenant
-`-d, --defaultClassification <defaultClassification>`|Classification to use by default
-`-u, --usageGuidelinesUrl [usageGuidelinesUrl]`|URL with usage guidelines for members
-`-g, --guestUsageGuidelinesUrl [guestUsageGuidelinesUrl]`|URL with usage guidelines for guests
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-c, --classifications <classifications>`
+: Comma-separated list of classifications to enable in the tenant
+
+`-d, --defaultClassification <defaultClassification>`
+: Classification to use by default
+
+`-u, --usageGuidelinesUrl [usageGuidelinesUrl]`
+: URL with usage guidelines for members
+
+`-g, --guestUsageGuidelinesUrl [guestUsageGuidelinesUrl]`
+: URL with usage guidelines for guests
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -32,19 +34,19 @@ Option|Description
 Enable site classification
 
 ```sh
-aad siteclassification enable --classifications "High, Medium, Low" --defaultClassification "Medium"
+m365 aad siteclassification enable --classifications "High, Medium, Low" --defaultClassification "Medium"
 ```
 
 Enable site classification with a usage guidelines URL
 
 ```sh
-aad siteclassification enable --classifications "High, Medium, Low" --defaultClassification "Medium" --usageGuidelinesUrl "http://aka.ms/pnp"
+m365 aad siteclassification enable --classifications "High, Medium, Low" --defaultClassification "Medium" --usageGuidelinesUrl "http://aka.ms/pnp"
 ```
 
 Enable site classification with usage guidelines URLs for guests and members
 
 ```sh
-aad siteclassification enable --classifications "High, Medium, Low" --defaultClassification "Medium" --usageGuidelinesUrl "http://aka.ms/pnp" --guestUsageGuidelinesUrl "http://aka.ms/pnp"
+m365 aad siteclassification enable --classifications "High, Medium, Low" --defaultClassification "Medium" --usageGuidelinesUrl "http://aka.ms/pnp" --guestUsageGuidelinesUrl "http://aka.ms/pnp"
 ```
 
 ## More information

@@ -1,12 +1,13 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./approleassignment-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./approleassignment-list');
 
 class ServicePrincipalCollections {
 
@@ -14,15 +15,12 @@ class ServicePrincipalCollections {
     {
       value: [
         {
-          "odata.type": "Microsoft.DirectoryServices.ServicePrincipal",
-          "appRoleAssignments@odata.navigationLinkUrl": "https://graph.windows.net/myorganization/directoryObjects/3aa76d8a-4145-40d1-89ca-b15bdb943bfd/Microsoft.DirectoryServices.ServicePrincipal/appRoleAssignments",
           "appRoleAssignments": [
             {
-              "objectType": "AppRoleAssignment",
-              "objectId": "im2nOkVB0UCJyrFb25Q7_eZg4Yr51ZhDlErpioz6f8k",
-              "deletionTimestamp": null,
-              "creationTimestamp": "2020-02-11T16:42:20.2272849Z",
-              "id": "df021288-bdef-4463-88db-98f22de89214",
+              "id": "im2nOkVB0UCJyrFb25Q7_eZg4Yr51ZhDlErpioz6f8k",
+              "deletedDateTime": null,
+              "createdDateTime": "2020-02-11T16:42:20.2272849Z",
+              "appRoleId": "df021288-bdef-4463-88db-98f22de89214",
               "principalDisplayName": "Product Catalog daemon",
               "principalId": "3aa76d8a-4145-40d1-89ca-b15bdb943bfd",
               "principalType": "ServicePrincipal",
@@ -30,11 +28,10 @@ class ServicePrincipalCollections {
               "resourceId": "b1ce2d04-5502-4142-ba53-819327b74b5b"
             },
             {
-              "objectType": "AppRoleAssignment",
-              "objectId": "im2nOkVB0UCJyrFb25Q7_c9ubVNI2s9PkLasaAPuNQM",
-              "deletionTimestamp": null,
-              "creationTimestamp": "2020-02-11T01:27:47.395556Z",
-              "id": "9116d0c7-0632-4203-889f-a24a08442b3d",
+              "id": "im2nOkVB0UCJyrFb25Q7_c9ubVNI2s9PkLasaAPuNQM",
+              "deletedDateTime": null,
+              "createdDateTime": "2020-02-11T01:27:47.395556Z",
+              "appRoleId": "9116d0c7-0632-4203-889f-a24a08442b3d",
               "principalDisplayName": "Product Catalog daemon",
               "principalId": "3aa76d8a-4145-40d1-89ca-b15bdb943bfd",
               "principalType": "ServicePrincipal",
@@ -42,9 +39,8 @@ class ServicePrincipalCollections {
               "resourceId": "b3598f45-9d8c-41c9-b5f0-81eb7ea8551f"
             }
           ],
-          "objectType": "ServicePrincipal",
-          "objectId": "3aa76d8a-4145-40d1-89ca-b15bdb943bfd",
-          "deletionTimestamp": null,
+          "id": "3aa76d8a-4145-40d1-89ca-b15bdb943bfd",
+          "deletedDateTime": null,
           "accountEnabled": true,
           "addIns": [],
           "alternativeNames": [],
@@ -57,7 +53,7 @@ class ServicePrincipalCollections {
           "displayName": "Product Catalog daemon",
           "errorUrl": null,
           "homepage": null,
-          "informationalUrls": {
+          "info": {
             "termsOfService": null,
             "support": null,
             "privacy": null,
@@ -66,7 +62,7 @@ class ServicePrincipalCollections {
           "keyCredentials": [],
           "logoutUrl": null,
           "notificationEmailAddresses": [],
-          "oauth2Permissions": [],
+          "oauth2PermissionScopes": [],
           "passwordCredentials": [],
           "preferredSingleSignOnMode": null,
           "preferredTokenSigningKeyEndDateTime": null,
@@ -92,12 +88,9 @@ class ServicePrincipalCollections {
     {
       value: [
         {
-          "odata.type": "Microsoft.DirectoryServices.ServicePrincipal",
-          "appRoleAssignments@odata.navigationLinkUrl": "https://graph.windows.net/myorganization/directoryObjects/43a9e7d8-0469-42f5-8c9d-17ac8c974ba6/Microsoft.DirectoryServices.ServicePrincipal/appRoleAssignments",
           "appRoleAssignments": [],
-          "objectType": "ServicePrincipal",
-          "objectId": "43a9e7d8-0469-42f5-8c9d-17ac8c974ba6",
-          "deletionTimestamp": null,
+          "id": "43a9e7d8-0469-42f5-8c9d-17ac8c974ba6",
+          "deletedDateTime": null,
           "accountEnabled": true,
           "addIns": [],
           "alternativeNames": [],
@@ -110,7 +103,7 @@ class ServicePrincipalCollections {
           "displayName": "Product Catalog WebApp",
           "errorUrl": null,
           "homepage": null,
-          "informationalUrls": {
+          "info": {
             "termsOfService": null,
             "support": null,
             "privacy": null,
@@ -119,7 +112,7 @@ class ServicePrincipalCollections {
           "keyCredentials": [],
           "logoutUrl": "https://localhost:5001/signout-oidc",
           "notificationEmailAddresses": [],
-          "oauth2Permissions": [],
+          "oauth2PermissionScopes": [],
           "passwordCredentials": [],
           "preferredSingleSignOnMode": null,
           "preferredTokenSigningKeyEndDateTime": null,
@@ -151,9 +144,8 @@ class ServicePrincipalCollections {
 
 class ServicePrincipalObject {
   static servicePrincipalCustomAppWithAppRole: any = {
-    "objectType": "ServicePrincipal",
-    "objectId": "b3598f45-9d8c-41c9-b5f0-81eb7ea8551f",
-    "deletionTimestamp": null,
+    "id": "b3598f45-9d8c-41c9-b5f0-81eb7ea8551f",
+    "deletedDateTime": null,
     "accountEnabled": true,
     "addIns": [],
     "alternativeNames": [],
@@ -177,7 +169,7 @@ class ServicePrincipalObject {
     "displayName": "Contoso Product Catalog service",
     "errorUrl": null,
     "homepage": null,
-    "informationalUrls": {
+    "info": {
       "termsOfService": null,
       "support": null,
       "privacy": null,
@@ -186,7 +178,7 @@ class ServicePrincipalObject {
     "keyCredentials": [],
     "logoutUrl": null,
     "notificationEmailAddresses": [],
-    "oauth2Permissions": [
+    "oauth2PermissionScopes": [
       {
         "adminConsentDescription": "Allows the app to write Product Categories",
         "adminConsentDisplayName": "Write Product Categories",
@@ -250,11 +242,8 @@ class ServicePrincipalObject {
 
   static servicePrincipalCustomAppWithNoAppRole: any =
     {
-      "odata.metadata": "https://graph.windows.net/myorganization/$metadata#directoryObjects/@Element",
-      "odata.type": "Microsoft.DirectoryServices.ServicePrincipal",
-      "objectType": "ServicePrincipal",
-      "objectId": "003c6308-0075-4e45-b310-d04c72bd649f",
-      "deletionTimestamp": null,
+      "id": "003c6308-0075-4e45-b310-d04c72bd649f",
+      "deletedDateTime": null,
       "accountEnabled": true,
       "addIns": [],
       "alternativeNames": [],
@@ -267,7 +256,7 @@ class ServicePrincipalObject {
       "displayName": "Contoso Product Catalog native client",
       "errorUrl": null,
       "homepage": null,
-      "informationalUrls": {
+      "info": {
         "termsOfService": null,
         "support": null,
         "privacy": null,
@@ -276,7 +265,7 @@ class ServicePrincipalObject {
       "keyCredentials": [],
       "logoutUrl": null,
       "notificationEmailAddresses": [],
-      "oauth2Permissions": [],
+      "oauth2PermissionScopes": [],
       "passwordCredentials": [],
       "preferredSingleSignOnMode": null,
       "preferredTokenSigningKeyEndDateTime": null,
@@ -300,9 +289,8 @@ class ServicePrincipalObject {
 
   static servicePrincipalMicrosoftGraphWithAppRole: any =
     {
-      "objectType": "ServicePrincipal",
-      "objectId": "b1ce2d04-5502-4142-ba53-819327b74b5b",
-      "deletionimestamp": null,
+      "id": "b1ce2d04-5502-4142-ba53-819327b74b5b",
+      "deletedDateTime": null,
       "accountEnabled": true,
       "addIns": [],
       "alternativeNames": [],
@@ -353,7 +341,7 @@ class CommandActionParameters {
   static appIdWithRoleAssignments: string = "36e3a540-6f25-4483-9542-9f5fa00bb633";
   static appNameWithRoleAssignments: string = "Product Catalog daemon";
   static appIdWithNoRoleAssignments: string = "1c21749e-df7a-4fed-b3ab-921dce3bb124";
-  static objectIdWithRoleAssigments: string = "3aa76d8a-4145-40d1-89ca-b15bdb943bfd";
+  static objectIdWithRoleAssignments: string = "3aa76d8a-4145-40d1-89ca-b15bdb943bfd";
   static invalidAppId: string = "12345678-abcd-9876-fedc-0123456789ab";
 }
 
@@ -369,13 +357,13 @@ class RequestStub {
     // 3. get the app roles of the resource
 
     // query for service principal
-    if ((opts.url as string).indexOf(`/myorganization/servicePrincipals?api-version=1.6&$expand=appRoleAssignments&$filter=`) > -1) {
+    if ((opts.url as string).indexOf(`/v1.0/servicePrincipals?$expand=appRoleAssignments&$filter=`) > -1) {
       // by app id
       if ((opts.url as string).indexOf(`appId eq '${CommandActionParameters.appIdWithRoleAssignments}'`) > -1) {
         return Promise.resolve(ServicePrincipalCollections.ServicePrincipalByAppId);
       }
       // by object id
-      if ((opts.url as string).indexOf(`objectId eq '${CommandActionParameters.objectIdWithRoleAssigments}'`) > -1) {
+      if ((opts.url as string).indexOf(`id eq '${CommandActionParameters.objectIdWithRoleAssignments}'`) > -1) {
         return Promise.resolve(ServicePrincipalCollections.ServicePrincipalByAppId);
       }
       // by display name
@@ -392,11 +380,11 @@ class RequestStub {
       }
     }
 
-    if ((opts.url as string).indexOf(`/myorganization/servicePrincipals/${InternalRequestStub.customAppId}?api-version=1.6`) > -1) {
+    if ((opts.url as string).indexOf(`/v1.0/servicePrincipals/${InternalRequestStub.customAppId}`) > -1) {
       return Promise.resolve(ServicePrincipalObject.servicePrincipalCustomAppWithAppRole);
     }
 
-    if ((opts.url as string).indexOf(`/myorganization/servicePrincipals/${InternalRequestStub.microsoftGraphAppId}?api-version=1.6`) > -1) {
+    if ((opts.url as string).indexOf(`/v1.0/servicePrincipals/${InternalRequestStub.microsoftGraphAppId}`) > -1) {
       return Promise.resolve(ServicePrincipalObject.servicePrincipalMicrosoftGraphWithAppRole);
     }
 
@@ -406,21 +394,10 @@ class RequestStub {
 
 
 describe(commands.APPROLEASSIGNMENT_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
-  let textOutput = [
-    {
-      "resourceDisplayName": "Microsoft Graph",
-      "roleName": "User.Read.All"
-    },
-    {
-      "resourceDisplayName": "Contoso Product Catalog service",
-      "roleName": "access_as_application"
-    }
-  ];
   let jsonOutput = [
     {
       "appRoleId": "df021288-bdef-4463-88db-98f22de89214",
@@ -445,23 +422,23 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -475,19 +452,23 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.APPROLEASSIGNMENT_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.APPROLEASSIGNMENT_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['resourceDisplayName', 'roleName']);
   });
 
   it('retrieves App Role assignments for the specified displayName', (done) => {
     sinon.stub(request, 'get').callsFake(RequestStub.retrieveAppRoles);
 
-    cmdInstance.action({ options: { output: 'json', displayName: CommandActionParameters.appNameWithRoleAssignments } }, () => {
+    command.action(logger, { options: { output: 'json', displayName: CommandActionParameters.appNameWithRoleAssignments } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(jsonOutput));
+        assert(loggerLogSpy.calledWith(jsonOutput));
         done();
       }
       catch (e) {
@@ -500,9 +481,9 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   it('retrieves App Role assignments for the specified appId', (done) => {
     sinon.stub(request, 'get').callsFake(RequestStub.retrieveAppRoles);
 
-    cmdInstance.action({ options: { output: 'json', appId: CommandActionParameters.appIdWithRoleAssignments } }, () => {
+    command.action(logger, { options: { output: 'json', appId: CommandActionParameters.appIdWithRoleAssignments } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(jsonOutput));
+        assert(loggerLogSpy.calledWith(jsonOutput));
         done();
       }
       catch (e) {
@@ -514,9 +495,9 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   it('retrieves App Role assignments for the specified appId and outputs text', (done) => {
     sinon.stub(request, 'get').callsFake(RequestStub.retrieveAppRoles);
 
-    cmdInstance.action({ options: { output: 'text', appId: CommandActionParameters.appIdWithRoleAssignments } }, () => {
+    command.action(logger, { options: { output: 'text', appId: CommandActionParameters.appIdWithRoleAssignments } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(textOutput));
+        assert(loggerLogSpy.calledWith(jsonOutput));
         done();
       }
       catch (e) {
@@ -528,9 +509,9 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   it('retrieves App Role assignments for the specified objectId and outputs text', (done) => {
     sinon.stub(request, 'get').callsFake(RequestStub.retrieveAppRoles);
 
-    cmdInstance.action({ options: { output: 'text', objectId: CommandActionParameters.objectIdWithRoleAssigments } }, () => {
+    command.action(logger, { options: { output: 'text', objectId: CommandActionParameters.objectIdWithRoleAssignments } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(textOutput));
+        assert(loggerLogSpy.calledWith(jsonOutput));
         done();
       }
       catch (e) {
@@ -542,9 +523,9 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   it('correctly handles an appId that does not exist', (done) => {
     sinon.stub(request, 'get').callsFake(RequestStub.retrieveAppRoles);
 
-    cmdInstance.action({ options: { appId: CommandActionParameters.invalidAppId } }, (err?: any) => {
+    command.action(logger, { options: { appId: CommandActionParameters.invalidAppId } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('app registration not found')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('app registration not found')));
         done();
       }
       catch (e) {
@@ -556,9 +537,9 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   it('correctly handles no app role assignments for the specified app', (done) => {
     sinon.stub(request, 'get').callsFake(RequestStub.retrieveAppRoles);
 
-    cmdInstance.action({ options: { appId: CommandActionParameters.appIdWithNoRoleAssignments } }, (err?: any) => {
+    command.action(logger, { options: { appId: CommandActionParameters.appIdWithNoRoleAssignments } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('app registration not found')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('app registration not found')));
         done();
       }
       catch (e) {
@@ -581,9 +562,9 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, appId: '36e3a540-6f25-4483-9542-9f5fa00bb633' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, appId: '36e3a540-6f25-4483-9542-9f5fa00bb633' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Resource '' does not exist or one of its queried reference-property objects are not present`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Resource '' does not exist or one of its queried reference-property objects are not present`)));
         done();
       }
       catch (e) {
@@ -593,37 +574,37 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   });
 
   it('fails validation if neither appId nor displayName are not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: {} });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the appId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { appId: '123' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { appId: '123' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the objectId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { objectId: '123' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { objectId: '123' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both appId and displayName are specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { appId: CommandActionParameters.appIdWithNoRoleAssignments, displayName: CommandActionParameters.appNameWithRoleAssignments } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { appId: CommandActionParameters.appIdWithNoRoleAssignments, displayName: CommandActionParameters.appNameWithRoleAssignments } });
+    assert.notStrictEqual(actual, true);
   })
 
   it('fails validation if objectId and displayName are specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { displayName: CommandActionParameters.appNameWithRoleAssignments, objectId: CommandActionParameters.objectIdWithRoleAssigments } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { displayName: CommandActionParameters.appNameWithRoleAssignments, objectId: CommandActionParameters.objectIdWithRoleAssignments } });
+    assert.notStrictEqual(actual, true);
   })
 
   it('passes validation when the appId option specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { appId: CommandActionParameters.appIdWithNoRoleAssignments } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { appId: CommandActionParameters.appIdWithNoRoleAssignments } });
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -634,7 +615,7 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   });
 
   it('supports specifying appId', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--appId') > -1) {
@@ -645,7 +626,7 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
   });
 
   it('supports specifying displayName', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--displayName') > -1) {
@@ -653,40 +634,6 @@ describe(commands.APPROLEASSIGNMENT_LIST, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.APPROLEASSIGNMENT_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });
 

@@ -1,14 +1,15 @@
-import commands from '../../commands';
-import aadcommands from '../../../aad/commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
-import {
-  CommandOption, CommandValidate, CommandCancel
-} from '../../../../Command';
-import GraphCommand from '../../../base/GraphCommand';
+import * as chalk from 'chalk';
+import { AxiosRequestConfig } from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import GraphCommand from '../../../base/GraphCommand';
+import commands from '../../commands';
 
 enum TeamsAsyncOperationStatus {
   Invalid = "invalid",
@@ -63,7 +64,7 @@ class TeamsTeamAddCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this.dots = '';
 
     let requestBody: any;
@@ -71,20 +72,20 @@ class TeamsTeamAddCommand extends GraphCommand {
       const fullPath: string = path.resolve(args.options.templatePath);
 
       if (this.verbose) {
-        cmd.log(`Using template '${fullPath}'...`);
+        logger.logToStderr(`Using template '${fullPath}'...`);
       };
       requestBody = JSON.parse(fs.readFileSync(fullPath, 'utf-8'))
 
       if (args.options.name) {
         if (this.verbose) {
-          cmd.log(`Using '${args.options.name}' as name...`);
+          logger.logToStderr(`Using '${args.options.name}' as name...`);
         };
         requestBody.displayName = args.options.name;
       }
 
       if (args.options.description) {
         if (this.verbose) {
-          cmd.log(`Using '${args.options.description}' as description...`);
+          logger.logToStderr(`Using '${args.options.description}' as description...`);
         };
         requestBody.description = args.options.description;
       }
@@ -98,15 +99,14 @@ class TeamsTeamAddCommand extends GraphCommand {
       }
     }
 
-    const requestOptions = {
+    const requestOptions: AxiosRequestConfig = {
       url: `${this.resource}/beta/teams`,
-      resolveWithFullResponse: true,
       headers: {
         accept: 'application/json;odata.metadata=none',
         'content-type': 'application/json;odata.metadata=none'
       },
-      body: requestBody,
-      json: true
+      data: requestBody,
+      responseType: 'json'
     };
 
     request
@@ -117,7 +117,7 @@ class TeamsTeamAddCommand extends GraphCommand {
           headers: {
             accept: 'application/json;odata.metadata=minimal'
           },
-          json: true
+          responseType: 'json'
         };
 
         return new Promise((resolve, reject) => {
@@ -127,7 +127,7 @@ class TeamsTeamAddCommand extends GraphCommand {
                 resolve(teamsAsyncOperation);
               } else {
                 this.timeout = setTimeout(() => {
-                  this.waitUntilFinished(requestOptions, resolve, reject, cmd, this.dots, this.timeout)
+                  this.waitUntilFinished(requestOptions, resolve, reject, logger, this.dots, this.timeout)
                 }, this.pollingInterval);
               }
             });
@@ -142,21 +142,21 @@ class TeamsTeamAddCommand extends GraphCommand {
           headers: {
             accept: 'application/json;odata.metadata=minimal'
           },
-          json: true
+          responseType: 'json'
         });
       })
       .then((output: any) => {
-        cmd.log(output);
+        logger.log(output);
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
         cb();
       }, (err: any): void => {
-        this.handleRejectedODataJsonPromise(err, cmd, cb)
+        this.handleRejectedODataJsonPromise(err, logger, cb)
       });
   }
 
-  private waitUntilFinished(requestOptions: any, resolve: (teamsAsyncOperation: TeamsAsyncOperation) => void, reject: (error: any) => void, cmd: CommandInstance, dots?: string, timeout?: NodeJS.Timer): void {
+  private waitUntilFinished(requestOptions: any, resolve: (teamsAsyncOperation: TeamsAsyncOperation) => void, reject: (error: any) => void, logger: Logger, dots?: string, timeout?: NodeJS.Timer): void {
     if (!this.debug && this.verbose) {
       dots += '.';
       process.stdout.write(`\r${dots}`);
@@ -177,17 +177,9 @@ class TeamsTeamAddCommand extends GraphCommand {
           return;
         }
         timeout = setTimeout(() => {
-          this.waitUntilFinished(requestOptions, resolve, reject, cmd, dots)
+          this.waitUntilFinished(requestOptions, resolve, reject, logger, dots)
         }, this.pollingInterval);
       }).catch(err => reject(err));
-  }
-
-  public cancel(): CommandCancel {
-    return (): void => {
-      if (this.timeout) {
-        clearTimeout(this.timeout);
-      }
-    }
   }
 
   public options(): CommandOption[] {
@@ -214,66 +206,22 @@ class TeamsTeamAddCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.templatePath) {
-        if (!args.options.name) {
-          return `Required parameter name missing`
-        }
-
-        if (!args.options.description) {
-          return `Required parameter description missing`
-        }
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.templatePath) {
+      if (!args.options.name) {
+        return `Required parameter name missing`
       }
 
-      if (args.options.templatePath && !fs.existsSync(args.options.templatePath)) {
-        return 'Specified path of the template does not exist';
-      };
+      if (!args.options.description) {
+        return `Required parameter description missing`
+      }
+    }
 
-      return true;
+    if (args.options.templatePath && !fs.existsSync(args.options.templatePath)) {
+      return 'Specified path of the template does not exist';
     };
-  }
 
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently in preview
-    and is subject to change once the API reached general availability.
-
-    If you want to add a Team to an existing Microsoft 365 Group use the
-    ${chalk.blue(aadcommands.O365GROUP_TEAMIFY)} command instead.
-
-    This command will return different responses based on the presence of
-    the ${chalk.grey('--wait')} option. If present, the command will return a ${chalk.grey('group')}
-    resource in the response. If not present, the command will return
-    a ${chalk.grey('teamsAsyncOperation')} resource in the response.
-
-  Examples:
-  
-    Add a new Microsoft Teams team 
-      ${this.name} --name 'Architecture' --description 'Architecture Discussion'
-
-    Add a new Microsoft Teams team using a template
-      ${this.name} --name 'Architecture' --description 'Architecture Discussion' --templatePath 'template.json'
-
-    Add a new Microsoft Teams team using a template and wait for the team
-    to be provisioned
-      ${this.name} --name 'Architecture' --description 'Architecture Discussion' --templatePath 'template.json' --wait
-
-  More information:
-
-    Get started with Teams templates
-      https://docs.microsoft.com/en-us/MicrosoftTeams/get-started-with-teams-templates
-
-    group resource type
-      https://docs.microsoft.com/en-gb/graph/api/resources/group?view=graph-rest-beta
-
-    teamsAsyncOperation resource type
-      https://docs.microsoft.com/en-gb/graph/api/resources/teamsasyncoperation?view=graph-rest-beta
-  `);
+    return true;
   }
 }
 

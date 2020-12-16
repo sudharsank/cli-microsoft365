@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Cli, Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -46,19 +44,19 @@ class SpoListViewFieldRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const listSelector: string = args.options.listId ? `(guid'${encodeURIComponent(args.options.listId)}')` : `/GetByTitle('${encodeURIComponent(args.options.listTitle as string)}')`;
 
     const removeFieldFromView: () => void = (): void => {
       if (this.verbose) {
-        cmd.log(`Getting field ${args.options.fieldId || args.options.fieldTitle}...`);
+        logger.logToStderr(`Getting field ${args.options.fieldId || args.options.fieldTitle}...`);
       }
 
       this
         .getField(args.options, listSelector)
         .then((field: { InternalName: string; }): Promise<void> => {
           if (this.verbose) {
-            cmd.log(`Removing field ${args.options.fieldId || args.options.fieldTitle} from view ${args.options.viewId || args.options.viewTitle}...`);
+            logger.logToStderr(`Removing field ${args.options.fieldId || args.options.fieldTitle} from view ${args.options.viewId || args.options.viewTitle}...`);
           }
 
           const viewSelector: string = args.options.viewId ? `('${encodeURIComponent(args.options.viewId)}')` : `/GetByTitle('${encodeURIComponent(args.options.viewTitle as string)}')`;
@@ -69,7 +67,7 @@ class SpoListViewFieldRemoveCommand extends SpoCommand {
             headers: {
               'accept': 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           };
 
           return request.post(postRequestOptions);
@@ -77,14 +75,14 @@ class SpoListViewFieldRemoveCommand extends SpoCommand {
         .then((): void => {
           // REST post call doesn't return anything
           cb();
-        }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
       removeFieldFromView();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -109,7 +107,7 @@ class SpoListViewFieldRemoveCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.get(requestOptions);
@@ -155,80 +153,55 @@ class SpoListViewFieldRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
+
+    if (args.options.listId) {
+      if (!Utils.isValidGuid(args.options.listId)) {
+        return `${args.options.listId} is not a valid GUID`;
       }
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
+    if (args.options.viewId) {
+      if (!Utils.isValidGuid(args.options.viewId)) {
+        return `${args.options.viewId} is not a valid GUID`;
       }
+    }
 
-      if (args.options.listId) {
-        if (!Utils.isValidGuid(args.options.listId)) {
-          return `${args.options.listId} is not a valid GUID`;
-        }
+    if (args.options.fieldId) {
+      if (!Utils.isValidGuid(args.options.fieldId)) {
+        return `${args.options.viewId} is not a valid GUID`;
       }
+    }
 
-      if (args.options.viewId) {
-        if (!Utils.isValidGuid(args.options.viewId)) {
-          return `${args.options.viewId} is not a valid GUID`;
-        }
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return 'Specify listId or listTitle, but not both';
+    }
 
-      if (args.options.fieldId) {
-        if (!Utils.isValidGuid(args.options.fieldId)) {
-          return `${args.options.viewId} is not a valid GUID`;
-        }
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return 'Specify listId or listTitle, one is required';
+    }
 
-      if (args.options.listId && args.options.listTitle) {
-        return 'Specify listId or listTitle, but not both';
-      }
+    if (args.options.viewId && args.options.viewTitle) {
+      return 'Specify viewId or viewTitle, but not both';
+    }
 
-      if (!args.options.listId && !args.options.listTitle) {
-        return 'Specify listId or listTitle, one is required';
-      }
+    if (!args.options.viewId && !args.options.viewTitle) {
+      return 'Specify viewId or viewTitle, one is required';
+    }
 
-      if (args.options.viewId && args.options.viewTitle) {
-        return 'Specify viewId or viewTitle, but not both';
-      }
+    if (args.options.fieldId && args.options.fieldTitle) {
+      return 'Specify fieldId or fieldTitle, but not both';
+    }
 
-      if (!args.options.viewId && !args.options.viewTitle) {
-        return 'Specify viewId or viewTitle, one is required';
-      }
+    if (!args.options.fieldId && !args.options.fieldTitle) {
+      return 'Specify fieldId or fieldTitle, one is required';
+    }
 
-      if (args.options.fieldId && args.options.fieldTitle) {
-        return 'Specify fieldId or fieldTitle, but not both';
-      }
-
-      if (!args.options.fieldId && !args.options.fieldTitle) {
-        return 'Specify fieldId or fieldTitle, one is required';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Remove field with ID ${chalk.grey('330f29c5-5c4c-465f-9f4b-7903020ae1ce')} from view
-    with ID ${chalk.grey('3d760127-982c-405e-9c93-e1f76e1a1110')} from the list
-    with ID ${chalk.grey('1f187321-f086-4d3d-8523-517e94cc9df9')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_VIEW_FIELD_REMOVE} --webUrl https://contoso.sharepoint.com/sites/project-x --fieldId 330f29c5-5c4c-465f-9f4b-7903020ae1ce --listId 1f187321-f086-4d3d-8523-517e94cc9df9 --viewId 3d760127-982c-405e-9c93-e1f76e1a1110
-      
-    Remove field with title ${chalk.grey('Custom field')} from view with title ${chalk.grey('Custom view')}
-    from the list with title ${chalk.grey('Documents')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_VIEW_FIELD_REMOVE} --webUrl https://contoso.sharepoint.com/sites/project-x --fieldTitle 'Custom field' --listTitle Documents --viewTitle 'Custom view'
-      `);
+    return true;
   }
 }
 

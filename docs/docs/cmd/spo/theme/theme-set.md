@@ -5,21 +5,21 @@ Add or update a theme
 ## Usage
 
 ```sh
-spo theme set [options]
+m365 spo theme set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-n, --name <name>`|Name of the theme to add or update
-`-p, --filePath <filePath>`|Absolute or relative path to the theme json file
-`--isInverted`|Set to specify that the theme is inverted
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-n, --name <name>`
+: Name of the theme to add or update
+
+`-p, --filePath <filePath>`
+: Absolute or relative path to the theme json file
+
+`--isInverted`
+: Set to specify that the theme is inverted
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -29,13 +29,13 @@ Option|Description
 Add or update a theme from a theme JSON file
 
 ```sh
-spo theme set -n Contoso-Blue -p /Users/rjesh/themes/contoso-blue.json
+m365 spo theme set -n Contoso-Blue -p /Users/rjesh/themes/contoso-blue.json
 ```
 
 Add or update an inverted theme from a theme JSON file
 
 ```sh
-spo theme set -n Contoso-Blue -p /Users/rjesh/themes/contoso-blue.json --isInverted
+m365 spo theme set -n Contoso-Blue -p /Users/rjesh/themes/contoso-blue.json --isInverted
 ```
 
 ## More information

@@ -5,19 +5,15 @@ Lists OAuth2 permission grants for the specified service principal
 ## Usage
 
 ```sh
-aad oauth2grant list [options]
+m365 aad oauth2grant list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --clientId <clientId>`|objectId of the service principal for which the configured OAuth2 permission grants should be retrieved
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --clientId <clientId>`
+: objectId of the service principal for which the configured OAuth2 permission grants should be retrieved
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,7 +26,7 @@ When using the text output type (default), the command lists only the values of 
 List OAuth2 permissions granted to service principal with `objectId` _b2307a39-e878-458b-bc90-03bc578531d6_.
 
 ```sh
-aad oauth2grant list --clientId b2307a39-e878-458b-bc90-03bc578531d6
+m365 aad oauth2grant list --clientId b2307a39-e878-458b-bc90-03bc578531d6
 ```
 
 ## More information

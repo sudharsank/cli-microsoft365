@@ -1,9 +1,9 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
-import { Finding } from '../Finding';
-import { Project } from '../../model';
-import { FN014006_CODE_launch_sourceMapPathOverrides } from './FN014006_CODE_launch_sourceMapPathOverrides';
 import Utils from '../../../../../../Utils';
+import { Project } from '../../model';
+import { Finding } from '../Finding';
+import { FN014006_CODE_launch_sourceMapPathOverrides } from './FN014006_CODE_launch_sourceMapPathOverrides';
 
 describe('FN014006_CODE_launch_sourceMapPathOverrides', () => {
   let findings: Finding[];
@@ -22,7 +22,7 @@ describe('FN014006_CODE_launch_sourceMapPathOverrides', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if vscode launch file doesn\'t exist', () => {
@@ -31,7 +31,7 @@ describe('FN014006_CODE_launch_sourceMapPathOverrides', () => {
       vsCode: {}
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if vscode launch file doesn\'t contain configurations', () => {
@@ -44,7 +44,7 @@ describe('FN014006_CODE_launch_sourceMapPathOverrides', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if none of the configurations contains sourceMapPathOverrides', () => {
@@ -59,7 +59,7 @@ describe('FN014006_CODE_launch_sourceMapPathOverrides', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if the configuration already contains the specified override', () => {
@@ -77,6 +77,6 @@ describe('FN014006_CODE_launch_sourceMapPathOverrides', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

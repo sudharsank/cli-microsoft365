@@ -1,13 +1,11 @@
-import commands from '../commands';
-import GlobalOptions from '../../../GlobalOptions';
-import Command, {
-  CommandOption,
-  CommandValidate,
-  CommandAction
+import { Logger } from '../../../cli';
+import {
+  CommandOption
 } from '../../../Command';
 import config from '../../../config';
-
-const vorpal: Vorpal = require('../../../vorpal-init');
+import GlobalOptions from '../../../GlobalOptions';
+import AnonymousCommand from '../../base/AnonymousCommand';
+import commands from '../commands';
 
 interface CommandArgs {
   options: Options;
@@ -17,7 +15,7 @@ interface Options extends GlobalOptions {
   service: string;
 }
 
-class CliConsentCommand extends Command {
+class CliConsentCommand extends AnonymousCommand {
   public get name(): string {
     return `${commands.CONSENT}`;
   }
@@ -32,7 +30,7 @@ class CliConsentCommand extends Command {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let scope = '';
     switch (args.options.service) {
       case 'yammer':
@@ -40,18 +38,13 @@ class CliConsentCommand extends Command {
         break;
     }
 
-    cmd.log(`To consent permissions for executing ${args.options.service} commands, navigate in your web browser to https://login.microsoftonline.com/${config.tenant}/oauth2/v2.0/authorize?client_id=${config.cliAadAppId}&response_type=code&scope=${encodeURIComponent(scope)}`);
+    logger.log(`To consent permissions for executing ${args.options.service} commands, navigate in your web browser to https://login.microsoftonline.com/${config.tenant}/oauth2/v2.0/authorize?client_id=${config.cliAadAppId}&response_type=code&scope=${encodeURIComponent(scope)}`);
     cb();
   }
 
-  public action(): CommandAction {
-    const cmd: Command = this;
-    return function (this: CommandInstance, args: CommandArgs, cb: (err?: any) => void) {
-      args = (cmd as any).processArgs(args);
-      (cmd as any).initAction(args, this);
-
-      cmd.commandAction(this, args, cb);
-    }
+  public action(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
+    this.initAction(args, logger);
+    this.commandAction(logger, args, cb);
   }
 
   public options(): CommandOption[] {
@@ -67,45 +60,12 @@ class CliConsentCommand extends Command {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.service) {
-        return 'Required option service missing';        
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.service !== 'yammer') {
+      return `${args.options.service} is not a valid value for the service option. Allowed values: yammer`;
+    }
 
-      if (args.options.service !== 'yammer') {
-        return `${args.options.service} is not a valid value for the service option. Allowed values: yammer`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-    
-    Using the ${chalk.blue(this.name)} command you can consent additional permissions
-    for the Azure AD application used by the CLI for Microsoft 365. This is for example
-    necessary to use Yammer commands, which require the Yammer API permission
-    that isn't granted to the CLI by default.
-
-    After executing the command, the CLI for Microsoft 365 will present you with a URL
-    that you need to open in the web browser in order to consent the permissions
-    for the selected Microsoft 365 service.
-
-    To simplify things, rather than wondering which permissions you should
-    grant for which CLI commands, this command allows you to easily grant all
-    the necessary permissions for using commands for the specified Microsoft 365
-    service, like Yammer.
-
-  Examples:
-  
-    Consent permissions to the Yammer API
-      ${commands.CONSENT} --service yammer
-`);
+    return true;
   }
 }
 

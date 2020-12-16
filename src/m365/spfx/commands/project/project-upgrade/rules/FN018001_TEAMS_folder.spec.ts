@@ -2,10 +2,10 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as sinon from 'sinon';
-import { Finding } from '../Finding';
-import { Project } from '../../model';
-import { FN018001_TEAMS_folder } from './FN018001_TEAMS_folder';
 import Utils from '../../../../../../Utils';
+import { Project } from '../../model';
+import { Finding } from '../Finding';
+import { FN018001_TEAMS_folder } from './FN018001_TEAMS_folder';
 
 describe('FN018001_TEAMS_folder', () => {
   let findings: Finding[];
@@ -20,11 +20,11 @@ describe('FN018001_TEAMS_folder', () => {
   });
 
   it('returns empty resolution by default', () => {
-    assert.equal(rule.resolution, '');
+    assert.strictEqual(rule.resolution, '');
   });
 
   it('returns empty file name by default', () => {
-    assert.equal(rule.file, '');
+    assert.strictEqual(rule.file, '');
   });
 
   it('doesn\'t return notifications if no manifests are present', () => {
@@ -32,7 +32,7 @@ describe('FN018001_TEAMS_folder', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if teams folder exists', () => {
@@ -46,7 +46,7 @@ describe('FN018001_TEAMS_folder', () => {
       }]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('returns 1 finding with 1 occurrence for one web part if the teams folder does not exists', () => {
@@ -60,8 +60,8 @@ describe('FN018001_TEAMS_folder', () => {
       }]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1, 'Incorrect number of findings');
-    assert.equal(findings[0].occurrences.length, 1, 'Incorrect number of occurrences');
+    assert.strictEqual(findings.length, 1, 'Incorrect number of findings');
+    assert.strictEqual(findings[0].occurrences.length, 1, 'Incorrect number of occurrences');
   });
 
   it('returns 1 finding with 1 occurrence for two web parts if the teams folder does not exists', () => {
@@ -82,7 +82,7 @@ describe('FN018001_TEAMS_folder', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1, 'Incorrect number of findings');
-    assert.equal(findings[0].occurrences.length, 1, 'Incorrect number of occurrences');
+    assert.strictEqual(findings.length, 1, 'Incorrect number of findings');
+    assert.strictEqual(findings[0].occurrences.length, 1, 'Incorrect number of occurrences');
   });
 });

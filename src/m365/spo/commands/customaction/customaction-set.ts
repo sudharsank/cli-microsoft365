@@ -1,16 +1,15 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-import { CustomAction } from './customaction';
+import SpoCommand from '../../../base/SpoCommand';
 import { BasePermissions, PermissionKind } from '../../base-permissions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { CustomAction } from './customaction';
 
 interface CommandArgs {
   options: Options;
@@ -82,7 +81,7 @@ class SpoCustomActionSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     ((): Promise<CustomAction | undefined> => {
       if (!args.options.scope) {
         args.options.scope = 'All';
@@ -97,13 +96,13 @@ class SpoCustomActionSetCommand extends SpoCommand {
       .then((customAction: CustomAction | undefined): void => {
         if (this.verbose) {
           if (customAction && customAction["odata.null"] === true) {
-            cmd.log(`Custom action with id ${args.options.id} not found`);
+            logger.logToStderr(`Custom action with id ${args.options.id} not found`);
           } else {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -192,124 +191,58 @@ class SpoCustomActionSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (Utils.isValidGuid(args.options.id) === false) {
-        return `${args.options.id} is not valid. Custom action id (Guid) expected`;
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (Utils.isValidGuid(args.options.id) === false) {
+      return `${args.options.id} is not valid. Custom action id (Guid) expected`;
+    }
 
-      if (!args.options.url || SpoCommand.isValidSharePointUrl(args.options.url) !== true) {
-        return 'Missing required option url';
-      }
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      if (!args.options.title && !args.options.name && !args.options.location &&
-        !args.options.actionUrl && !args.options.clientSideComponentId && !args.options.clientSideComponentProperties &&
-        !args.options.commandUIExtension && !args.options.group && !args.options.imageUrl &&
-        !args.options.description && !args.options.registrationId && !args.options.registrationType &&
-        !args.options.rights && !args.options.scriptBlock && !args.options.scriptSrc &&
-        !args.options.sequence) {
-        return 'Please specify option to be updated';
-      }
+    if (!args.options.title && !args.options.name && !args.options.location &&
+      !args.options.actionUrl && !args.options.clientSideComponentId && !args.options.clientSideComponentProperties &&
+      !args.options.commandUIExtension && !args.options.group && !args.options.imageUrl &&
+      !args.options.description && !args.options.registrationId && !args.options.registrationType &&
+      !args.options.rights && !args.options.scriptBlock && !args.options.scriptSrc &&
+      !args.options.sequence) {
+      return 'Please specify option to be updated';
+    }
 
-      if (args.options.scriptSrc && args.options.scriptBlock) {
-        return 'Either option scriptSrc or scriptBlock can be specified, but not both';
-      }
+    if (args.options.scriptSrc && args.options.scriptBlock) {
+      return 'Either option scriptSrc or scriptBlock can be specified, but not both';
+    }
 
-      if (args.options.sequence && (args.options.sequence < 0 || args.options.sequence > 65536)) {
-        return 'Invalid option sequence. Expected value in range from 0 to 65536';
-      }
+    if (args.options.sequence && (args.options.sequence < 0 || args.options.sequence > 65536)) {
+      return 'Invalid option sequence. Expected value in range from 0 to 65536';
+    }
 
-      if (args.options.clientSideComponentId && Utils.isValidGuid(args.options.clientSideComponentId) === false) {
-        return `ClientSideComponentId ${args.options.clientSideComponentId} is not a valid GUID`;
-      }
+    if (args.options.clientSideComponentId && Utils.isValidGuid(args.options.clientSideComponentId) === false) {
+      return `ClientSideComponentId ${args.options.clientSideComponentId} is not a valid GUID`;
+    }
 
-      if (args.options.scope &&
-        args.options.scope !== 'Site' &&
-        args.options.scope !== 'Web' &&
-        args.options.scope !== 'All'
-      ) {
-        return `${args.options.scope} is not a valid custom action scope. Allowed values are Site|Web|All`;
-      }
+    if (args.options.scope &&
+      args.options.scope !== 'Site' &&
+      args.options.scope !== 'Web' &&
+      args.options.scope !== 'All'
+    ) {
+      return `${args.options.scope} is not a valid custom action scope. Allowed values are Site|Web|All`;
+    }
 
-      if (args.options.rights) {
-        const rights = args.options.rights.split(',');
+    if (args.options.rights) {
+      const rights = args.options.rights.split(',');
 
-        for (let item of rights) {
-          const kind: PermissionKind = PermissionKind[(item.trim() as keyof typeof PermissionKind)];
+      for (let item of rights) {
+        const kind: PermissionKind = PermissionKind[(item.trim() as keyof typeof PermissionKind)];
 
-          if (!kind) {
-            return `Rights option '${item}' is not recognized as valid PermissionKind choice. Please note it is case-sensitive`;
-          }
+        if (!kind) {
+          return `Rights option '${item}' is not recognized as valid PermissionKind choice. Please note it is case-sensitive`;
         }
       }
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.CUSTOMACTION_SET).helpInformation());
-    log(
-      `  Remarks:
-          
-    Running this command from the Windows Command Shell (cmd.exe) or PowerShell
-    for Windows OS XP, 7, 8, 8.1 without bash installed might require additional
-    formatting for command options that have JSON, XML or JavaScript values,
-    because the command shell treat quotes differently. For example, this is how
-    ApplicationCustomizer user custom action can be created from the Windows
-    cmd.exe:
-
-      m365 spo ${commands.CUSTOMACTION_SET} -u https://contoso.sharepoint.com/sites/test -i 058140e3-0e37-44fc-a1d3-79c487d371a3 -p '{\"testMessage\":\"Test message\"}'
-    
-    Note, how the clientSideComponentProperties option (-p) has escaped double
-    quotes ${chalk.grey(`'{\"testMessage\":\"Test message\"}'`)} compared to execution from bash:
-    ${chalk.grey(`'{"testMessage":"Test message"}'`)}.
-
-    The ${chalk.grey(`--rights`)} option accepts case-sensitive values.
-
-    Note, specifying the scope option might speed up the execution of the
-    command, but would not update the scope. If the scope has to be changed,
-    then the existing custom action should be removed and new should be added
-    with different scope.
-
-  Examples:
-    
-    Updates tenant-wide SharePoint Framework Application Customizer extension
-    properties in site ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_SET} -u https://contoso.sharepoint.com/sites/test -i 058140e3-0e37-44fc-a1d3-79c487d371a3 -p '{"testMessage":"Test message"}'
-    
-    Updates tenant-wide SharePoint Framework ${chalk.blue('modern list view')} Command Set
-    extension properties and sequence in site ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_SET} -u https://contoso.sharepoint.com/sites/test -i 058140e3-0e37-44fc-a1d3-79c487d371a3 -p '{"sampleTextOne":"One item is selected in the list.", "sampleTextTwo":"This command is always visible."}' --sequence 100
-    
-    Updates url custom action in the SiteActions menu in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_SET} -u https://contoso.sharepoint.com/sites/test -i 058140e3-0e37-44fc-a1d3-79c487d371a3 --actionUrl "~site/SitePages/Home.aspx"
-    
-    Updates ScriptLink custom action with script source in ${chalk.blue('classic pages')} in
-    site collection ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_SET} -u https://contoso.sharepoint.com/sites/test -i 058140e3-0e37-44fc-a1d3-79c487d371a3 --scriptSrc "~sitecollection/SiteAssets/YourScript.js"
-    
-    Updates custom action with delegated rights in the SiteActions menu in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_SET} -u https://contoso.sharepoint.com/sites/test -i 058140e3-0e37-44fc-a1d3-79c487d371a3 --rights "AddListItems,DeleteListItems,ManageLists"
-  
-  More information:
-
-    UserCustomAction REST API resources:
-      https://msdn.microsoft.com/en-us/library/office/dn531432.aspx#bk_UserCustomAction
-      
-    UserCustomAction Locations and Group IDs:
-      https://msdn.microsoft.com/en-us/library/office/bb802730.aspx
-
-    UserCustomAction Element:
-      https://msdn.microsoft.com/en-us/library/office/ms460194.aspx
-
-    UserCustomAction Rights:
-      https://msdn.microsoft.com/en-us/library/office/microsoft.sharepoint.spbasepermissions.aspx
-
-      `);
+    return true;
   }
 
   private updateCustomAction(options: Options): Promise<undefined> {
@@ -321,8 +254,8 @@ class SpoCustomActionSetCommand extends SpoCommand {
         accept: 'application/json;odata=nometadata',
         'X-HTTP-Method': 'MERGE'
       },
-      body: requestBody,
-      json: true
+      data: requestBody,
+      responseType: 'json'
     };
 
     return request.post(requestOptions);
@@ -334,7 +267,7 @@ class SpoCustomActionSetCommand extends SpoCommand {
    * another merge request is send with `site` scope.
    */
   private searchAllScopes(options: Options): Promise<CustomAction | undefined> {
-    return new Promise<CustomAction>((resolve: (customAction: CustomAction | undefined) => void, reject: (error: any) => void): void => {
+    return new Promise<CustomAction | undefined>((resolve: (customAction: CustomAction | undefined) => void, reject: (error: any) => void): void => {
       options.scope = "Web";
 
       this

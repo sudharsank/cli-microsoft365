@@ -5,22 +5,24 @@ Updates properties of the specified hub site
 ## Usage
 
 ```sh
-spo hubsite set [options]
+m365 spo hubsite set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id <id>`|ID of the hub site to update
-`-t, --title [title]`|The new title for the hub site
-`-d, --description [description]`|The new description for the hub site
-`-l, --logoUrl [logoUrl]`|The URL of the new logo for the hub site
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id <id>`
+: ID of the hub site to update
+
+`-t, --title [title]`
+: The new title for the hub site
+
+`-d, --description [description]`
+: The new description for the hub site
+
+`-l, --logoUrl [logoUrl]`
+: The URL of the new logo for the hub site
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -37,13 +39,13 @@ If the specified `id` doesn't refer to an existing hub site, you will get an `Un
 Update hub site's title
 
 ```sh
-spo hubsite set --id 255a50b2-527f-4413-8485-57f4c17a24d1 --title Sales
+m365 spo hubsite set --id 255a50b2-527f-4413-8485-57f4c17a24d1 --title Sales
 ```
 
 Update hub site's title and description
 
 ```sh
-spo hubsite set --id 255a50b2-527f-4413-8485-57f4c17a24d1 --title Sales --description "All things sales"
+m365 spo hubsite set --id 255a50b2-527f-4413-8485-57f4c17a24d1 --title Sales --description "All things sales"
 ```
 
 ## More information

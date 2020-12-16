@@ -1,19 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./cdn-policy-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
+import config from '../../../../config';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import config from '../../../../config';
+import commands from '../../commands';
+const command: Command = require('./cdn-policy-list');
 
 describe(commands.CDN_POLICY_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -24,23 +24,23 @@ describe(commands.CDN_POLICY_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -56,11 +56,11 @@ describe(commands.CDN_POLICY_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.CDN_POLICY_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.CDN_POLICY_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('retrieves the policies for the public CDN when type set to Public', (done) => {
@@ -76,7 +76,7 @@ describe(commands.CDN_POLICY_LIST, () => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
         if (opts.headers &&
           opts.headers['X-RequestDigest'] === 'abc' &&
-          opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnPolicies" Id="7" ObjectPathId="3"><Parameters><Parameter Type="Enum">0</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="3" Name="abc" /></ObjectPaths></Request>`) {
+          opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnPolicies" Id="7" ObjectPathId="3"><Parameters><Parameter Type="Enum">0</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="3" Name="abc" /></ObjectPaths></Request>`) {
           return Promise.resolve(JSON.stringify([{ "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7025.1207", "ErrorInfo": null, "TraceCorrelationId": "0c93299e-7040-4000-83c8-74ba9192542c" }, 7, ["IncludeFileExtensions;CSS,EOT,GIF,ICO,JPEG,JPG,JS,MAP,PNG,SVG,TTF,WOFF,JSON", "ExcludeRestrictedSiteClassifications; ", "ExcludeIfNoScriptDisabled;False"]]));
         }
       }
@@ -84,9 +84,9 @@ describe(commands.CDN_POLICY_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, type: 'Public' } }, () => {
+    command.action(logger, { options: { debug: true, type: 'Public' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([{
+        assert(loggerLogSpy.calledWith([{
           Policy: 'IncludeFileExtensions',
           Value: 'CSS,EOT,GIF,ICO,JPEG,JPG,JS,MAP,PNG,SVG,TTF,WOFF,JSON'
         },
@@ -116,7 +116,7 @@ describe(commands.CDN_POLICY_LIST, () => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
         if (opts.headers &&
           opts.headers['X-RequestDigest'] === 'abc' &&
-          opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnPolicies" Id="7" ObjectPathId="3"><Parameters><Parameter Type="Enum">1</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="3" Name="abc" /></ObjectPaths></Request>`) {
+          opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnPolicies" Id="7" ObjectPathId="3"><Parameters><Parameter Type="Enum">1</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="3" Name="abc" /></ObjectPaths></Request>`) {
           return Promise.resolve(JSON.stringify([{ "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7025.1207", "ErrorInfo": null, "TraceCorrelationId": "0c93299e-7040-4000-83c8-74ba9192542c" }, 7, ["IncludeFileExtensions;CSS,EOT,GIF,ICO,JPEG,JPG,JS,MAP,PNG,SVG,TTF,WOFF,JSON", "ExcludeRestrictedSiteClassifications; ", "ExcludeIfNoScriptDisabled;False"]]));
         }
       }
@@ -124,9 +124,9 @@ describe(commands.CDN_POLICY_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, type: 'Private' } }, () => {
+    command.action(logger, { options: { debug: true, type: 'Private' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([{
+        assert(loggerLogSpy.calledWith([{
           Policy: 'IncludeFileExtensions',
           Value: 'CSS,EOT,GIF,ICO,JPEG,JPG,JS,MAP,PNG,SVG,TTF,WOFF,JSON'
         },
@@ -156,7 +156,7 @@ describe(commands.CDN_POLICY_LIST, () => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
         if (opts.headers &&
           opts.headers['X-RequestDigest'] === 'abc' &&
-          opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnPolicies" Id="7" ObjectPathId="3"><Parameters><Parameter Type="Enum">0</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="3" Name="abc" /></ObjectPaths></Request>`) {
+          opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnPolicies" Id="7" ObjectPathId="3"><Parameters><Parameter Type="Enum">0</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="3" Name="abc" /></ObjectPaths></Request>`) {
           return Promise.resolve(JSON.stringify([{ "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7025.1207", "ErrorInfo": null, "TraceCorrelationId": "0c93299e-7040-4000-83c8-74ba9192542c" }, 7, ["IncludeFileExtensions;CSS,EOT,GIF,ICO,JPEG,JPG,JS,MAP,PNG,SVG,TTF,WOFF,JSON", "ExcludeRestrictedSiteClassifications; ", "ExcludeIfNoScriptDisabled;False"]]));
         }
       }
@@ -164,9 +164,9 @@ describe(commands.CDN_POLICY_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false } }, () => {
+    command.action(logger, { options: { debug: false } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([{
+        assert(loggerLogSpy.calledWith([{
           Policy: 'IncludeFileExtensions',
           Value: 'CSS,EOT,GIF,ICO,JPEG,JPG,JS,MAP,PNG,SVG,TTF,WOFF,JSON'
         },
@@ -197,8 +197,8 @@ describe(commands.CDN_POLICY_LIST, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
         if (opts.headers &&
           opts.headers['X-RequestDigest'] &&
-          opts.body) {
-          if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnPolicies" Id="7" ObjectPathId="3"><Parameters><Parameter Type="Enum">0</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="3" Name="abc" /></ObjectPaths></Request>`) {
+          opts.data) {
+          if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnPolicies" Id="7" ObjectPathId="3"><Parameters><Parameter Type="Enum">0</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="3" Name="abc" /></ObjectPaths></Request>`) {
             return Promise.resolve(JSON.stringify([
               {
                 "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7018.1204", "ErrorInfo": {
@@ -213,9 +213,9 @@ describe(commands.CDN_POLICY_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -233,9 +233,9 @@ describe(commands.CDN_POLICY_LIST, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -248,7 +248,7 @@ describe(commands.CDN_POLICY_LIST, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsdebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -259,7 +259,7 @@ describe(commands.CDN_POLICY_LIST, () => {
   });
 
   it('supports specifying CDN type', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('[type]') > -1) {
@@ -271,63 +271,29 @@ describe(commands.CDN_POLICY_LIST, () => {
 
   it('doesn\'t fail if the parent doesn\'t define options', () => {
     sinon.stub(Command.prototype, 'options').callsFake(() => { return []; });
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     Utils.restore(Command.prototype.options);
     assert(options.length > 0);
   });
 
   it('accepts Public SharePoint Online CDN type', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { type: 'Public' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { type: 'Public' } });
+    assert.strictEqual(actual, true);
   });
 
   it('accepts Private SharePoint Online CDN type', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { type: 'Private' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { type: 'Private' } });
+    assert.strictEqual(actual, true);
   });
 
   it('rejects invalid SharePoint Online CDN type', () => {
     const type = 'foo';
-    const actual = (command.validate() as CommandValidate)({ options: { type: type } });
-    assert.equal(actual, `${type} is not a valid CDN type. Allowed values are Public|Private`);
+    const actual = command.validate({ options: { type: type } });
+    assert.strictEqual(actual, `${type} is not a valid CDN type. Allowed values are Public|Private`);
   });
 
   it('doesn\'t fail validation if the optional type option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => {},
-      prompt: () => {},
-      helpInformation: () => {}
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => {});
-    assert(find.calledWith(commands.CDN_POLICY_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => {},
-      helpInformation: () => {}
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => {});
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: {} });
+    assert.strictEqual(actual, true);
   });
 });

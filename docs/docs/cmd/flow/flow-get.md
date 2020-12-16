@@ -5,21 +5,21 @@ Gets information about the specified Microsoft Flow
 ## Usage
 
 ```sh
-flow get [options]
+m365 flow get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-n, --name <name>`|The name of the Microsoft Flow to get information about
-`-e, --environment <environment>`|The name of the environment for which to retrieve available Flows
-`--asAdmin`|Set, to retrieve the Flow as admin
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-n, --name <name>`
+: The name of the Microsoft Flow to get information about
+
+`-e, --environment <environment>`
+: The name of the environment for which to retrieve available Flows
+
+`--asAdmin`
+: Set, to retrieve the Flow as admin
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -37,11 +37,11 @@ If the Microsoft Flow with the name you specified doesn't exist, you will get th
 Get information about the specified Microsoft Flow owned by the currently signed-in user
 
 ```sh
-flow get --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --name 3989cb59-ce1a-4a5c-bb78-257c5c39381d
+m365 flow get --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --name 3989cb59-ce1a-4a5c-bb78-257c5c39381d
 ```
 
 Get information about the specified Microsoft Flow owned by another user
 
 ```sh
-flow get --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --name 3989cb59-ce1a-4a5c-bb78-257c5c39381d --asAdmin
+m365 flow get --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --name 3989cb59-ce1a-4a5c-bb78-257c5c39381d --asAdmin
 ```

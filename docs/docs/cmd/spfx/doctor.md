@@ -5,19 +5,28 @@ Verifies environment configuration for using the specific version of the SharePo
 ## Usage
 
 ```sh
-spfx doctor [options]
+m365 spfx doctor [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-e, --env [env]`|Version of SharePoint for which to check compatibility: `sp2016|sp2019|spo`
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text,md`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-e, --env [env]`
+: Version of SharePoint for which to check compatibility: `sp2016|sp2019|spo`
+
+`-h, --help`
+: output usage information
+
+`--query [query]`
+: JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
+
+`-o, --output [output]`
+: Output type. `json,text,md`. Default `text`
+
+`--verbose`
+: Runs command with verbose logging
+
+`--debug`
+: Runs command with debug logging
 
 !!! important
     Checks ran by this command are based on what is officially supported by Microsoft. It's possible that using different package managers or packages versions will work just fine.
@@ -39,11 +48,11 @@ Next to verifying the readiness of your environment to use a particular version 
 Verify if your environment meets the requirements to work with the SharePoint Framework
 
 ```sh
-spfx doctor
+m365 spfx doctor
 ```
 
 Verify if your environment meets the requirements to work with the SharePoint Framework and also if the version of the SharePoint Framework that you're using is compatible with SharePoint 2019
 
 ```sh
-spfx doctor --env sp2019
+m365 spfx doctor --env sp2019
 ```

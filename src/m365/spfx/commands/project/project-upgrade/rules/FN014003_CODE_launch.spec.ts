@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN014003_CODE_launch } from './FN014003_CODE_launch';
 
 describe('FN014003_CODE_launch', () => {
@@ -22,6 +22,6 @@ describe('FN014003_CODE_launch', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

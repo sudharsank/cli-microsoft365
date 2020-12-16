@@ -1,16 +1,15 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import SpoCommand from '../../../base/SpoCommand';
-import { SpoPropertyBagBaseCommand } from '../propertybag/propertybag-base';
-import { ContextInfo } from '../../spo';
 import { ClientSvc, IdentityResponse } from '../../ClientSvc';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
+import { SpoPropertyBagBaseCommand } from '../propertybag/propertybag-base';
 
 interface CommandArgs {
   options: Options;
@@ -36,8 +35,8 @@ class SpoWebReindexCommand extends SpoCommand {
     return 'Requests reindexing the specified subsite';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const clientSvcCommons: ClientSvc = new ClientSvc(cmd, this.debug);
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const clientSvcCommons: ClientSvc = new ClientSvc(logger, this.debug);
     let requestDigest: string = '';
     let webIdentityResp: IdentityResponse;
 
@@ -47,7 +46,7 @@ class SpoWebReindexCommand extends SpoCommand {
         requestDigest = res.FormDigestValue;
 
         if (this.debug) {
-          cmd.log(`Retrieved request digest. Retrieving web identity...`);
+          logger.logToStderr(`Retrieved request digest. Retrieving web identity...`);
         }
 
         return clientSvcCommons.getCurrentWebIdentity(args.options.webUrl, requestDigest);
@@ -56,10 +55,10 @@ class SpoWebReindexCommand extends SpoCommand {
         webIdentityResp = identityResp;
 
         if (this.debug) {
-          cmd.log(`Retrieved web identity.`);
+          logger.logToStderr(`Retrieved web identity.`);
         }
         if (this.verbose) {
-          cmd.log(`Checking if the site is a no-script site...`);
+          logger.logToStderr(`Checking if the site is a no-script site...`);
         }
 
         return SpoPropertyBagBaseCommand.isNoScriptSite(args.options.webUrl, requestDigest, webIdentityResp, clientSvcCommons);
@@ -67,14 +66,14 @@ class SpoWebReindexCommand extends SpoCommand {
       .then((isNoScriptSite: boolean): Promise<{ vti_x005f_searchversion?: number }> => {
         if (isNoScriptSite) {
           if (this.verbose) {
-            cmd.log(`Site is a no-script site. Reindexing lists instead...`);
+            logger.logToStderr(`Site is a no-script site. Reindexing lists instead...`);
           }
 
-          return this.reindexLists(args.options.webUrl, requestDigest, cmd, webIdentityResp, clientSvcCommons) as any;
+          return this.reindexLists(args.options.webUrl, requestDigest, logger, webIdentityResp, clientSvcCommons) as any;
         }
 
         if (this.verbose) {
-          cmd.log(`Site is not a no-script site. Reindexing site...`);
+          logger.logToStderr(`Site is not a no-script site. Reindexing site...`);
         }
 
         const requestOptions: any = {
@@ -82,7 +81,7 @@ class SpoWebReindexCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
@@ -91,33 +90,33 @@ class SpoWebReindexCommand extends SpoCommand {
         let searchVersion: number = webProperties.vti_x005f_searchversion || 0;
         searchVersion++;
 
-        return SpoPropertyBagBaseCommand.setProperty('vti_searchversion', searchVersion.toString(), args.options.webUrl, requestDigest, webIdentityResp, cmd, this.debug);
+        return SpoPropertyBagBaseCommand.setProperty('vti_searchversion', searchVersion.toString(), args.options.webUrl, requestDigest, webIdentityResp, logger, this.debug);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
       }, (err: any): void => {
         if (this.reindexedLists) {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
         }
         else {
-          this.handleRejectedPromise(err, cmd, cb);
+          this.handleRejectedPromise(err, logger, cb);
         }
       });
   }
 
-  private reindexLists(webUrl: string, requestDigest: string, cmd: CommandInstance, webIdentityResp: IdentityResponse, clientSvcCommons: ClientSvc): Promise<void> {
+  private reindexLists(webUrl: string, requestDigest: string, logger: Logger, webIdentityResp: IdentityResponse, clientSvcCommons: ClientSvc): Promise<void> {
     return new Promise<void>((resolve: () => void, reject: (error: any) => void): void => {
       ((): Promise<{ value: { NoCrawl: boolean; Title: string; RootFolder: { Properties: any; ServerRelativeUrl: string; } }[] }> => {
         if (this.debug) {
-          cmd.log(`Retrieving information about lists...`);
+          logger.logToStderr(`Retrieving information about lists...`);
         }
 
         const requestOptions: any = {
@@ -125,13 +124,13 @@ class SpoWebReindexCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
       })()
         .then((lists: { value: { NoCrawl: boolean; Title: string; RootFolder: { Properties: any; ServerRelativeUrl: string; } }[] }): Promise<void[]> => {
-          const promises: Promise<void>[] = lists.value.map(l => this.reindexList(l, webUrl, requestDigest, webIdentityResp, clientSvcCommons, cmd));
+          const promises: Promise<void>[] = lists.value.map(l => this.reindexList(l, webUrl, requestDigest, webIdentityResp, clientSvcCommons, logger));
           return Promise.all(promises);
         })
         .then((): void => {
@@ -141,11 +140,11 @@ class SpoWebReindexCommand extends SpoCommand {
     });
   }
 
-  private reindexList(list: { NoCrawl: boolean; Title: string; RootFolder: { Properties: any; ServerRelativeUrl: string; } }, webUrl: string, requestDigest: string, webIdentityResp: IdentityResponse, clientSvcCommons: ClientSvc, cmd: CommandInstance): Promise<void> {
+  private reindexList(list: { NoCrawl: boolean; Title: string; RootFolder: { Properties: any; ServerRelativeUrl: string; } }, webUrl: string, requestDigest: string, webIdentityResp: IdentityResponse, clientSvcCommons: ClientSvc, logger: Logger): Promise<void> {
     return new Promise<void>((resolve: () => void, reject: (error: any) => void): void => {
       if (list.NoCrawl) {
         if (this.debug) {
-          cmd.log(`List ${list.Title} is excluded from crawling`);
+          logger.logToStderr(`List ${list.Title} is excluded from crawling`);
         }
         resolve();
         return;
@@ -157,7 +156,7 @@ class SpoWebReindexCommand extends SpoCommand {
           let searchversion: number = list.RootFolder.Properties.vti_x005f_searchversion || 0;
           searchversion++;
 
-          return SpoPropertyBagBaseCommand.setProperty('vti_searchversion', searchversion.toString(), webUrl, requestDigest, folderIdentityResp, cmd, this.debug, list.RootFolder.ServerRelativeUrl);
+          return SpoPropertyBagBaseCommand.setProperty('vti_searchversion', searchversion.toString(), webUrl, requestDigest, folderIdentityResp, logger, this.debug, list.RootFolder.ServerRelativeUrl);
         })
         .then((): void => {
           resolve();
@@ -177,36 +176,8 @@ class SpoWebReindexCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the subsite to be reindexed is a no-script site, the command will request
-    reindexing all lists from the subsite that haven't been excluded from the
-    search index.
-        
-  Examples:
-  
-    Request reindexing the subsite ${chalk.grey('https://contoso.sharepoint.com/subsite')}
-      ${this.name} --webUrl https://contoso.sharepoint.com/subsite
-      `);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

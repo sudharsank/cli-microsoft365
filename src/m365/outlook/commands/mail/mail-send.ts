@@ -1,14 +1,14 @@
-import commands from '../../commands';
-import * as path from 'path';
+import * as chalk from 'chalk';
 import * as fs from 'fs';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as path from 'path';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -45,7 +45,7 @@ class OutlookSendmailCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let bodyContents: string = args.options.bodyContents as string;
     if (args.options.bodyContentsFilePath) {
       bodyContents = fs.readFileSync(path.resolve(args.options.bodyContentsFilePath), 'utf-8');
@@ -57,8 +57,8 @@ class OutlookSendmailCommand extends GraphCommand {
         accept: 'application/json;odata.metadata=none',
         'content-type': 'application/json'
       },
-      json: true,
-      body: {
+      responseType: 'json',
+      data: {
         message: {
           subject: args.options.subject,
           body: {
@@ -81,11 +81,11 @@ class OutlookSendmailCommand extends GraphCommand {
       .post(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -121,71 +121,40 @@ class OutlookSendmailCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.subject) {
-        return 'Required option subject missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.bodyContents && !args.options.bodyContentsFilePath) {
+      return 'Specify either bodyContents or bodyContentsFilePath';
+    }
+
+    if (args.options.bodyContents && args.options.bodyContentsFilePath) {
+      return 'Specify either bodyContents or bodyContentsFilePath but not both';
+    }
+
+    if (args.options.bodyContentsFilePath) {
+      const fullPath: string = path.resolve(args.options.bodyContentsFilePath);
+
+      if (!fs.existsSync(fullPath)) {
+        return `File '${fullPath}' not found`;
       }
 
-      if (!args.options.to) {
-        return 'Required option to missing';
+      if (fs.lstatSync(fullPath).isDirectory()) {
+        return `Path '${fullPath}' points to a directory`;
       }
+    }
 
-      if (!args.options.bodyContents && !args.options.bodyContentsFilePath) {
-        return 'Specify either bodyContents or bodyContentsFilePath';
-      }
+    if (args.options.bodyContentType &&
+      args.options.bodyContentType !== 'Text' &&
+      args.options.bodyContentType !== 'HTML') {
+      return `${args.options.bodyContents} is not a valid value for the bodyContents option. Allowed values are Text|HTML`;
+    }
 
-      if (args.options.bodyContents && args.options.bodyContentsFilePath) {
-        return 'Specify either bodyContents or bodyContentsFilePath but not both';
-      }
+    if (args.options.saveToSentItems &&
+      args.options.saveToSentItems !== 'true' &&
+      args.options.saveToSentItems !== 'false') {
+      return `${args.options.saveToSentItems} is not a valid value for the saveToSentItems option. Allowed values are true|false`;
+    }
 
-      if (args.options.bodyContentsFilePath) {
-        const fullPath: string = path.resolve(args.options.bodyContentsFilePath);
-
-        if (!fs.existsSync(fullPath)) {
-          return `File '${fullPath}' not found`;
-        }
-
-        if (fs.lstatSync(fullPath).isDirectory()) {
-          return `Path '${fullPath}' points to a directory`;
-        }
-      }
-
-      if (args.options.bodyContentType &&
-        args.options.bodyContentType !== 'Text' &&
-        args.options.bodyContentType !== 'HTML') {
-        return `${args.options.bodyContents} is not a valid value for the bodyContents option. Allowed values are Text|HTML`;
-      }
-
-      if (args.options.saveToSentItems &&
-        args.options.saveToSentItems !== 'true' &&
-        args.options.saveToSentItems !== 'false') {
-        return `${args.options.saveToSentItems} is not a valid value for the saveToSentItems option. Allowed values are true|false`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-
-    Send a text e-mail to the specified e-mail address
-      ${this.name} --to chris@contoso.com --subject "DG2000 Data Sheets" --bodyContents "The latest data sheets are in the team site"
-
-    Send an HTML e-mail to the specified e-mail addresses
-      ${this.name} --to "chris@contoso.com,brian@contoso.com" --subject "DG2000 Data Sheets" --bodyContents "The latest data sheets are in the <a href='https://contoso.sharepoint.com/sites/marketing'>team site</a>" --bodyContentType HTML
-
-    Send an HTML e-mail to the specified e-mail address loading e-mail contents
-    from a file on disk
-      ${this.name} --to chris@contoso.com --subject "DG2000 Data Sheets" --bodyContentsFilePath email.html --bodyContentType HTML
-
-    Send a text e-mail to the specified e-mail address. Don't store the e-mail
-    in sent items
-      ${this.name} --to chris@contoso.com --subject "DG2000 Data Sheets" --bodyContents "The latest data sheets are in the team site" --saveToSentItems false
-`);
+    return true;
   }
 }
 

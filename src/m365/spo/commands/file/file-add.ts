@@ -1,18 +1,16 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import request from '../../../../request';
-import { v4 } from 'uuid';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
 import * as fs from 'fs';
 import * as path from 'path';
+import { v4 } from 'uuid';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { FolderExtensions } from '../../FolderExtensions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -89,26 +87,26 @@ class SpoFileAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const folderPath: string = Utils.getServerRelativePath(args.options.webUrl, args.options.folder);
     const fullPath: string = path.resolve(args.options.path);
     const fileName: string = Utils.getSafeFileName(path.basename(fullPath));
-    const folderExtensions: FolderExtensions = new FolderExtensions(cmd, this.debug);
+    const folderExtensions: FolderExtensions = new FolderExtensions(logger, this.debug);
 
     let isCheckedOut: boolean = false;
     let listSettings: ListSettings;
 
     if (this.debug) {
-      cmd.log(`folder path: ${folderPath}...`);
+      logger.logToStderr(`folder path: ${folderPath}...`);
     }
 
     if (this.debug) {
-      cmd.log('Check if the specified folder exists.')
-      cmd.log('');
+      logger.logToStderr('Check if the specified folder exists.')
+      logger.logToStderr('');
     }
 
     if (this.debug) {
-      cmd.log(`file name: ${fileName}...`);
+      logger.logToStderr(`file name: ${fileName}...`);
     }
 
     const requestOptions: any = {
@@ -141,20 +139,20 @@ class SpoFileAddCommand extends SpoCommand {
       })
       .then((): Promise<void> => {
         if (this.verbose) {
-          cmd.log(`Upload file to site ${args.options.webUrl}...`);
+          logger.logToStderr(`Upload file to site ${args.options.webUrl}...`);
         }
 
         const fileStats: fs.Stats = fs.statSync(fullPath);
         const fileSize: number = fileStats.size;
         if (this.debug) {
-          cmd.log(`File size is ${fileSize} bytes`);
+          logger.logToStderr(`File size is ${fileSize} bytes`);
         }
 
         // only up to 250 MB are allowed in a single request
         if (fileSize > this.fileChunkingThreshold) {
           const fileChunkCount: number = Math.ceil(fileSize / this.fileChunkSize);
           if (this.verbose) {
-            cmd.log(`Uploading ${fileSize} bytes in ${fileChunkCount} chunks...`);
+            logger.logToStderr(`Uploading ${fileSize} bytes in ${fileChunkCount} chunks...`);
           }
 
           // initiate chunked upload session
@@ -182,17 +180,17 @@ class SpoFileAddCommand extends SpoCommand {
               };
 
               return new Promise<void>((resolve: () => void, reject: (err: any) => void): void => {
-                this.uploadFileChunks(fileUploadInfo, cmd, resolve, reject);
+                this.uploadFileChunks(fileUploadInfo, logger, resolve, reject);
               })
                 .then((): Promise<void> => {
                   if (this.verbose) {
-                    cmd.log(`Finished uploading ${fileUploadInfo.Position} bytes in ${fileChunkCount} chunks`)
+                    logger.logToStderr(`Finished uploading ${fileUploadInfo.Position} bytes in ${fileChunkCount} chunks`)
                   }
                   return Promise.resolve();
                 })
                 .catch((err: any) => {
                   if (this.verbose) {
-                    cmd.log('Cancelling upload session due to error...')
+                    logger.logToStderr('Cancelling upload session due to error...')
                   }
 
                   const requestOptions: any = {
@@ -209,7 +207,7 @@ class SpoFileAddCommand extends SpoCommand {
                     })
                     .catch((err_: any) => {
                       if (this.debug) {
-                        cmd.log(`Failed to cancel upload session: ${err_}`);
+                        logger.logToStderr(`Failed to cancel upload session: ${err_}`);
                       }
                       return Promise.reject(err);  // original error
                     });
@@ -223,7 +221,7 @@ class SpoFileAddCommand extends SpoCommand {
 
         const requestOptions: any = {
           url: `${args.options.webUrl}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(folderPath)}')/Files/Add(url='${encodeURIComponent(fileName)}', overwrite=true)`,
-          body: fileBody,
+          data: fileBody,
           headers: {
             'accept': 'application/json;odata=nometadata',
             'content-length': bodyLength
@@ -234,12 +232,12 @@ class SpoFileAddCommand extends SpoCommand {
       })
       .then((): Promise<void> => {
         if (args.options.contentType || args.options.publish || args.options.approve) {
-          return this.getFileParentList(fileName, args.options.webUrl, folderPath, cmd)
+          return this.getFileParentList(fileName, args.options.webUrl, folderPath, logger)
             .then((listSettingsResp: ListSettings) => {
               listSettings = listSettingsResp;
 
               if (args.options.contentType) {
-                return this.listHasContentType(args.options.contentType, args.options.webUrl, listSettings, cmd);
+                return this.listHasContentType(args.options.contentType, args.options.webUrl, listSettings, logger);
               }
 
               return Promise.resolve();
@@ -262,7 +260,7 @@ class SpoFileAddCommand extends SpoCommand {
 
         if (fieldsToUpdate.length > 0) {
           // perform list item update and checkin
-          return this.validateUpdateListItem(args.options.webUrl, folderPath, fileName, fieldsToUpdate, cmd, args.options.checkInComment);
+          return this.validateUpdateListItem(args.options.webUrl, folderPath, fileName, fieldsToUpdate, logger, args.options.checkInComment);
         }
         else if (isCheckedOut) {
           // perform checkin
@@ -277,7 +275,7 @@ class SpoFileAddCommand extends SpoCommand {
         // so then no need to publish afterwards
         if (args.options.approve) {
           if (this.verbose) {
-            cmd.log(`Approve file ${fileName}`);
+            logger.logToStderr(`Approve file ${fileName}`);
           }
 
           // approve the existing file with given comment
@@ -286,7 +284,7 @@ class SpoFileAddCommand extends SpoCommand {
             headers: {
               'accept': 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           };
 
           return request.post(requestOptions);
@@ -297,7 +295,7 @@ class SpoFileAddCommand extends SpoCommand {
           }
 
           if (this.verbose) {
-            cmd.log(`Publish file ${fileName}`);
+            logger.logToStderr(`Publish file ${fileName}`);
           }
 
           // publish the existing file with given comment
@@ -306,7 +304,7 @@ class SpoFileAddCommand extends SpoCommand {
             headers: {
               'accept': 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           };
 
           return request.post(requestOptions);
@@ -316,7 +314,7 @@ class SpoFileAddCommand extends SpoCommand {
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log('DONE');
+          logger.logToStderr('DONE');
         }
 
         cb();
@@ -330,19 +328,19 @@ class SpoFileAddCommand extends SpoCommand {
           };
 
           request.post(requestOptions)
-            .then(_ => this.handleRejectedODataJsonPromise(err, cmd, cb))
+            .then(_ => this.handleRejectedODataJsonPromise(err, logger, cb))
             .catch(checkoutError => {
               if (this.verbose) {
-                cmd.log('Could not rollback file checkout');
-                cmd.log(checkoutError);
-                cmd.log('');
+                logger.logToStderr('Could not rollback file checkout');
+                logger.logToStderr(checkoutError);
+                logger.logToStderr('');
               }
 
-              this.handleRejectedODataJsonPromise(err, cmd, cb);
+              this.handleRejectedODataJsonPromise(err, logger, cb);
             });
         }
         else {
-          this.handleRejectedODataJsonPromise(err, cmd, cb);
+          this.handleRejectedODataJsonPromise(err, logger, cb);
         }
       });
   }
@@ -395,136 +393,30 @@ class SpoFileAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.path && !fs.existsSync(args.options.path)) {
+      return 'Specified path of the file to add does not exist';
+    }
 
-      if (!args.options.folder) {
-        return 'Required parameter folder missing';
-      }
+    if (args.options.publishComment && !args.options.publish) {
+      return '--publishComment cannot be used without --publish';
+    }
 
-      if (!args.options.path) {
-        return 'Required parameter path missing';
-      }
+    if (args.options.approveComment && !args.options.approve) {
+      return '--approveComment cannot be used without --approve';
+    }
 
-      if (args.options.path && !fs.existsSync(args.options.path)) {
-        return 'Specified path of the file to add does not exist';
-      }
-
-      if (args.options.publishComment && !args.options.publish) {
-        return '--publishComment cannot be used without --publish';
-      }
-
-      if (args.options.approveComment && !args.options.approve) {
-        return '--approveComment cannot be used without --approve';
-      }
-
-      return true;
-    };
+    return true;
   }
 
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-  
-    This command allows using unknown properties. Each property corresponds to
-    the list item field that should be set when uploading the file.
-        
-  Examples:
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')}
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in sub folder ${chalk.grey('Shared Documents/Sub Folder 1')}
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents/Sub Folder 1' --path 'C:\\MS365.jpg'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} specifying server-relative folder url
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder '/sites/project-x/Shared Documents' --path 'C:\\MS365.jpg'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} with specified content type
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --contentType 'Picture'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')}, but checks out existing file before the upload
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --checkOut --checkInComment 'check in comment x'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and approves it (when list moderation is enabled)
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --approve --approveComment 'approve comment x'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and publishes it
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --publish --publishComment 'publish comment x'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes single text field value of
-    the list item
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --Title "New Title"
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes person/group field and
-    DateTime field values
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --Editor "[{'Key':'i:0#.f|membership|john.smith@contoso.com'}]" --Modified '6/23/2018 10:15 PM'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes hyperlink or picture field
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --URL 'https://contoso.com, Contoso'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes taxonomy field
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --Topic "HR services|c17baaeb-67cd-4378-9389-9d97a945c701"
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes taxonomy multi-value field
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --Topic "HR services|c17baaeb-67cd-4378-9389-9d97a945c701;Inclusion ＆ Diversity|66a67671-ed89-44a7-9be4-e80c06b41f35"
-  
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes choice field and multi-choice field
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --ChoiceField1 'Option3' --MultiChoiceField1 'Option2;#Option3'
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes person/group field that allows
-    multi-user selection
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --AllowedUsers "[{'Key':'i:0#.f|membership|john.smith@contoso.com'},{'Key':'i:0#.f|membership|velin.georgiev@contoso.com'}]"
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes yes/no field
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --HasCar true
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes number field and currency field
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --NumberField 100 --CurrencyField 20
-
-    Adds file MS365.jpg to site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-    in folder ${chalk.grey('Shared Documents')} and changes lookup field and multi-lookup field
-      ${commands.FILE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --folder 'Shared Documents' --path 'C:\\MS365.jpg' --LookupField 1 --MultiLookupField "2;#;#3;#;#4;#"
-      
-  More information:
-
-    Update file metadata with REST API using ValidateUpdateListItem method:
-      https://robertschouten.com/2018/04/30/update-file-metadata-with-rest-api-using-validateupdatelistitem-method/
-
-    List Items System Update options in SharePoint Online:
-      https://www.linkedin.com/pulse/list-items-system-update-options-sharepoint-online-andrew-koltyakov/
-      `);
-  }
-
-  private listHasContentType(contentType: string, webUrl: string, listSettings: ListSettings, cmd: any): Promise<void> {
+  private listHasContentType(contentType: string, webUrl: string, listSettings: ListSettings, logger: any): Promise<void> {
     if (this.verbose) {
-      cmd.log(`Getting list of available content types ...`);
+      logger.logToStderr(`Getting list of available content types ...`);
     }
 
     const requestOptions: any = {
@@ -532,7 +424,7 @@ class SpoFileAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.get<any>(requestOptions).then(response => {
@@ -564,14 +456,14 @@ class SpoFileAddCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata',
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post<void>(requestOptions);
       });
   }
 
-  private uploadFileChunks(info: FileUploadInfo, cmd: any, resolve: () => void, reject: (err: any) => void): void {
+  private uploadFileChunks(info: FileUploadInfo, logger: any, resolve: () => void, reject: (err: any) => void): void {
     let fd: number = 0;
     try {
       fd = fs.openSync(info.FilePath, 'r');
@@ -586,7 +478,7 @@ class SpoFileAddCommand extends SpoCommand {
 
       const requestOptions: any = {
         url: `${info.WebUrl}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(info.FolderPath)}')/Files('${encodeURIComponent(info.Name)}')/${isLastChunk ? 'Finish' : 'Continue'}Upload(uploadId=guid'${info.Id}',fileOffset=${offset})`,
-        body: fileBuffer,
+        data: fileBuffer,
         headers: {
           'accept': 'application/json;odata=nometadata',
           'content-length': readCount
@@ -597,23 +489,23 @@ class SpoFileAddCommand extends SpoCommand {
         .post<void>(requestOptions)
         .then((): void => {
           if (this.verbose) {
-            cmd.log(`Uploaded ${info.Position} of ${info.Size} bytes (${Math.round(100 * info.Position / info.Size)}%)`);
+            logger.logToStderr(`Uploaded ${info.Position} of ${info.Size} bytes (${Math.round(100 * info.Position / info.Size)}%)`);
           }
 
           if (isLastChunk) {
             resolve();
           }
           else {
-            this.uploadFileChunks(info, cmd, resolve, reject);
+            this.uploadFileChunks(info, logger, resolve, reject);
           }
         })
         .catch((err: any) => {
           if (--info.RetriesLeft > 0) {
             if (this.verbose) {
-              cmd.log(`Retrying to upload chunk due to error: ${err}`);
+              logger.logToStderr(`Retrying to upload chunk due to error: ${err}`);
             }
             info.Position -= readCount;  // rewind
-            this.uploadFileChunks(info, cmd, resolve, reject);
+            this.uploadFileChunks(info, logger, resolve, reject);
           }
           else {
             reject(err);
@@ -631,9 +523,9 @@ class SpoFileAddCommand extends SpoCommand {
 
       if (--info.RetriesLeft > 0) {
         if (this.verbose) {
-          cmd.log(`Retrying to read chunk due to error: ${err}`);
+          logger.logToStderr(`Retrying to read chunk due to error: ${err}`);
         }
-        this.uploadFileChunks(info, cmd, resolve, reject);
+        this.uploadFileChunks(info, logger, resolve, reject);
       }
       else {
         reject(err);
@@ -641,9 +533,9 @@ class SpoFileAddCommand extends SpoCommand {
     }
   }
 
-  private getFileParentList(fileName: string, webUrl: string, folder: string, cmd: any): Promise<ListSettings> {
+  private getFileParentList(fileName: string, webUrl: string, folder: string, logger: any): Promise<ListSettings> {
     if (this.verbose) {
-      cmd.log(`Getting list details in order to get its available content types afterwards...`);
+      logger.logToStderr(`Getting list details in order to get its available content types afterwards...`);
     }
 
     const requestOptions: any = {
@@ -651,15 +543,15 @@ class SpoFileAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.get(requestOptions);
   }
 
-  private validateUpdateListItem(webUrl: string, folderPath: string, fileName: string, fieldsToUpdate: FieldValue[], cmd: any, checkInComment?: string): Promise<void> {
+  private validateUpdateListItem(webUrl: string, folderPath: string, fileName: string, fieldsToUpdate: FieldValue[], logger: any, checkInComment?: string): Promise<void> {
     if (this.verbose) {
-      cmd.log(`Validate and update list item values for file ${fileName}`);
+      logger.logToStderr(`Validate and update list item values for file ${fileName}`);
     }
 
     const requestBody: any = {
@@ -669,8 +561,8 @@ class SpoFileAddCommand extends SpoCommand {
     };
 
     if (this.debug) {
-      cmd.log('ValidateUpdateListItem will perform the checkin ...');
-      cmd.log('');
+      logger.logToStderr('ValidateUpdateListItem will perform the checkin ...');
+      logger.logToStderr('');
     }
 
     // update the existing file list item fields
@@ -679,8 +571,8 @@ class SpoFileAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      body: requestBody,
-      json: true
+      data: requestBody,
+      responseType: 'json'
     };
 
     return request.post(requestOptions)
@@ -705,7 +597,7 @@ class SpoFileAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.post(requestOptions);
@@ -726,7 +618,13 @@ class SpoFileAddCommand extends SpoCommand {
       'publishComment',
       'debug',
       'verbose',
-      'output'
+      'output',
+      '_',
+      'u',
+      'p',
+      'f',
+      'o',
+      'c'
     ];
 
     Object.keys(options).forEach(key => {

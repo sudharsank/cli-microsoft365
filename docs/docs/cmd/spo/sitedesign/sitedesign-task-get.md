@@ -5,26 +5,22 @@ Gets information about the specified site design scheduled for execution
 ## Usage
 
 ```sh
-spo sitedesign task get [options]
+m365 spo sitedesign task get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --taskId <taskId>`|The ID of the site design task to get information for
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --taskId <taskId>`
+: The ID of the site design task to get information for
+
+--8<-- "docs/cmd/_global.md"
 
 ## Examples
 
 Get information about the specified site design scheduled for execution
 
 ```sh
-spo sitedesign task get --taskId 6ec3ca5b-d04b-4381-b169-61378556d76e
+m365 spo sitedesign task get --taskId 6ec3ca5b-d04b-4381-b169-61378556d76e
 ```
 
 ## More information

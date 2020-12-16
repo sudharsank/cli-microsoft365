@@ -1,10 +1,10 @@
-import { CommandOption, CommandValidate } from '../../../../Command';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import YammerCommand from '../../../base/YammerCommand';
 import commands from '../../commands';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -30,7 +30,7 @@ class YammerMessageRemoveCommand extends YammerCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeMessage: () => void = (): void => {
       const requestOptions: any = {
         url: `${this.resource}/v1/messages/${args.options.id}.json`,
@@ -38,25 +38,25 @@ class YammerMessageRemoveCommand extends YammerCommand {
           accept: 'application/json;odata.metadata=none',
           'content-type': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
         .delete(requestOptions)
         .then((res: any): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
-        }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
     }
 
     if (args.options.confirm) {
       removeMessage();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -88,44 +88,12 @@ class YammerMessageRemoveCommand extends YammerCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required id value is missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (typeof args.options.id !== 'number') {
+      return `${args.options.id} is not a number`;
+    }
 
-      if (typeof args.options.id !== 'number') {
-        return `${args.options.id} is not a number`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-  
-    ${chalk.yellow('Attention:')} In order to use this command, you need to grant the Azure AD
-    application used by the CLI for Microsoft 365 the permission to the Yammer API.
-    To do this, execute the ${chalk.blue('cli consent --service yammer')} command.
-
-    To remove a message, you must either:
-      - have posted the message yourself 
-      - be an administrator of the group the message was posted to or 
-      - be an admin of the network the message is in.
-    
-  Examples:
-  
-    Removes the Yammer message with the id 1239871123
-      ${this.name} --id 1239871123
-
-    Removes the Yammer message with the id 1239871123 without prompting for
-    confirmation.
-      ${this.name} --id 1239871123 --confirm
-`);
+    return true;
   }
 }
 

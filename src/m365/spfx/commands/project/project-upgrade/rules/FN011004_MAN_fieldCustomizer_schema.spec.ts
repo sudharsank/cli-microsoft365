@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN011004_MAN_fieldCustomizer_schema } from './FN011004_MAN_fieldCustomizer_schema';
 
 describe('FN011004_MAN_fieldCustomizer_schema', () => {
@@ -17,6 +17,6 @@ describe('FN011004_MAN_fieldCustomizer_schema', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

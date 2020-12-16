@@ -5,23 +5,27 @@ Creates a Microsoft Graph schema extension
 ## Usage
 
 ```sh
-graph schemaextension add [options]
+m365 graph schemaextension add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id <id>`|The unique identifier for the schema extension definition
-`-d, --description [description]`|Description of the schema extension
-`--owner <owner>`|The Id ID the Azure AD application that is the owner of the schema extension
-`-t, --targetTypes <targetTypes>`|Comma-separated list of Microsoft Graph resource types the schema extension targets
-`-p, --properties`|The collection of property names and types that make up the schema extension definition formatted as a JSON string
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id <id>`
+: The unique identifier for the schema extension definition
+
+`-d, --description [description]`
+: Description of the schema extension
+
+`--owner <owner>`
+: The Id ID the Azure AD application that is the owner of the schema extension
+
+`-t, --targetTypes <targetTypes>`
+: Comma-separated list of Microsoft Graph resource types the schema extension targets
+
+`-p, --properties`
+: The collection of property names and types that make up the schema extension definition formatted as a JSON string
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -48,13 +52,13 @@ In addition, when using PowerShell, you should use the `--%` argument.
 Create a schema extension
 
 ```sh
-graph schemaextension add --id MySchemaExtension --description "My Schema Extension" --targetTypes Group --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --properties \`"[{""name"":""myProp1"",""type"":""Integer""},{""name"":""myProp2"",""type"":""String""}]\`
+m365 graph schemaextension add --id MySchemaExtension --description "My Schema Extension" --targetTypes Group --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --properties \`"[{""name"":""myProp1"",""type"":""Integer""},{""name"":""myProp2"",""type"":""String""}]\`
 ```
 
 Create a schema extension with a verified domain
 
 ```sh
-graph schemaextension add --id contoso_MySchemaExtension --description "My Schema Extension" --targetTypes Group --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --properties \`"[{""name"":""myProp1"",""type"":""Integer""},{""name"":""myProp2"",""type"":""String""}]\`
+m365 graph schemaextension add --id contoso_MySchemaExtension --description "My Schema Extension" --targetTypes Group --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --properties \`"[{""name"":""myProp1"",""type"":""Integer""},{""name"":""myProp2"",""type"":""String""}]\`
 ```
 
 Create a schema extension in PowerShell

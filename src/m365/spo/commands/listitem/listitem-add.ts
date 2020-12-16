@@ -1,17 +1,15 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import request from '../../../../request';
+import { Logger } from '../../../../cli';
 import {
   CommandOption,
-  CommandValidate,
   CommandTypes
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-import { ListItemInstance } from './ListItemInstance';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { FolderExtensions } from '../../FolderExtensions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { ListItemInstance } from './ListItemInstance';
 
 interface CommandArgs {
   options: Options;
@@ -55,7 +53,7 @@ class SpoListItemAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const listIdArgument = args.options.listId || '';
     const listTitleArgument = args.options.listTitle || '';
     const listRestUrl: string = (args.options.listId ?
@@ -63,10 +61,10 @@ class SpoListItemAddCommand extends SpoCommand {
       : `${args.options.webUrl}/_api/web/lists/getByTitle('${encodeURIComponent(listTitleArgument)}')`);
     let contentTypeName: string = '';
     let targetFolderServerRelativeUrl: string = '';
-    const folderExtensions: FolderExtensions = new FolderExtensions(cmd, this.debug);
+    const folderExtensions: FolderExtensions = new FolderExtensions(logger, this.debug);
 
     if (this.verbose) {
-      cmd.log(`Getting content types for list...`);
+      logger.logToStderr(`Getting content types for list...`);
     }
 
     const requestOptions: any = {
@@ -74,7 +72,7 @@ class SpoListItemAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -85,15 +83,15 @@ class SpoListItemAddCommand extends SpoCommand {
             const contentTypeMatch: boolean = ct.Id.StringValue === args.options.contentType || ct.Name === args.options.contentType;
 
             if (this.debug) {
-              cmd.log(`Checking content type value [${ct.Name}]: ${contentTypeMatch}`);
+              logger.logToStderr(`Checking content type value [${ct.Name}]: ${contentTypeMatch}`);
             }
 
             return contentTypeMatch;
           });
 
           if (this.debug) {
-            cmd.log('content type filter output...');
-            cmd.log(foundContentType);
+            logger.logToStderr('content type filter output...');
+            logger.logToStderr(foundContentType);
           }
 
           if (foundContentType.length > 0) {
@@ -106,13 +104,13 @@ class SpoListItemAddCommand extends SpoCommand {
           }
 
           if (this.debug) {
-            cmd.log(`using content type name: ${contentTypeName}`);
+            logger.logToStderr(`using content type name: ${contentTypeName}`);
           }
         }
 
         if (args.options.folder) {
           if (this.debug) {
-            cmd.log('setting up folder lookup response ...');
+            logger.logToStderr('setting up folder lookup response ...');
           }
 
           const requestOptions: any = {
@@ -120,7 +118,7 @@ class SpoListItemAddCommand extends SpoCommand {
             headers: {
               'accept': 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           }
 
           return request
@@ -137,7 +135,7 @@ class SpoListItemAddCommand extends SpoCommand {
       })
       .then((): Promise<any> => {
         if (this.verbose) {
-          cmd.log(`Creating item in list ${args.options.listId || args.options.listTitle} in site ${args.options.webUrl}...`);
+          logger.logToStderr(`Creating item in list ${args.options.listId || args.options.listTitle} in site ${args.options.webUrl}...`);
         }
 
         const requestBody: any = {
@@ -154,7 +152,7 @@ class SpoListItemAddCommand extends SpoCommand {
 
         if (args.options.contentType && contentTypeName !== '') {
           if (this.debug) {
-            cmd.log(`Specifying content type name [${contentTypeName}] in request body`);
+            logger.logToStderr(`Specifying content type name [${contentTypeName}] in request body`);
           }
 
           requestBody.formValues.push({
@@ -168,8 +166,8 @@ class SpoListItemAddCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          body: requestBody,
-          json: true
+          data: requestBody,
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
@@ -182,9 +180,9 @@ class SpoListItemAddCommand extends SpoCommand {
         });
 
         if (this.debug) {
-          cmd.log(`field values returned:`)
-          cmd.log(fieldValues)
-          cmd.log(`Id returned by AddValidateUpdateItemUsingPath: ${idField}`);
+          logger.logToStderr(`field values returned:`)
+          logger.logToStderr(fieldValues)
+          logger.logToStderr(`Id returned by AddValidateUpdateItemUsingPath: ${idField}`);
         }
 
         if (idField.length === 0) {
@@ -196,15 +194,15 @@ class SpoListItemAddCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
       })
       .then((response: any): void => {
-        cmd.log(<ListItemInstance>response);
+        logger.log(<ListItemInstance>response);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -247,69 +245,26 @@ class SpoListItemAddCommand extends SpoCommand {
     };
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return `Specify listId or listTitle`;
+    }
 
-      if (!args.options.listId && !args.options.listTitle) {
-        return `Specify listId or listTitle`;
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return `Specify listId or listTitle but not both`;
+    }
 
-      if (args.options.listId && args.options.listTitle) {
-        return `Specify listId or listTitle but not both`;
-      }
+    if (args.options.listId &&
+      !Utils.isValidGuid(args.options.listId)) {
+      return `${args.options.listId} in option listId is not a valid GUID`;
+    }
 
-      if (args.options.listId &&
-        !Utils.isValidGuid(args.options.listId)) {
-        return `${args.options.listId} in option listId is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Add an item with Title ${chalk.grey('Demo Item')} and content type name ${chalk.grey('Item')} to list with
-    title ${chalk.grey('Demo List')} in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_ADD} --contentType Item --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --Title "Demo Item"
-
-    Add an item with Title ${chalk.grey('Demo Multi Managed Metadata Field')} and
-    a single-select metadata field named ${chalk.grey('SingleMetadataField')} to list with
-    title ${chalk.grey('Demo List')} in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_ADD} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --Title "Demo Single Managed Metadata Field" --SingleMetadataField "TermLabel1|fa2f6bfd-1fad-4d18-9c89-289fe6941377;"
-
-    Add an item with Title ${chalk.grey('Demo Multi Managed Metadata Field')} and a multi-select
-    metadata field named ${chalk.grey('MultiMetadataField')} to list with title ${chalk.grey('Demo List')}
-    in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_ADD} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --Title "Demo Multi Managed Metadata Field" --MultiMetadataField "TermLabel1|cf8c72a1-0207-40ee-aebd-fca67d20bc8a;TermLabel2|e5cc320f-8b65-4882-afd5-f24d88d52b75;"
-  
-    Add an item with Title ${chalk.grey('Demo Single Person Field')} and a single-select people
-    field named ${chalk.grey('SinglePeopleField')} to list with title ${chalk.grey('Demo List')} in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_ADD} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --Title "Demo Single Person Field" --SinglePeopleField "[{'Key':'i:0#.f|membership|markh@conotoso.com'}]"
-      
-    Add an item with Title ${chalk.grey('Demo Multi Person Field')} and a multi-select people
-    field named ${chalk.grey('MultiPeopleField')} to list with title ${chalk.grey('Demo List')} in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_ADD} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --Title "Demo Multi Person Field" --MultiPeopleField "[{'Key':'i:0#.f|membership|markh@conotoso.com'},{'Key':'i:0#.f|membership|adamb@conotoso.com'}]"
-    
-    Add an item with Title ${chalk.grey('Demo Hyperlink Field')} and a hyperlink field named
-    ${chalk.grey('CustomHyperlink')} to list with title ${chalk.grey('Demo List')} in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_ADD} --listTitle "Demo List" --webUrl https://contoso.sharepoint.com/sites/project-x --Title "Demo Hyperlink Field" --CustomHyperlink "https://www.bing.com, Bing"
-   `);
+    return true;
   }
 
   private mapRequestBody(options: Options): any {

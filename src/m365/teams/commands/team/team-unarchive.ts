@@ -1,11 +1,11 @@
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandValidate } from '../../../../Command';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -24,7 +24,7 @@ class TeamsUnarchiveCommand extends GraphCommand {
     return 'Restores an archived Microsoft Teams team';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const endpoint: string = `${this.resource}/v1.0`;
 
     const requestOptions: any = {
@@ -33,18 +33,18 @@ class TeamsUnarchiveCommand extends GraphCommand {
         'content-type': 'application/json;odata=nometadata',
         'accept': 'application/json;odata.metadata=none'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .post(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (res: any): void => this.handleRejectedODataJsonPromise(res, cmd, cb));
+      }, (res: any): void => this.handleRejectedODataJsonPromise(res, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -59,36 +59,12 @@ class TeamsUnarchiveCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-          
-    This command supports admin permissions. Global admins and Microsoft Teams
-    service admins can restore teams that they are not a member of.
-
-    This command restores users' ability to send messages and edit the team,
-    abiding by tenant and team settings.
-
-  Examples:
-    
-    Restore an archived Microsoft Teams team
-      ${commands.TEAMS_TEAM_UNARCHIVE} --teamId 6f6fd3f7-9ba5-4488-bbe6-a789004d0d55
-    `);
+    return true;
   }
 }
 

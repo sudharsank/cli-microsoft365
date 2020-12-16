@@ -1,13 +1,13 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import GlobalOptions from '../../../../GlobalOptions';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { ClientSidePage, ClientSidePart } from './clientsidepages';
 import { Page } from './Page';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -27,9 +27,13 @@ class SpoPageControlListCommand extends SpoCommand {
     return 'Lists controls on the specific modern page';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['id', 'type', 'title'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     Page
-      .getPage(args.options.name, args.options.webUrl, cmd, this.debug, this.verbose)
+      .getPage(args.options.name, args.options.webUrl, logger, this.debug, this.verbose)
       .then((clientSidePage: ClientSidePage): void => {
         let controls: ClientSidePart[] = [];
         clientSidePage.sections.forEach(s => {
@@ -50,26 +54,18 @@ class SpoPageControlListCommand extends SpoCommand {
           }
         });
 
-        if (args.options.output === 'json') {
-          // drop the information about original classes from clientsidepages.ts
-          cmd.log(JSON.parse(JSON.stringify(controls)));
-        }
-        else {
-          cmd.log(controls.map(c => {
-            return {
-              id: c.id,
-              type: SpoPageControlListCommand.getControlTypeDisplayName((c as any).controlType),
-              title: (c as any).title
-            };
-          }));
-        }
+        controls.forEach(c => {
+          (c as any).type = SpoPageControlListCommand.getControlTypeDisplayName((c as any).controlType);
+        });
+        // drop the information about original classes from clientsidepages.ts
+        logger.log(JSON.parse(JSON.stringify(controls)));
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   private static getControlTypeDisplayName(controlType: number): string {
@@ -101,34 +97,8 @@ class SpoPageControlListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required parameter name missing';
-      }
-
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('name')} doesn't refer to an existing modern page, you will get
-    a ${chalk.grey('File doesn\'t exists')} error.
-
-  Examples:
-  
-    List controls on the modern page with name ${chalk.grey('home.aspx')}
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a --name home.aspx
-`);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./web-list');
-import * as assert from 'assert';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import auth from '../../../../Auth';
+import commands from '../../commands';
+const command: Command = require('./web-list');
 
 describe(commands.WEB_LIST, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.WEB_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +51,15 @@ describe(commands.WEB_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.WEB_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.WEB_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['Title', 'Url', 'Id']);
   });
 
   it('retrieves all webs', (done) => {
@@ -103,7 +107,7 @@ describe(commands.WEB_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         output: 'json',
         debug: true,
@@ -111,83 +115,40 @@ describe(commands.WEB_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
-          value: [{
-            AllowRssFeeds: false,
-            AlternateCssUrl: null,
-            AppInstanceId: "00000000-0000-0000-0000-000000000000",
-            Configuration: 0,
-            Created: null,
-            CurrentChangeToken: null,
-            CustomMasterUrl: null,
-            Description: null,
-            DesignPackageId: null,
-            DocumentLibraryCalloutOfficeWebAppPreviewersDisabled: false,
-            EnableMinimalDownload: false,
-            HorizontalQuickLaunch: false,
-            Id: "d8d179c7-f459-4f90-b592-14b08e84accb",
-            IsMultilingual: false,
-            Language: 1033,
-            LastItemModifiedDate: null,
-            LastItemUserModifiedDate: null,
-            MasterUrl: null,
-            NoCrawl: false,
-            OverwriteTranslationsOnChange: false,
-            ResourcePath: null,
-            QuickLaunchEnabled: false,
-            RecycleBinEnabled: false,
-            ServerRelativeUrl: null,
-            SiteLogoUrl: null,
-            SyndicationEnabled: false,
-            Title: "Subsite",
-            TreeViewEnabled: false,
-            UIVersion: 15,
-            UIVersionConfigurationEnabled: false,
-            Url: "https://Contoso.sharepoint.com/Subsite",
-            WebTemplate: "STS",
-          }]
-        }));
-        done();
-      }
-      catch (e) {
-        done(e);
-      }
-    });
-  });
-
-  it('retrieves all webs with output option text', (done) => {
-    sinon.stub(request, 'get').callsFake((opts) => {
-      if ((opts.url as string).indexOf('/_api/web/webs') > -1) {
-        return Promise.resolve(
-          {
-            "value": [
-              {
-                "Title": "Subsite",
-                "Url": "https://Contoso.sharepoint.com/",
-                "Id": "d8d179c7-f459-4f90-b592-14b08e84accb"
-              }
-            ]
-          }
-        );
-      }
-      return Promise.reject('Invalid request');
-    });
-
-    cmdInstance.action({
-      options: {
-        output: 'text',
-        debug: false,
-        webUrl: 'https://contoso.sharepoint.com'
-      }
-    }, () => {
-      try {
-        assert(cmdInstanceLogSpy.calledWith(
-          [{
-            Title: 'Subsite',
-            Url: "https://Contoso.sharepoint.com/",
-            Id: 'd8d179c7-f459-4f90-b592-14b08e84accb'
-          }]
-        ));
+        assert(loggerLogSpy.calledWith({ value :[{
+          "AllowRssFeeds": false,
+          "AlternateCssUrl": null,
+          "AppInstanceId": "00000000-0000-0000-0000-000000000000",
+          "Configuration": 0,
+          "Created": null,
+          "CurrentChangeToken": null,
+          "CustomMasterUrl": null,
+          "Description": null,
+          "DesignPackageId": null,
+          "DocumentLibraryCalloutOfficeWebAppPreviewersDisabled": false,
+          "EnableMinimalDownload": false,
+          "HorizontalQuickLaunch": false,
+          "Id": "d8d179c7-f459-4f90-b592-14b08e84accb",
+          "IsMultilingual": false,
+          "Language": 1033,
+          "LastItemModifiedDate": null,
+          "LastItemUserModifiedDate": null,
+          "MasterUrl": null,
+          "NoCrawl": false,
+          "OverwriteTranslationsOnChange": false,
+          "ResourcePath": null,
+          "QuickLaunchEnabled": false,
+          "RecycleBinEnabled": false,
+          "ServerRelativeUrl": null,
+          "SiteLogoUrl": null,
+          "SyndicationEnabled": false,
+          "Title": "Subsite",
+          "TreeViewEnabled": false,
+          "UIVersion": 15,
+          "UIVersionConfigurationEnabled": false,
+          "Url": "https://Contoso.sharepoint.com/Subsite",
+          "WebTemplate": "STS",
+        }]}));
         done();
       }
       catch (e) {
@@ -206,14 +167,14 @@ describe(commands.WEB_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
@@ -224,8 +185,8 @@ describe(commands.WEB_LIST, () => {
 
   it('uses correct API url when output json option is passed', (done) => {
     sinon.stub(request, 'get').callsFake((opts) => {
-      cmdInstance.log('Test Url:');
-      cmdInstance.log(opts.url);
+      logger.log('Test Url:');
+      logger.log(opts.url);
       if ((opts.url as string).indexOf('select123=') > -1) {
         return Promise.resolve('Correct Url1')
       }
@@ -233,7 +194,7 @@ describe(commands.WEB_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         output: 'json',
         debug: false,
@@ -252,7 +213,7 @@ describe(commands.WEB_LIST, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -263,7 +224,7 @@ describe(commands.WEB_LIST, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -273,52 +234,13 @@ describe(commands.WEB_LIST, () => {
     assert(containsTypeOption);
   });
 
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the url option is a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.WEB_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.strictEqual(actual, true);
   });
 }); 

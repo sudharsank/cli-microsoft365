@@ -5,20 +5,18 @@ Lists Microsoft Flows in the given environment
 ## Usage
 
 ```sh
-flow list [options]
+m365 flow list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-e, --environment <environment>`|The name of the environment for which to retrieve available Flows
-`--asAdmin`|Set, to list all Flows as admin. Otherwise will return only your own Flows
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-e, --environment <environment>`
+: The name of the environment for which to retrieve available Flows
+
+`--asAdmin`
+: Set, to list all Flows as admin. Otherwise will return only your own Flows
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -34,11 +32,11 @@ By default, the `flow list` command returns only your Flows. To list all Flows, 
 List all your Flows in the given environment
 
 ```sh
-flow list --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5
+m365 flow list --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5
 ```
 
 List all Flows in the given environment
 
 ```sh
-flow list --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --asAdmin
+m365 flow list --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --asAdmin
 ```

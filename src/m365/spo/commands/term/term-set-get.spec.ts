@@ -1,19 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./term-set-get');
-import * as assert from 'assert';
-import request from '../../../../request';
-import config from '../../../../config';
-import Utils from '../../../../Utils';
 import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
+import config from '../../../../config';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./term-set-get');
 
 describe(commands.TERM_SET_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -24,23 +24,23 @@ describe(commands.TERM_SET_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -56,11 +56,11 @@ describe(commands.TERM_SET_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TERM_SET_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.TERM_SET_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('gets taxonomy term set by id, term group by id', (done) => {
@@ -68,7 +68,7 @@ describe(commands.TERM_SET_GET, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetById"><Parameters><Parameter Type="Guid">{7a167c47-2b37-41d0-94d0-e962c1a4f2ed}</Parameter></Parameters></Method></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetById"><Parameters><Parameter Type="Guid">{7a167c47-2b37-41d0-94d0-e962c1a4f2ed}</Parameter></Parameters></Method></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0",
@@ -143,9 +143,9 @@ describe(commands.TERM_SET_GET, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, id: '7a167c47-2b37-41d0-94d0-e962c1a4f2ed', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } }, () => {
+    command.action(logger, { options: { debug: false, id: '7a167c47-2b37-41d0-94d0-e962c1a4f2ed', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "CreatedDate": "2018-09-13T11:52:53.337Z",
           "Id": "7a167c47-2b37-41d0-94d0-e962c1a4f2ed",
           "LastModifiedDate": "2018-09-13T12:13:46.883Z",
@@ -177,7 +177,7 @@ describe(commands.TERM_SET_GET, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetByName"><Parameters><Parameter Type="String">PnP-CollabFooter-SharedLinks</Parameter></Parameters></Method></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetByName"><Parameters><Parameter Type="String">PnP-CollabFooter-SharedLinks</Parameter></Parameters></Method></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0",
@@ -252,9 +252,9 @@ describe(commands.TERM_SET_GET, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: true, name: 'PnP-CollabFooter-SharedLinks', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } }, () => {
+    command.action(logger, { options: { debug: true, name: 'PnP-CollabFooter-SharedLinks', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "CreatedDate": "2018-09-13T11:52:53.337Z",
           "Id": "7a167c47-2b37-41d0-94d0-e962c1a4f2ed",
           "LastModifiedDate": "2018-09-13T12:13:46.883Z",
@@ -286,7 +286,7 @@ describe(commands.TERM_SET_GET, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetById"><Parameters><Parameter Type="Guid">{7a167c47-2b37-41d0-94d0-e962c1a4f2ed}</Parameter></Parameters></Method></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetById"><Parameters><Parameter Type="Guid">{7a167c47-2b37-41d0-94d0-e962c1a4f2ed}</Parameter></Parameters></Method></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0",
@@ -361,9 +361,9 @@ describe(commands.TERM_SET_GET, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, id: '7a167c47-2b37-41d0-94d0-e962c1a4f2ed', termGroupName: 'PnPTermSets' } }, () => {
+    command.action(logger, { options: { debug: false, id: '7a167c47-2b37-41d0-94d0-e962c1a4f2ed', termGroupName: 'PnPTermSets' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "CreatedDate": "2018-09-13T11:52:53.337Z",
           "Id": "7a167c47-2b37-41d0-94d0-e962c1a4f2ed",
           "LastModifiedDate": "2018-09-13T12:13:46.883Z",
@@ -395,7 +395,7 @@ describe(commands.TERM_SET_GET, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetByName"><Parameters><Parameter Type="String">PnP-CollabFooter-SharedLinks</Parameter></Parameters></Method></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetByName"><Parameters><Parameter Type="String">PnP-CollabFooter-SharedLinks</Parameter></Parameters></Method></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0",
@@ -470,9 +470,9 @@ describe(commands.TERM_SET_GET, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "CreatedDate": "2018-09-13T11:52:53.337Z",
           "Id": "7a167c47-2b37-41d0-94d0-e962c1a4f2ed",
           "LastModifiedDate": "2018-09-13T12:13:46.883Z",
@@ -504,7 +504,7 @@ describe(commands.TERM_SET_GET, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets&gt;</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetByName"><Parameters><Parameter Type="String">PnP-CollabFooter-SharedLinks</Parameter></Parameters></Method></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets&gt;</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetByName"><Parameters><Parameter Type="String">PnP-CollabFooter-SharedLinks</Parameter></Parameters></Method></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0",
@@ -579,9 +579,9 @@ describe(commands.TERM_SET_GET, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets>' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets>' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "CreatedDate": "2018-09-13T11:52:53.337Z",
           "Id": "7a167c47-2b37-41d0-94d0-e962c1a4f2ed",
           "LastModifiedDate": "2018-09-13T12:13:46.883Z",
@@ -613,7 +613,7 @@ describe(commands.TERM_SET_GET, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetByName"><Parameters><Parameter Type="String">PnP-CollabFooter-SharedLinks&gt;</Parameter></Parameters></Method></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="55" ObjectPathId="54" /><ObjectIdentityQuery Id="56" ObjectPathId="54" /><ObjectPath Id="58" ObjectPathId="57" /><ObjectIdentityQuery Id="59" ObjectPathId="57" /><ObjectPath Id="61" ObjectPathId="60" /><ObjectPath Id="63" ObjectPathId="62" /><ObjectIdentityQuery Id="64" ObjectPathId="62" /><ObjectPath Id="66" ObjectPathId="65" /><ObjectPath Id="68" ObjectPathId="67" /><ObjectIdentityQuery Id="69" ObjectPathId="67" /><Query Id="70" ObjectPathId="67"><Query SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><StaticMethod Id="54" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="57" ParentId="54" Name="GetDefaultSiteCollectionTermStore" /><Property Id="60" ParentId="57" Name="Groups" /><Method Id="62" ParentId="60" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Property Id="65" ParentId="62" Name="TermSets" /><Method Id="67" ParentId="65" Name="GetByName"><Parameters><Parameter Type="String">PnP-CollabFooter-SharedLinks&gt;</Parameter></Parameters></Method></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0",
@@ -688,9 +688,9 @@ describe(commands.TERM_SET_GET, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-CollabFooter-SharedLinks>', termGroupName: 'PnPTermSets' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-CollabFooter-SharedLinks>', termGroupName: 'PnPTermSets' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "CreatedDate": "2018-09-13T11:52:53.337Z",
           "Id": "7a167c47-2b37-41d0-94d0-e962c1a4f2ed",
           "LastModifiedDate": "2018-09-13T12:13:46.883Z",
@@ -727,9 +727,9 @@ describe(commands.TERM_SET_GET, () => {
         }
       ]));
     });
-    cmdInstance.action({ options: { debug: false, id: '7a167c47-2b37-41d0-94d0-e962c1a4f2ed', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: '7a167c47-2b37-41d0-94d0-e962c1a4f2ed', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
         done();
       }
       catch (e) {
@@ -748,9 +748,9 @@ describe(commands.TERM_SET_GET, () => {
         }
       ]));
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
         done();
       }
       catch (e) {
@@ -769,9 +769,9 @@ describe(commands.TERM_SET_GET, () => {
         }
       ]));
     });
-    cmdInstance.action({ options: { debug: false, id: '7a167c47-2b37-41d0-94d0-e962c1a4f2ed', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: '7a167c47-2b37-41d0-94d0-e962c1a4f2ed', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
         done();
       }
       catch (e) {
@@ -790,9 +790,9 @@ describe(commands.TERM_SET_GET, () => {
         }
       ]));
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
         done();
       }
       catch (e) {
@@ -811,9 +811,9 @@ describe(commands.TERM_SET_GET, () => {
         }
       ]));
     });
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('File Not Found.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('File Not Found.')));
         done();
       }
       catch (e) {
@@ -823,57 +823,57 @@ describe(commands.TERM_SET_GET, () => {
   });
 
   it('fails validation if neither id nor name specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { termGroupName: 'PnPTermSets' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { termGroupName: 'PnPTermSets' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both id and name specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if id is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 'invalid', termGroupName: 'PnPTermSets' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: 'invalid', termGroupName: 'PnPTermSets' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if neither termGroupId nor termGroupName specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both termGroupId and termGroupName specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupId: '9e54299e-208a-4000-8546-cc4139091b27', termGroupName: 'PnPTermSets' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupId: '9e54299e-208a-4000-8546-cc4139091b27', termGroupName: 'PnPTermSets' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if termGroupId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupId: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupId: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when id and termGroupName specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupName: 'PnPTermSets' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupName: 'PnPTermSets' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when name and termGroupName specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'People', termGroupName: 'PnPTermSets' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'People', termGroupName: 'PnPTermSets' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when id and termGroupId specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupId: '9e54299e-208a-4000-8546-cc4139091b27' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupId: '9e54299e-208a-4000-8546-cc4139091b27' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when name and termGroupId specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'PnP-CollabFooter-SharedLinks', termGroupId: '9e54299e-208a-4000-8546-cc4139091b26' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'PnP-CollabFooter-SharedLinks', termGroupId: '9e54299e-208a-4000-8546-cc4139091b26' } });
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -883,49 +883,15 @@ describe(commands.TERM_SET_GET, () => {
     assert(containsOption);
   });
 
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TERM_SET_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
-  });
-
   it('handles promise rejection', (done) => {
     Utils.restore((command as any).getRequestDigest);
     sinon.stub(command as any, 'getRequestDigest').callsFake(() => Promise.reject('getRequestDigest error'));
     
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false, name: 'PnP-CollabFooter-SharedLinks', termGroupName: 'PnPTermSets' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('getRequestDigest error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('getRequestDigest error')));
         done();
       }
       catch (e) {

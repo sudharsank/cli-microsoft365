@@ -1,16 +1,14 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import request from '../../../../request';
+import { Logger } from '../../../../cli';
 import {
   CommandOption,
-  CommandValidate,
   CommandTypes
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { ListItemInstance } from './ListItemInstance';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -44,7 +42,7 @@ class SpoListItemGetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const listIdArgument = args.options.listId || '';
     const listTitleArgument = args.options.listTitle || '';
     const listRestUrl: string = (args.options.listId ?
@@ -64,16 +62,16 @@ class SpoListItemGetCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get(requestOptions)
       .then((response: any): void => {
         (!args.options.output || args.options.output === 'text') && delete response["ID"];
-        cmd.log(<ListItemInstance>response);
+        logger.log(<ListItemInstance>response);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -116,58 +114,31 @@ class SpoListItemGetCommand extends SpoCommand {
     };
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return `Specify listId or listTitle`;
+    }
 
-      if (!args.options.listId && !args.options.listTitle) {
-        return `Specify listId or listTitle`;
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return `Specify listId or listTitle but not both`;
+    }
 
-      if (args.options.listId && args.options.listTitle) {
-        return `Specify listId or listTitle but not both`;
-      }
+    if (args.options.listId &&
+      !Utils.isValidGuid(args.options.listId)) {
+      return `${args.options.listId} in option listId is not a valid GUID`;
+    }
 
-      if (args.options.listId &&
-        !Utils.isValidGuid(args.options.listId)) {
-        return `${args.options.listId} in option listId is not a valid GUID`;
-      }
+    if (isNaN(parseInt(args.options.id))) {
+      return `${args.options.id} is not a number`;
+    }
 
-      if (!args.options.id) {
-        return `Specify id`;
-      }
-      else {
-        if (isNaN(parseInt(args.options.id))) {
-          return `${args.options.id} is not a number`;
-        }
-      }
-
-      return true;
-    };
+    return true;
   }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-
-    Get the item with ID of ${chalk.grey('147')} in list with title ${chalk.grey('Demo List')} in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_GET} --listTitle "Demo List" --id 147 --webUrl https://contoso.sharepoint.com/sites/project-x
-
-    Get the items Title and Created column and with ID of ${chalk.grey('147')} in list with title ${chalk.grey('Demo List')} in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LISTITEM_GET} --listTitle "Demo List" --id 147 --webUrl https://contoso.sharepoint.com/sites/project-x --fields "Title,Created"
-
-   `);
-  }
-
 }
 
 module.exports = new SpoListItemGetCommand();

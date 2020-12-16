@@ -1,15 +1,13 @@
-import commands from '../../commands';
+import { Cli, Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import Utils from '../../../../Utils';
-import { SpoAppBaseCommand } from './SpoAppBaseCommand';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { SpoAppBaseCommand } from './SpoAppBaseCommand';
 
 interface CommandArgs {
   options: Options;
@@ -39,18 +37,18 @@ class SpoAppRemoveCommand extends SpoAppBaseCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const scope: string = (args.options.scope) ? args.options.scope.toLowerCase() : 'tenant';
 
     const removeApp: () => void = (): void => {
       this
-        .getSpoUrl(cmd, this.debug)
+        .getSpoUrl(logger, this.debug)
         .then((spoUrl: string): Promise<string> => {
-          return this.getAppCatalogSiteUrl(cmd, spoUrl, args)
+          return this.getAppCatalogSiteUrl(logger, spoUrl, args)
         })
         .then((appCatalogUrl: string): Promise<void> => {
           if (this.debug) {
-            cmd.log(`Retrieved app catalog URL ${appCatalogUrl}. Removing app from the app catalog...`);
+            logger.logToStderr(`Retrieved app catalog URL ${appCatalogUrl}. Removing app from the app catalog...`);
           }
 
           const requestOptions: any = {
@@ -64,14 +62,14 @@ class SpoAppRemoveCommand extends SpoAppBaseCommand {
         })
         .then((): void => {
           cb();
-        }, (rawRes: any): void => this.handleRejectedODataPromise(rawRes, cmd, cb));
+        }, (rawRes: any): void => this.handleRejectedODataPromise(rawRes, logger, cb));
     };
 
     if (args.options.confirm) {
       removeApp();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -112,81 +110,28 @@ class SpoAppRemoveCommand extends SpoAppBaseCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      // verify either 'tenant' or 'sitecollection' specified if scope provided
-      if (args.options.scope) {
-        const testScope: string = args.options.scope.toLowerCase();
-        if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
-          return `Scope must be either 'tenant' or 'sitecollection' if specified`
-        }
-
-        if (testScope === 'sitecollection' && !args.options.appCatalogUrl) {
-          return `You must specify appCatalogUrl when the scope is sitecollection`;
-        }
+  public validate(args: CommandArgs): boolean | string {
+    // verify either 'tenant' or 'sitecollection' specified if scope provided
+    if (args.options.scope) {
+      const testScope: string = args.options.scope.toLowerCase();
+      if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
+        return `Scope must be either 'tenant' or 'sitecollection' if specified`
       }
 
-      if (!args.options.id) {
-        return 'Required parameter id missing';
+      if (testScope === 'sitecollection' && !args.options.appCatalogUrl) {
+        return `You must specify appCatalogUrl when the scope is sitecollection`;
       }
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (args.options.appCatalogUrl) {
-        return SpoCommand.isValidSharePointUrl(args.options.appCatalogUrl);
-      }
+    if (args.options.appCatalogUrl) {
+      return SpoCommand.isValidSharePointUrl(args.options.appCatalogUrl);
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.APP_REMOVE).helpInformation());
-    log(
-      `  Remarks:
-  
-    When removing an app from the tenant app catalog, it's not necessary
-    to specify the tenant app catalog URL. When the URL is not specified,
-    the CLI will try to resolve the URL itself. Specifying the app catalog URL
-    is required when you want to remove the app from a site collection
-    app catalog.
-
-    When specifying site collection app catalog, you can specify the URL either
-    with our without the ${chalk.grey('AppCatalog')} part, for example
-    ${chalk.grey('https://contoso.sharepoint.com/sites/team-a/AppCatalog')} or
-    ${chalk.grey('https://contoso.sharepoint.com/sites/team-a')}. CLI will accept both formats.
-
-    If the app with the specified ID doesn't exist in the tenant app catalog,
-    the command will fail with an error.
-   
-  Examples:
-  
-    Remove the specified app from the tenant app catalog. Try to resolve the URL
-    of the tenant app catalog automatically. Additionally, will prompt for
-    confirmation before actually removing the app.
-      ${commands.APP_REMOVE} --id 058140e3-0e37-44fc-a1d3-79c487d371a3
-
-    Remove the specified app from the tenant app catalog located at
-    ${chalk.grey('https://contoso.sharepoint.com/sites/apps')}. Additionally, will prompt
-    for confirmation before actually retracting the app.
-      ${commands.APP_REMOVE} --id 058140e3-0e37-44fc-a1d3-79c487d371a3 --appCatalogUrl https://contoso.sharepoint.com/sites/apps
-
-    Remove the specified app from the tenant app catalog located at
-    ${chalk.grey('https://contoso.sharepoint.com/sites/apps')}. Don't prompt for confirmation.
-      ${commands.APP_REMOVE} --id 058140e3-0e37-44fc-a1d3-79c487d371a3 --appCatalogUrl https://contoso.sharepoint.com/sites/apps --confirm
-
-    Remove the specified app from a site collection app catalog 
-    of site ${chalk.grey('https://contoso.sharepoint.com/sites/site1')}.
-      ${commands.APP_REMOVE} --id d95f8c94-67a1-4615-9af8-361ad33be93c --scope sitecollection --appCatalogUrl https://contoso.sharepoint.com/sites/site1
-    
-  More information:
-  
-    Application Lifecycle Management (ALM) APIs
-      https://docs.microsoft.com/en-us/sharepoint/dev/apis/alm-api-for-spfx-add-ins
-`);
+    return true;
   }
 }
 

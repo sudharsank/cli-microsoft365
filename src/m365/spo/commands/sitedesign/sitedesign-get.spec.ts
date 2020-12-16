@@ -1,45 +1,45 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./sitedesign-get');
-import * as assert from 'assert';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import auth from '../../../../Auth';
+import commands from '../../commands';
+const command: Command = require('./sitedesign-get');
 
 describe(commands.SITEDESIGN_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
-    sinon.stub(appInsights, 'trackEvent').callsFake(() => {});
+    sinon.stub(appInsights, 'trackEvent').callsFake(() => { });
     sinon.stub(command as any, 'getRequestDigest').callsFake(() => Promise.resolve({ FormDigestValue: 'ABC' }));
     auth.service.connected = true;
     auth.service.spoUrl = 'https://contoso.sharepoint.com';
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
+    logger = {
+      log: (msg: string) => {
+        log.push(msg);
       },
-      action: command.action(),
-      log: (msg: any) => {
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -54,20 +54,139 @@ describe(commands.SITEDESIGN_GET, () => {
     auth.service.spoUrl = undefined;
   });
 
-
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SITEDESIGN_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.SITEDESIGN_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
-  it('gets information about the specified site design', (done) => {
+  it('fails validation if both id and title options are not passed', (done) => {
+    const actual = command.validate({
+      options: {
+      }
+    });
+    assert.notStrictEqual(actual, true);
+    done();
+  });
+
+  it('fails validation if both id and title options are passed', (done) => {
+    const actual = command.validate({
+      options: {
+        id: '2c1ba4c4-cd9b-4417-832f-92a34bc34b2a',
+        title: 'Contoso Site Design'
+      }
+    });
+    assert.notStrictEqual(actual, true);
+    done();
+  });
+
+  it('fails to get site design when it does not exists', (done) => {
+    sinon.stub(request, 'post').callsFake((opts) => {
+      if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesigns`) > -1) {
+        return Promise.resolve({ value: [] });
+      }
+      return Promise.reject('The specified site design does not exist');
+    });
+
+    command.action(logger, {
+      options: {
+        debug: true,
+        title: 'Contoso Site Design'
+      }
+    }, (err?: any) => {
+      try {
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`The specified site design does not exist`)));
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+    });
+  });
+
+  it('fails when multiple site designs with same title exists', (done) => {
+    sinon.stub(request, 'post').callsFake((opts) => {
+      if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesigns`) > -1) {
+        return Promise.resolve({
+          "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#teams",
+          "@odata.count": 2,
+          "value": [
+            {
+              "Description": null,
+              "DesignPackageId": "00000000-0000-0000-0000-000000000000",
+              "DesignType": "0",
+              "IsDefault": false,
+              "IsOutOfBoxTemplate": false,
+              "IsTenantAdminOnly": false,
+              "PreviewImageAltText": null,
+              "PreviewImageUrl": null,
+              "RequiresGroupConnected": false,
+              "RequiresTeamsConnected": false,
+              "RequiresYammerConnected": false,
+              "SiteScriptIds": [
+                "3aff9f82-fe6c-42d3-803f-8951d26ed854"
+              ],
+              "SupportedWebTemplates": [],
+              "TemplateFeatures": [],
+              "ThumbnailUrl": null,
+              "Title": "Contoso Site Design",
+              "WebTemplate": "68",
+              "Id": "ca360b7e-1946-4292-b854-e0ad904f1055",
+              "Version": 1
+            },
+            {
+              "Description": null,
+              "DesignPackageId": "00000000-0000-0000-0000-000000000000",
+              "DesignType": "0",
+              "IsDefault": false,
+              "IsOutOfBoxTemplate": false,
+              "IsTenantAdminOnly": false,
+              "PreviewImageAltText": null,
+              "PreviewImageUrl": null,
+              "RequiresGroupConnected": false,
+              "RequiresTeamsConnected": false,
+              "RequiresYammerConnected": false,
+              "SiteScriptIds": [
+                "3aff9f82-fe6c-42d3-803f-8951d26ed854"
+              ],
+              "SupportedWebTemplates": [],
+              "TemplateFeatures": [],
+              "ThumbnailUrl": null,
+              "Title": "Contoso Site Design",
+              "WebTemplate": "68",
+              "Id": "88ff1405-35d0-4880-909a-97693822d261",
+              "Version": 1
+            }
+          ]
+        }
+        );
+      }
+      return Promise.reject('Invalid request');
+    });
+
+    command.action(logger, {
+      options: {
+        debug: true,
+        title: 'Contoso Site Design'
+      }
+    }, (err?: any) => {
+      try {
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Multiple site designs with title Contoso Site Design found: ca360b7e-1946-4292-b854-e0ad904f1055, 88ff1405-35d0-4880-909a-97693822d261`)));
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+    });
+  });
+
+  it('gets information about the specified site design by id', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignMetadata`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
-          id: 'ee8b42c3-3e6f-4822-87c1-c21ad666046b'
+        JSON.stringify(opts.data) === JSON.stringify({
+          id: 'ca360b7e-1946-4292-b854-e0ad904f1055'
         })) {
         return Promise.resolve({
           "Description": null,
@@ -79,7 +198,7 @@ describe(commands.SITEDESIGN_GET, () => {
           ],
           "Title": "Contoso REST",
           "WebTemplate": "64",
-          "Id": "ee8b42c3-3e6f-4822-87c1-c21ad666046b",
+          "Id": "ca360b7e-1946-4292-b854-e0ad904f1055",
           "Version": 1
         });
       }
@@ -87,9 +206,9 @@ describe(commands.SITEDESIGN_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: 'ee8b42c3-3e6f-4822-87c1-c21ad666046b' } }, () => {
+    command.action(logger, { options: { debug: false, id: 'ca360b7e-1946-4292-b854-e0ad904f1055' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Description": null,
           "IsDefault": false,
           "PreviewImageAltText": null,
@@ -99,7 +218,7 @@ describe(commands.SITEDESIGN_GET, () => {
           ],
           "Title": "Contoso REST",
           "WebTemplate": "64",
-          "Id": "ee8b42c3-3e6f-4822-87c1-c21ad666046b",
+          "Id": "ca360b7e-1946-4292-b854-e0ad904f1055",
           "Version": 1
         }));
         done();
@@ -110,11 +229,88 @@ describe(commands.SITEDESIGN_GET, () => {
     });
   });
 
-  it('gets information about the specified site script (debug)', (done) => {
+  it('gets information about the specified site design by title', (done) => {
+    sinon.stub(request, 'post').callsFake((opts) => {
+      if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesigns`) > -1) {
+        return Promise.resolve({
+          "value": [
+            {
+              "Description": null,
+              "DesignPackageId": "00000000-0000-0000-0000-000000000000",
+              "DesignType": "0",
+              "IsDefault": false,
+              "IsOutOfBoxTemplate": false,
+              "IsTenantAdminOnly": false,
+              "PreviewImageAltText": null,
+              "PreviewImageUrl": null,
+              "RequiresGroupConnected": false,
+              "RequiresTeamsConnected": false,
+              "RequiresYammerConnected": false,
+              "SiteScriptIds": [
+                "3aff9f82-fe6c-42d3-803f-8951d26ed854"
+              ],
+              "SupportedWebTemplates": [],
+              "TemplateFeatures": [],
+              "ThumbnailUrl": null,
+              "Title": "Contoso Site Design",
+              "WebTemplate": "68",
+              "Id": "ca360b7e-1946-4292-b854-e0ad904f1055",
+              "Version": 1
+            }
+          ]
+        });
+      }
+
+      if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignMetadata`) > -1 &&
+        JSON.stringify(opts.data) === JSON.stringify({
+          id: 'ca360b7e-1946-4292-b854-e0ad904f1055'
+        })) {
+        return Promise.resolve({
+          "Description": null,
+          "IsDefault": false,
+          "PreviewImageAltText": null,
+          "PreviewImageUrl": null,
+          "SiteScriptIds": [
+            "3aff9f82-fe6c-42d3-803f-8951d26ed854"
+          ],
+          "Title": "Contoso Site Design",
+          "WebTemplate": "68",
+          "Id": "ca360b7e-1946-4292-b854-e0ad904f1055",
+          "Version": 1
+        });
+      }
+
+      return Promise.reject('Invalid request');
+    });
+
+    command.action(logger, { options: { debug: false, title: 'Contoso Site Design' } }, () => {
+      try {
+        assert(loggerLogSpy.calledWith({
+          "Description": null,
+          "IsDefault": false,
+          "PreviewImageAltText": null,
+          "PreviewImageUrl": null,
+          "SiteScriptIds": [
+            "3aff9f82-fe6c-42d3-803f-8951d26ed854"
+          ],
+          "Title": "Contoso Site Design",
+          "WebTemplate": "68",
+          "Id": "ca360b7e-1946-4292-b854-e0ad904f1055",
+          "Version": 1
+        }));
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+    });
+  });
+
+  it('gets information about the specified site design (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignMetadata`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
-          id: 'ee8b42c3-3e6f-4822-87c1-c21ad666046b'
+        JSON.stringify(opts.data) === JSON.stringify({
+          id: 'ca360b7e-1946-4292-b854-e0ad904f1055'
         })) {
         return Promise.resolve({
           "Description": null,
@@ -126,7 +322,7 @@ describe(commands.SITEDESIGN_GET, () => {
           ],
           "Title": "Contoso REST",
           "WebTemplate": "64",
-          "Id": "ee8b42c3-3e6f-4822-87c1-c21ad666046b",
+          "Id": "ca360b7e-1946-4292-b854-e0ad904f1055",
           "Version": 1
         });
       }
@@ -134,9 +330,9 @@ describe(commands.SITEDESIGN_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, id: 'ee8b42c3-3e6f-4822-87c1-c21ad666046b' } }, () => {
+    command.action(logger, { options: { debug: true, id: 'ca360b7e-1946-4292-b854-e0ad904f1055' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Description": null,
           "IsDefault": false,
           "PreviewImageAltText": null,
@@ -146,7 +342,7 @@ describe(commands.SITEDESIGN_GET, () => {
           ],
           "Title": "Contoso REST",
           "WebTemplate": "64",
-          "Id": "ee8b42c3-3e6f-4822-87c1-c21ad666046b",
+          "Id": "ca360b7e-1946-4292-b854-e0ad904f1055",
           "Version": 1
         }));
         done();
@@ -157,14 +353,14 @@ describe(commands.SITEDESIGN_GET, () => {
     });
   });
 
-  it('correctly handles error when site script not found', (done) => {
+  it('correctly handles error when site design not found', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       return Promise.reject({ error: { 'odata.error': { message: { value: 'File Not Found.' } } } });
     });
 
-    cmdInstance.action({ options: { debug: false, id: 'ee8b42c3-3e6f-4822-87c1-c21ad666046b' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: 'ca360b7e-1946-4292-b854-e0ad904f1055' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('File Not Found.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('File Not Found.')));
         done();
       }
       catch (e) {
@@ -174,7 +370,7 @@ describe(commands.SITEDESIGN_GET, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -185,7 +381,7 @@ describe(commands.SITEDESIGN_GET, () => {
   });
 
   it('supports specifying id', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--id') > -1) {
@@ -195,52 +391,13 @@ describe(commands.SITEDESIGN_GET, () => {
     assert(containsOption);
   });
 
-  it('fails validation if id not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the id is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the id is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '2c1ba4c4-cd9b-4417-832f-92a34bc34b2a' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SITEDESIGN_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { id: '2c1ba4c4-cd9b-4417-832f-92a34bc34b2a' } });
+    assert.strictEqual(actual, true);
   });
 });

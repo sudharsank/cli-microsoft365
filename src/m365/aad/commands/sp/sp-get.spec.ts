@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./sp-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./sp-get');
 
 describe(commands.SP_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.SP_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +51,11 @@ describe(commands.SP_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SP_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.SP_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('retrieves information about the specified service principal using its display name (debug)', (done) => {
@@ -73,9 +73,9 @@ describe(commands.SP_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, displayName: 'SharePoint Online Client' } }, () => {
+    command.action(logger, { options: { debug: true, displayName: 'SharePoint Online Client' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(sp));
+        assert(loggerLogSpy.calledWith(sp));
         done();
       }
       catch (e) {
@@ -99,9 +99,9 @@ describe(commands.SP_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, displayName: 'SharePoint Online Client' } }, () => {
+    command.action(logger, { options: { debug: false, displayName: 'SharePoint Online Client' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(sp));
+        assert(loggerLogSpy.calledWith(sp));
         done();
       }
       catch (e) {
@@ -125,9 +125,9 @@ describe(commands.SP_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, appId: '57fb890c-0dab-4253-a5e0-7188c88b2bb4' } }, () => {
+    command.action(logger, { options: { debug: false, appId: '57fb890c-0dab-4253-a5e0-7188c88b2bb4' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(sp));
+        assert(loggerLogSpy.calledWith(sp));
         done();
       }
       catch (e) {
@@ -151,9 +151,9 @@ describe(commands.SP_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, objectId: '57fb890c-0dab-4253-a5e0-7188c88b2bb4' } }, () => {
+    command.action(logger, { options: { debug: false, objectId: '57fb890c-0dab-4253-a5e0-7188c88b2bb4' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(sp));
+        assert(loggerLogSpy.calledWith(sp));
         done();
       }
       catch (e) {
@@ -175,9 +175,9 @@ describe(commands.SP_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, displayName: 'Foo' } }, () => {
+    command.action(logger, { options: { debug: false, displayName: 'Foo' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -200,9 +200,9 @@ describe(commands.SP_GET, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, id: 'b2307a39-e878-458b-bc90-03bc578531d6' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: 'b2307a39-e878-458b-bc90-03bc578531d6' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -212,47 +212,47 @@ describe(commands.SP_GET, () => {
   });
 
   it('fails validation if neither the appId nor the displayName option specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: {} });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the appId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { appId: '123' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { appId: '123' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the appId option specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { appId: '6a7b1395-d313-4682-8ed4-65a6265a6320' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { appId: '6a7b1395-d313-4682-8ed4-65a6265a6320' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the displayName option specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { displayName: 'Microsoft Graph' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { displayName: 'Microsoft Graph' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation when both the appId and displayName are specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { appId: '6a7b1395-d313-4682-8ed4-65a6265a6320', displayName: 'Microsoft Graph' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { appId: '6a7b1395-d313-4682-8ed4-65a6265a6320', displayName: 'Microsoft Graph' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the objectId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { objectId: '123' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { objectId: '123' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both appId and displayName are specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { appId: '123', displayName: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { appId: '123', displayName: 'abc' } });
+    assert.notStrictEqual(actual, true);
   })
 
   it('fails validation if objectId and displayName are specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { displayName: 'abc', objectId: '123' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { displayName: 'abc', objectId: '123' } });
+    assert.notStrictEqual(actual, true);
   })
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -263,7 +263,7 @@ describe(commands.SP_GET, () => {
   });
 
   it('supports specifying appId', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--appId') > -1) {
@@ -274,7 +274,7 @@ describe(commands.SP_GET, () => {
   });
 
   it('supports specifying displayName', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--displayName') > -1) {
@@ -282,39 +282,5 @@ describe(commands.SP_GET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SP_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

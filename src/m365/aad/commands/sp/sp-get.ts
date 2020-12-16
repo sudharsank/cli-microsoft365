@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import Utils from '../../../../Utils';
 import AadCommand from '../../../base/AadCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -37,9 +35,9 @@ class AadSpGetCommand extends AadCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving service principal information...`);
+      logger.logToStderr(`Retrieving service principal information...`);
     }
 
     let spMatchQuery: string = '';
@@ -58,18 +56,18 @@ class AadSpGetCommand extends AadCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get<{ value: any[] }>(requestOptions)
       .then((res: { value: any[] }): void => {
         if (res.value && res.value.length > 0) {
-          cmd.log(res.value[0]);
+          logger.log(res.value[0]);
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -92,54 +90,24 @@ class AadSpGetCommand extends AadCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      let optionsSpecified: number = 0;
-      optionsSpecified += args.options.appId ? 1 : 0;
-      optionsSpecified += args.options.displayName ? 1 : 0;
-      optionsSpecified += args.options.objectId ? 1 : 0;
-      if (optionsSpecified !== 1) {
-        return 'Specify either appId, objectId or displayName';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    let optionsSpecified: number = 0;
+    optionsSpecified += args.options.appId ? 1 : 0;
+    optionsSpecified += args.options.displayName ? 1 : 0;
+    optionsSpecified += args.options.objectId ? 1 : 0;
+    if (optionsSpecified !== 1) {
+      return 'Specify either appId, objectId or displayName';
+    }
 
-      if (args.options.appId && !Utils.isValidGuid(args.options.appId)) {
-        return `${args.options.appId} is not a valid appId GUID`;
-      }
+    if (args.options.appId && !Utils.isValidGuid(args.options.appId)) {
+      return `${args.options.appId} is not a valid appId GUID`;
+    }
 
-      if (args.options.objectId && !Utils.isValidGuid(args.options.objectId)) {
-        return `${args.options.objectId} is not a valid objectId GUID`;
-      }
+    if (args.options.objectId && !Utils.isValidGuid(args.options.objectId)) {
+      return `${args.options.objectId} is not a valid objectId GUID`;
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.SP_GET).helpInformation());
-    log(
-      `  Remarks:
-  
-    Specify either the ${chalk.grey('appId')}, ${chalk.grey('objectId')} or ${chalk.grey('displayName')}. 
-    If you specify more than one option value, the command will fail
-    with an error.
-   
-  Examples:
-  
-    Return details about the service principal with appId ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531d6')}.
-      ${commands.SP_GET} --appId b2307a39-e878-458b-bc90-03bc578531d6
-
-    Return details about the ${chalk.grey('Microsoft Graph')} service principal.
-      ${commands.SP_GET} --displayName "Microsoft Graph"
-
-    Return details about the service principal with ObjectId ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531dd')}.
-      ${commands.SP_GET} --objectId b2307a39-e878-458b-bc90-03bc578531dd
-
-  More information:
-  
-    Application and service principal objects in Azure Active Directory (Azure AD)
-      https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-application-objects
-`);
+    return true;
   }
 }
 

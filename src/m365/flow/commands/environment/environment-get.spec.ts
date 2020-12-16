@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./environment-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./environment-get');
 
 describe(commands.FLOW_ENVIRONMENT_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.FLOW_ENVIRONMENT_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +51,11 @@ describe(commands.FLOW_ENVIRONMENT_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FLOW_ENVIRONMENT_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.FLOW_ENVIRONMENT_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('retrieves information about the specified environment (debug)', (done) => {
@@ -73,9 +73,9 @@ describe(commands.FLOW_ENVIRONMENT_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, name: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
+    command.action(logger, { options: { debug: true, name: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(env));
+        assert(loggerLogSpy.calledWith(env));
         done();
       }
       catch (e) {
@@ -99,9 +99,9 @@ describe(commands.FLOW_ENVIRONMENT_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(env));
+        assert(loggerLogSpy.calledWith(env));
         done();
       }
       catch (e) {
@@ -120,9 +120,9 @@ describe(commands.FLOW_ENVIRONMENT_GET, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Access to the environment 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' is denied.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Access to the environment 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' is denied.`)));
         done();
       }
       catch (e) {
@@ -145,9 +145,9 @@ describe(commands.FLOW_ENVIRONMENT_GET, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -156,18 +156,8 @@ describe(commands.FLOW_ENVIRONMENT_GET, () => {
     });
   });
 
-  it('fails validation if the name is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
-  it('passes validation when the name option specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } });
-    assert.equal(actual, true);
-  });
-
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -178,7 +168,7 @@ describe(commands.FLOW_ENVIRONMENT_GET, () => {
   });
 
   it('supports specifying name', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--name') > -1) {
@@ -186,39 +176,5 @@ describe(commands.FLOW_ENVIRONMENT_GET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FLOW_ENVIRONMENT_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

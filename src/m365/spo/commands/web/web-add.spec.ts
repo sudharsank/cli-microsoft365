@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./web-add');
-import * as assert from 'assert';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import auth from '../../../../Auth';
+import commands from '../../commands';
+const command: Command = require('./web-add');
 
 describe(commands.WEB_ADD, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -22,23 +22,23 @@ describe(commands.WEB_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get,
       request.post
     ]);
@@ -54,11 +54,11 @@ describe(commands.WEB_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.WEB_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.WEB_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('creates web without inheriting the navigation', (done) => {
@@ -71,11 +71,11 @@ describe(commands.WEB_ADD, () => {
           Created: "2018-01-24T18:24:20",
           Description: '',
           Id: "08385b9a-8d5f-4ee9-ac98-bf6984c1856b",
-          Language: opts.body.parameters.Language,
+          Language: opts.data.parameters.Language,
           LastItemModifiedDate: "2018-01-24T18:24:27Z",
           LastItemUserModifiedDate: "2018-01-24T18:24:27Z",
-          ServerRelativeUrl: `/${opts.body.parameters.Url}`,
-          Title: opts.body.parameters.Title,
+          ServerRelativeUrl: `/${opts.data.parameters.Url}`,
+          Title: opts.data.parameters.Title,
           WebTemplate: "STS",
           WebTemplateId: 0
         });
@@ -87,7 +87,7 @@ describe(commands.WEB_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -99,7 +99,7 @@ describe(commands.WEB_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           Configuration: 0,
           Created: "2018-01-24T18:24:20",
           Description: '',
@@ -112,7 +112,7 @@ describe(commands.WEB_ADD, () => {
           WebTemplate: "STS",
           WebTemplateId: 0
         }), 'Invalid web info');
-        assert.equal(configuredNavigation, false, 'Configured inheriting navigation while not expected');
+        assert.strictEqual(configuredNavigation, false, 'Configured inheriting navigation while not expected');
         done();
       }
       catch (e) {
@@ -160,7 +160,7 @@ describe(commands.WEB_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -170,7 +170,7 @@ describe(commands.WEB_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           Configuration: 0,
           Created: "2018-01-24T18:24:20",
           Description: "subsite",
@@ -183,7 +183,7 @@ describe(commands.WEB_ADD, () => {
           WebTemplate: "STS",
           WebTemplateId: 0
         }), 'Incorrect web info');
-        assert.equal(configuredNavigation, false, 'Configured inheriting navigation while not expected');
+        assert.strictEqual(configuredNavigation, false, 'Configured inheriting navigation while not expected');
         done();
       }
       catch (e) {
@@ -231,7 +231,7 @@ describe(commands.WEB_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -242,7 +242,7 @@ describe(commands.WEB_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           Configuration: 0,
           Created: "2018-01-24T18:24:20",
           Description: "subsite",
@@ -255,7 +255,7 @@ describe(commands.WEB_ADD, () => {
           WebTemplate: "STS",
           WebTemplateId: 0
         }), 'Incorrect web info');
-        assert.equal(configuredNavigation, false, 'Configured inheriting navigation while not expected');
+        assert.strictEqual(configuredNavigation, false, 'Configured inheriting navigation while not expected');
         done();
       }
       catch (e) {
@@ -286,7 +286,7 @@ describe(commands.WEB_ADD, () => {
       }
 
       if ((opts.url as string).indexOf('_vti_bin/client.svc/ProcessQuery') > -1 &&
-        opts.body.indexOf("UseShared") > -1) {
+        opts.data.indexOf("UseShared") > -1) {
         configuredNavigation = true;
 
         return Promise.resolve(JSON.stringify([
@@ -320,7 +320,7 @@ describe(commands.WEB_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -331,7 +331,7 @@ describe(commands.WEB_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(configuredNavigation, true);
+        assert.strictEqual(configuredNavigation, true);
         done();
       }
       catch (e) {
@@ -362,7 +362,7 @@ describe(commands.WEB_ADD, () => {
       }
 
       if ((opts.url as string).indexOf('_vti_bin/client.svc/ProcessQuery') > -1 &&
-        opts.body.indexOf("UseShared") > -1) {
+        opts.data.indexOf("UseShared") > -1) {
         configuredNavigation = true;
 
         return Promise.resolve(JSON.stringify([
@@ -396,7 +396,7 @@ describe(commands.WEB_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -406,7 +406,7 @@ describe(commands.WEB_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(configuredNavigation, true);
+        assert.strictEqual(configuredNavigation, true);
         done();
       }
       catch (e) {
@@ -461,7 +461,7 @@ describe(commands.WEB_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -470,9 +470,9 @@ describe(commands.WEB_ADD, () => {
         local: 1033,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred.')));
         done();
       }
       catch (e) {
@@ -500,7 +500,7 @@ describe(commands.WEB_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -509,9 +509,9 @@ describe(commands.WEB_ADD, () => {
         local: 1033,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("The Web site address \"/sites/test/subsite\" is already in use.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("The Web site address \"/sites/test/subsite\" is already in use.")));
         done();
       }
       catch (e) {
@@ -557,7 +557,7 @@ describe(commands.WEB_ADD, () => {
 
       return Promise.resolve('abc');
     });
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -566,9 +566,9 @@ describe(commands.WEB_ADD, () => {
         local: 1033,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("An error has occurred.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("An error has occurred.")));
         done();
       }
       catch (e) {
@@ -581,7 +581,7 @@ describe(commands.WEB_ADD, () => {
     Utils.restore((command as any).getRequestDigest);
     sinon.stub(command as any, 'getRequestDigest').callsFake(() => { return Promise.reject({ error: { 'odata.error': { message: { value: 'An error has occurred' } } } }); });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -590,9 +590,9 @@ describe(commands.WEB_ADD, () => {
         local: 1033,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -607,7 +607,7 @@ describe(commands.WEB_ADD, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         title: "subsite",
         webUrl: "subsite",
@@ -616,9 +616,9 @@ describe(commands.WEB_ADD, () => {
         local: 1033,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -628,7 +628,7 @@ describe(commands.WEB_ADD, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -638,117 +638,53 @@ describe(commands.WEB_ADD, () => {
     assert(containsDebugOption);
   });
 
-  it('fails validation if the title option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        webUrl: "subsite",
-        parentWebUrl: "https://contoso.sharepoint.com", webTemplate: "STS#0", locale: 1033
-      }
-    });
-    assert.notEqual(actual, true);
-  });
-
   it('passes validation if all required options are specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         title: "subsite", webUrl: "subsite",
         parentWebUrl: "https://contoso.sharepoint.com", webTemplate: "STS#0"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation if all required options and valid locale are specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         title: "subsite", webUrl: "subsite",
         parentWebUrl: "https://contoso.sharepoint.com", webTemplate: "STS#0", locale: 1033
       }
     });
-    assert.equal(actual, true);
-  });
-
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        title: "subsite",
-        parentWebUrl: "https://contoso.sharepoint.com", webTemplate: "STS#0", locale: 1033
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if the parentWebUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         title: "subsite",
         webUrl: "subsite", webTemplate: "STS#0", locale: 1033
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the parentWebUrl option is not a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         title: "subsite",
         webUrl: "subsite", webTemplate: "STS#0", locale: 1033,
         parentWebUrl: 'foo'
       }
     });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the webTemplate option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        title: "subsite",
-        webUrl: "subsite", parentWebUrl: "https://contoso.sharepoint.com", locale: 1033
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the specified locale is not a number', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         title: "subsite", webUrl: "subsite", parentWebUrl: "https://contoso.sharepoint.com", webTemplate: 'STS#0', locale: 'abc'
       }
     });
-    assert.notEqual(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.WEB_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.notStrictEqual(actual, true);
   });
 });

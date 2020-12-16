@@ -1,12 +1,12 @@
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+    CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -25,8 +25,8 @@ class TodoListAddCommand extends GraphCommand {
     return 'Adds a new Microsoft To Do task list';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const body: any = {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const data: any = {
       displayName: args.options.name
     };
 
@@ -36,21 +36,21 @@ class TodoListAddCommand extends GraphCommand {
         accept: 'application/json;odata.metadata=none',
         'content-type': 'application/json'
       },
-      body,
-      json: true
+      data,
+      responseType: 'json'
     };
 
     request
       .post(requestOptions)
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -63,32 +63,6 @@ class TodoListAddCommand extends GraphCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required option name is missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently in preview
-    and is subject to change once the API reached general availability.
-
-  Examples:
-
-    Add a task list with the name ${chalk.grey('My task list')}
-      ${this.name} --name "My task list"
-      `);
   }
 }
 

@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./team-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./team-list');
 
 describe(commands.TEAMS_TEAM_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,24 +21,24 @@ describe(commands.TEAMS_TEAM_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -52,11 +52,11 @@ describe(commands.TEAMS_TEAM_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TEAMS_TEAM_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.TEAMS_TEAM_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('lists Microsoft Teams in the tenant', (done) => {
@@ -118,10 +118,9 @@ describe(commands.TEAMS_TEAM_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false } }, () => {
+    command.action(logger, { options: { debug: false } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             "id": "02bd9fd6-8f93-4758-87c3-1fb73740a315",
             "displayName": "Team 1",
@@ -168,10 +167,9 @@ describe(commands.TEAMS_TEAM_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false } }, () => {
+    command.action(logger, { options: { debug: false } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             "id": "02bd9fd6-8f93-4758-87c3-1fb73740a315",
             "displayName": "Team 1",
@@ -204,10 +202,9 @@ describe(commands.TEAMS_TEAM_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Invalid request')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Invalid request')));
         done();
       }
       catch (e) {
@@ -275,10 +272,9 @@ describe(commands.TEAMS_TEAM_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: true } }, () => {
+    command.action(logger, { options: { debug: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             "id": "02bd9fd6-8f93-4758-87c3-1fb73740a315",
             "displayName": "Team 1",
@@ -388,10 +384,9 @@ describe(commands.TEAMS_TEAM_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { joined: true, debug: false } }, () => {
+    command.action(logger, { options: { joined: true, debug: false } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             "id": "02bd9fd6-8f93-4758-87c3-1fb73740a315",
             "displayName": "Team 1",
@@ -501,10 +496,9 @@ describe(commands.TEAMS_TEAM_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { output: 'json', debug: false } }, () => {
+    command.action(logger, { options: { output: 'json', debug: false } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             "id": "02bd9fd6-8f93-4758-87c3-1fb73740a315",
             "displayName": "Team 1",
@@ -533,7 +527,7 @@ describe(commands.TEAMS_TEAM_LIST, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -541,39 +535,5 @@ describe(commands.TEAMS_TEAM_LIST, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TEAMS_TEAM_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

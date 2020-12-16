@@ -222,7 +222,7 @@ Using the JSON output mode allows you to build scripts using the CLI for Microso
 Following, is a sample script, that you could build using the CLI for Microsoft 365 in Bash:
 
 ```sh
-# get all apps available in the tenant app catalog
+m365 # get all apps available in the tenant app catalog
 apps=$(m365 spo app list -o json)
 
 # get IDs of all apps that are not deployed

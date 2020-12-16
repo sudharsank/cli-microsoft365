@@ -1,19 +1,21 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
+import * as fs from 'fs';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./o365group-set');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import * as fs from 'fs';
+import commands from '../../commands';
+const command: Command = require('./o365group-set');
 
 describe(commands.O365GROUP_SET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -23,23 +25,24 @@ describe(commands.O365GROUP_SET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       request.put,
       request.patch,
@@ -58,17 +61,17 @@ describe(commands.O365GROUP_SET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.O365GROUP_SET), true);
+    assert.strictEqual(command.name.startsWith(commands.O365GROUP_SET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('updates Microsoft 365 Group display name', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/28beab62-7540-4db1-a23f-29a6018a3848') {
-        if (JSON.stringify(opts.body) === JSON.stringify({
+        if (JSON.stringify(opts.data) === JSON.stringify({
           displayName: 'My group'
         })) {
           return Promise.resolve();
@@ -78,9 +81,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', displayName: 'My group' } }, () => {
+    command.action(logger, { options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', displayName: 'My group' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -92,7 +95,7 @@ describe(commands.O365GROUP_SET, () => {
   it('updates Microsoft 365 Group description (debug)', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/28beab62-7540-4db1-a23f-29a6018a3848') {
-        if (JSON.stringify(opts.body) === JSON.stringify({
+        if (JSON.stringify(opts.data) === JSON.stringify({
           description: 'My group'
         })) {
           return Promise.resolve();
@@ -102,9 +105,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, id: '28beab62-7540-4db1-a23f-29a6018a3848', description: 'My group' } }, () => {
+    command.action(logger, { options: { debug: true, id: '28beab62-7540-4db1-a23f-29a6018a3848', description: 'My group' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -116,7 +119,7 @@ describe(commands.O365GROUP_SET, () => {
   it('updates Microsoft 365 Group to public', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/28beab62-7540-4db1-a23f-29a6018a3848') {
-        if (JSON.stringify(opts.body) === JSON.stringify({
+        if (JSON.stringify(opts.data) === JSON.stringify({
           visibility: 'Public'
         })) {
           return Promise.resolve();
@@ -126,9 +129,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'false' } }, () => {
+    command.action(logger, { options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'false' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -140,7 +143,7 @@ describe(commands.O365GROUP_SET, () => {
   it('updates Microsoft 365 Group to private', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/28beab62-7540-4db1-a23f-29a6018a3848') {
-        if (JSON.stringify(opts.body) === JSON.stringify({
+        if (JSON.stringify(opts.data) === JSON.stringify({
           visibility: 'Private'
         })) {
           return Promise.resolve();
@@ -150,9 +153,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'true' } }, () => {
+    command.action(logger, { options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'true' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -172,9 +175,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', logoPath: 'logo.png' } }, () => {
+    command.action(logger, { options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', logoPath: 'logo.png' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -194,9 +197,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', logoPath: 'logo.jpg' } }, () => {
+    command.action(logger, { options: { debug: true, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', logoPath: 'logo.jpg' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -216,9 +219,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', logoPath: 'logo.gif' } }, () => {
+    command.action(logger, { options: { debug: false, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', logoPath: 'logo.gif' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -240,9 +243,9 @@ describe(commands.O365GROUP_SET, () => {
       return {} as any;
     });
 
-    cmdInstance.action({ options: { debug: false, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', logoPath: 'logo.png' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', logoPath: 'logo.png' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -264,9 +267,9 @@ describe(commands.O365GROUP_SET, () => {
       return {} as any;
     });
 
-    cmdInstance.action({ options: { debug: true, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', logoPath: 'logo.png' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', logoPath: 'logo.png' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -278,7 +281,7 @@ describe(commands.O365GROUP_SET, () => {
   it('adds owner to Microsoft 365 Group', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/f3db5c2b-068f-480d-985b-ec78b9fa0e76/owners/$ref' &&
-        opts.body['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8a') {
+        opts.data['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8a') {
         return Promise.resolve();
       }
 
@@ -298,9 +301,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', owners: 'user@contoso.onmicrosoft.com' } }, () => {
+    command.action(logger, { options: { debug: false, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', owners: 'user@contoso.onmicrosoft.com' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -312,12 +315,12 @@ describe(commands.O365GROUP_SET, () => {
   it('adds owners to Microsoft 365 Group (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/f3db5c2b-068f-480d-985b-ec78b9fa0e76/owners/$ref' &&
-        opts.body['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8a') {
+        opts.data['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8a') {
         return Promise.resolve();
       }
 
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/f3db5c2b-068f-480d-985b-ec78b9fa0e76/owners/$ref' &&
-        opts.body['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8b') {
+        opts.data['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8b') {
         return Promise.resolve();
       }
 
@@ -340,9 +343,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', owners: 'user1@contoso.onmicrosoft.com,user2@contoso.onmicrosoft.com' } }, () => {
+    command.action(logger, { options: { debug: true, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', owners: 'user1@contoso.onmicrosoft.com,user2@contoso.onmicrosoft.com' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -354,7 +357,7 @@ describe(commands.O365GROUP_SET, () => {
   it('adds member to Microsoft 365 Group', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/f3db5c2b-068f-480d-985b-ec78b9fa0e76/members/$ref' &&
-        opts.body['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8a') {
+        opts.data['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8a') {
         return Promise.resolve();
       }
 
@@ -374,9 +377,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', members: 'user@contoso.onmicrosoft.com' } }, () => {
+    command.action(logger, { options: { debug: false, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', members: 'user@contoso.onmicrosoft.com' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -388,12 +391,12 @@ describe(commands.O365GROUP_SET, () => {
   it('adds members to Microsoft 365 Group (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/f3db5c2b-068f-480d-985b-ec78b9fa0e76/members/$ref' &&
-        opts.body['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8a') {
+        opts.data['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8a') {
         return Promise.resolve();
       }
 
       if (opts.url === 'https://graph.microsoft.com/v1.0/groups/f3db5c2b-068f-480d-985b-ec78b9fa0e76/members/$ref' &&
-        opts.body['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8b') {
+        opts.data['@odata.id'] === 'https://graph.microsoft.com/v1.0/users/949b16c1-a032-453e-a8ae-89a52bfc1d8b') {
         return Promise.resolve();
       }
 
@@ -413,9 +416,9 @@ describe(commands.O365GROUP_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', members: 'user1@contoso.onmicrosoft.com,user2@contoso.onmicrosoft.com' } }, () => {
+    command.action(logger, { options: { debug: true, id: 'f3db5c2b-068f-480d-985b-ec78b9fa0e76', members: 'user1@contoso.onmicrosoft.com,user2@contoso.onmicrosoft.com' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -438,9 +441,9 @@ describe(commands.O365GROUP_SET, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', displayName: 'My group' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: '28beab62-7540-4db1-a23f-29a6018a3848', displayName: 'My group' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -449,91 +452,86 @@ describe(commands.O365GROUP_SET, () => {
     });
   });
 
-  it('fails validation if the id is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { description: 'My awesome group' } });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the id is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 'invalid', description: 'My awesome group' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: 'invalid', description: 'My awesome group' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the id is a valid GUID and displayName specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', displayName: 'My group' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', displayName: 'My group' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the id is a valid GUID and description specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', description: 'My awesome group' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', description: 'My awesome group' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if no property to update is specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if one of the owners is invalid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', owners: 'user' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', owners: 'user' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the owner is valid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', owners: 'user@contoso.onmicrosoft.com' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', owners: 'user@contoso.onmicrosoft.com' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation with multiple owners, comma-separated', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', owners: 'user1@contoso.onmicrosoft.com,user2@contoso.onmicrosoft.com' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', owners: 'user1@contoso.onmicrosoft.com,user2@contoso.onmicrosoft.com' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation with multiple owners, comma-separated with an additional space', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', owners: 'user1@contoso.onmicrosoft.com, user2@contoso.onmicrosoft.com' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', owners: 'user1@contoso.onmicrosoft.com, user2@contoso.onmicrosoft.com' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if one of the members is invalid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', members: 'user' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', members: 'user' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the member is valid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', members: 'user@contoso.onmicrosoft.com' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', members: 'user@contoso.onmicrosoft.com' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation with multiple members, comma-separated', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', members: 'user1@contoso.onmicrosoft.com,user2@contoso.onmicrosoft.com' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', members: 'user1@contoso.onmicrosoft.com,user2@contoso.onmicrosoft.com' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation with multiple members, comma-separated with an additional space', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', members: 'user1@contoso.onmicrosoft.com, user2@contoso.onmicrosoft.com' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', members: 'user1@contoso.onmicrosoft.com, user2@contoso.onmicrosoft.com' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if isPrivate is invalid boolean', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if isPrivate is true', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'true' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'true' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation if isPrivate is false', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'false' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', isPrivate: 'false' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if logoPath points to a non-existent file', () => {
     sinon.stub(fs, 'existsSync').callsFake(() => false);
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', logoPath: 'invalid' } });
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', logoPath: 'invalid' } });
     Utils.restore(fs.existsSync);
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if logoPath points to a folder', () => {
@@ -541,12 +539,12 @@ describe(commands.O365GROUP_SET, () => {
     sinon.stub(stats, 'isDirectory').callsFake(() => true);
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', logoPath: 'folder' } });
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', logoPath: 'folder' } });
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if logoPath points to an existing file', () => {
@@ -554,16 +552,16 @@ describe(commands.O365GROUP_SET, () => {
     sinon.stub(stats, 'isDirectory').callsFake(() => false);
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
-    const actual = (command.validate() as CommandValidate)({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', logoPath: 'folder' } });
+    const actual = command.validate({ options: { id: '28beab62-7540-4db1-a23f-29a6018a3848', logoPath: 'folder' } });
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -574,7 +572,7 @@ describe(commands.O365GROUP_SET, () => {
   });
 
   it('supports specifying id', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--id') > -1) {
@@ -585,7 +583,7 @@ describe(commands.O365GROUP_SET, () => {
   });
 
   it('supports specifying displayName', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--displayName') > -1) {
@@ -596,7 +594,7 @@ describe(commands.O365GROUP_SET, () => {
   });
 
   it('supports specifying description', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--description') > -1) {
@@ -607,7 +605,7 @@ describe(commands.O365GROUP_SET, () => {
   });
 
   it('supports specifying owners', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--owners') > -1) {
@@ -618,7 +616,7 @@ describe(commands.O365GROUP_SET, () => {
   });
 
   it('supports specifying members', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--members') > -1) {
@@ -629,7 +627,7 @@ describe(commands.O365GROUP_SET, () => {
   });
 
   it('supports specifying group type', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--isPrivate') > -1) {
@@ -640,7 +638,7 @@ describe(commands.O365GROUP_SET, () => {
   });
 
   it('supports specifying logo file path', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--logoPath') > -1) {
@@ -648,39 +646,5 @@ describe(commands.O365GROUP_SET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.O365GROUP_SET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

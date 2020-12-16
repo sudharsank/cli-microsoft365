@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN008002_CFG_TSL_removeRule } from './FN008002_CFG_TSL_removeRule';
 
 describe('FN008002_CFG_TSL_removeRule', () => {
@@ -17,7 +17,7 @@ describe('FN008002_CFG_TSL_removeRule', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if no lintConfig in tslint.json', () => {
@@ -26,7 +26,7 @@ describe('FN008002_CFG_TSL_removeRule', () => {
       tsLintJson: {}
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if no rules in tslint.json', () => {
@@ -37,7 +37,7 @@ describe('FN008002_CFG_TSL_removeRule', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if rule not found', () => {
@@ -50,7 +50,7 @@ describe('FN008002_CFG_TSL_removeRule', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('returns notification if rule found', () => {
@@ -65,6 +65,6 @@ describe('FN008002_CFG_TSL_removeRule', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1);
+    assert.strictEqual(findings.length, 1);
   });
 });

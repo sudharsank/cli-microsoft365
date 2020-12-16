@@ -1,13 +1,13 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -47,9 +47,9 @@ class SpoSiteDesignSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this
-      .getSpoUrl(cmd, this.debug)
+      .getSpoUrl(logger, this.debug)
       .then((spoUrl: string): Promise<any> => {
         const updateInfo: any = {
           Id: args.options.id
@@ -85,23 +85,23 @@ class SpoSiteDesignSetCommand extends SpoCommand {
           headers: {
             'content-type': 'application/json;charset=utf-8',
             accept: 'application/json;odata=nometadata',
-            json: true
+            responseType: 'json'
           },
-          body: { updateInfo: updateInfo },
-          json: true
+          data: { updateInfo: updateInfo },
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -149,83 +149,39 @@ class SpoSiteDesignSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
+    if (args.options.webTemplate &&
+      args.options.webTemplate !== 'TeamSite' &&
+      args.options.webTemplate !== 'CommunicationSite') {
+      return `${args.options.webTemplate} is not a valid web template type. Allowed values TeamSite|CommunicationSite`;
+    }
 
-      if (args.options.webTemplate &&
-        args.options.webTemplate !== 'TeamSite' &&
-        args.options.webTemplate !== 'CommunicationSite') {
-        return `${args.options.webTemplate} is not a valid web template type. Allowed values TeamSite|CommunicationSite`;
-      }
-
-      if (args.options.siteScripts) {
-        const siteScripts = args.options.siteScripts.split(',');
-        for (let i: number = 0; i < siteScripts.length; i++) {
-          const trimmedId: string = siteScripts[i].trim();
-          if (!Utils.isValidGuid(trimmedId)) {
-            return `${trimmedId} is not a valid GUID`;
-          }
+    if (args.options.siteScripts) {
+      const siteScripts = args.options.siteScripts.split(',');
+      for (let i: number = 0; i < siteScripts.length; i++) {
+        const trimmedId: string = siteScripts[i].trim();
+        if (!Utils.isValidGuid(trimmedId)) {
+          return `${trimmedId} is not a valid GUID`;
         }
       }
+    }
 
-      if (args.options.version &&
-        typeof args.options.version !== 'number') {
-        return `${args.options.version} is not a number`;
-      }
+    if (args.options.version &&
+      typeof args.options.version !== 'number') {
+      return `${args.options.version} is not a number`;
+    }
 
-      if (typeof args.options.isDefault !== 'undefined' &&
-        args.options.isDefault !== 'true' &&
-        args.options.isDefault !== 'false') {
-        return `${args.options.isDefault} is not a valid boolean value`
-      }
+    if (typeof args.options.isDefault !== 'undefined' &&
+      args.options.isDefault !== 'true' &&
+      args.options.isDefault !== 'false') {
+      return `${args.options.isDefault} is not a valid boolean value`
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If you had previously set the ${chalk.blue('isDefault')} option to ${chalk.grey('true')},
-    and wish for it to remain ${chalk.grey('true')}, you must pass in this option
-    again or it will be reset to ${chalk.grey('false')}.
-
-    When specifying IDs of site scripts to use with your site design, ensure
-    that the IDs refer to existing site scripts or provisioning sites using
-    the design will lead to unexpected results.
-
-  Examples:
-
-    Update the site design title and version
-      ${this.name} --id 9b142c22-037f-4a7f-9017-e9d8c0e34b98 --title "Contoso site design" --version 2
-
-    Update the site design to be the default design for provisioning modern communication sites
-      ${this.name} --id 9b142c22-037f-4a7f-9017-e9d8c0e34b98 --webTemplate CommunicationSite  --isDefault true
-
-    Update the site design to be the default design for provisioning modern communication sites, with specific scripts
-      ${this.name} --id 9b142c22-037f-4a7f-9017-e9d8c0e34b98 --webTemplate CommunicationSite  --isDefault true --siteScripts "19b0e1b2-e3d1-473f-9394-f08c198ef43e,b2307a39-e878-458b-bc90-03bc578531d6"
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-
-    Customize a default site design
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/customize-default-site-design
-
-    Site design JSON schema
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-json-schema
-`);
+    return true;
   }
 }
 

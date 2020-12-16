@@ -1,14 +1,14 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import Utils from '../../../../Utils';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
 import { Channel } from '../../Channel';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -38,7 +38,7 @@ class TeamsChannelRemoveCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
 
     const removeChannel: () => void = (): void => {
       if (args.options.channelName) {
@@ -47,7 +47,7 @@ class TeamsChannelRemoveCommand extends GraphCommand {
           headers: {
             accept: 'application/json;odata.metadata=none'
           },
-          json: true
+          responseType: 'json'
         }
 
         request
@@ -66,18 +66,18 @@ class TeamsChannelRemoveCommand extends GraphCommand {
               headers: {
                 accept: 'application/json;odata.metadata=none'
               },
-              json: true
+              responseType: 'json'
             };
 
             return request.delete(requestOptions);
           })
           .then((): void => {
             if (this.verbose) {
-              cmd.log(vorpal.chalk.green('DONE'));
+              logger.logToStderr(chalk.green('DONE'));
             }
 
             cb();
-          }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+          }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
       }
 
       if (args.options.channelId) {
@@ -86,18 +86,18 @@ class TeamsChannelRemoveCommand extends GraphCommand {
           headers: {
             accept: 'application/json;odata.metadata=none'
           },
-          json: true
+          responseType: 'json'
         };
 
         request
           .delete(requestOptions)
           .then((): void => {
             if (this.verbose) {
-              cmd.log(vorpal.chalk.green('DONE'));
+              logger.logToStderr(chalk.green('DONE'));
             }
 
             cb();
-          }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+          }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
       }
     };
 
@@ -106,7 +106,7 @@ class TeamsChannelRemoveCommand extends GraphCommand {
     }
     else {
       const channelName = args.options.channelName ? args.options.channelName : args.options.channelId;
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -146,59 +146,24 @@ class TeamsChannelRemoveCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (args.options.channelId && args.options.channelName) {
-        return 'Specify channelId or channelName but not both';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.channelId && args.options.channelName) {
+      return 'Specify channelId or channelName but not both';
+    }
 
-      if (!args.options.channelId && !args.options.channelName) {
-        return 'Specify channelId or channelName';
-      }
+    if (!args.options.channelId && !args.options.channelName) {
+      return 'Specify channelId or channelName';
+    }
 
-      if (args.options.channelId && !Utils.isValidTeamsChannelId(args.options.channelId)) {
-        return `${args.options.channelId} is not a valid Teams Channel Id`;
-      }
+    if (args.options.channelId && !Utils.isValidTeamsChannelId(args.options.channelId)) {
+      return `${args.options.channelId} is not a valid Teams Channel Id`;
+    }
 
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
+    if (args.options.teamId && !Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (args.options.teamId && !Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-      
-    When deleted, Microsoft Teams channels are moved to a recycle bin and can be
-    restored within 30 days. After that time, they are permanently deleted.
-      
-  Examples:
-    
-    Remove the specified Microsoft Teams channel by Id
-      ${this.name} --channelId 19:f3dcbb1674574677abcae89cb626f1e6@thread.skype --teamId d66b8110-fcad-49e8-8159-0d488ddb7656
-
-    Remove the specified Microsoft Teams channel by Id without confirmation
-      ${this.name} --channelId 19:f3dcbb1674574677abcae89cb626f1e6@thread.skype --teamId d66b8110-fcad-49e8-8159-0d488ddb7656 --confirm
-
-    Remove the specified Microsoft Teams channel by Name
-      ${this.name} --channelName 'channelName' --teamId d66b8110-fcad-49e8-8159-0d488ddb7656
-
-    Remove the specified Microsoft Teams channel by Name without confirmation
-      ${this.name} --channelName 'channelName' --teamId d66b8110-fcad-49e8-8159-0d488ddb7656 --confirm  
-
-  More information:
-
-    directory resource type (deleted items)
-      https://docs.microsoft.com/en-us/graph/api/resources/directory?view=graph-rest-1.0
-`);
+    return true;
   }
 }
 

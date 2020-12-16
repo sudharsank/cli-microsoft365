@@ -5,20 +5,18 @@ Removes a site from the list of organizational news sites
 ## Usage
 
 ```sh
-spo orgnewssite remove [options]
+m365 spo orgnewssite remove [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|Absolute URL of the site to remove
-`--confirm`|Don't prompt for confirmation
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: Absolute URL of the site to remove
+
+`--confirm`
+: Don't prompt for confirmation
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -28,11 +26,11 @@ Option|Description
 Remove a site from the list of organizational news
 
 ```sh
-spo orgnewssite remove --url https://contoso.sharepoint.com/sites/site1
+m365 spo orgnewssite remove --url https://contoso.sharepoint.com/sites/site1
 ```
 
 Remove a site from the list of organizational news sites, without prompting for confirmation
 
 ```sh
-spo orgnewssite remove --url https://contoso.sharepoint.com/sites/site1 --confirm
+m365 spo orgnewssite remove --url https://contoso.sharepoint.com/sites/site1 --confirm
 ```

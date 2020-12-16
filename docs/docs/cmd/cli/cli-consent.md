@@ -5,19 +5,15 @@ Consent additional permissions for the Azure AD application used by the CLI for 
 ## Usage
 
 ```sh
-cli consent [options]
+m365 cli consent [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-s, --service <service>`|Service for which to consent permissions. Allowed values: `yammer`
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-s, --service <service>`
+: Service for which to consent permissions. Allowed values: `yammer`
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -32,5 +28,5 @@ To simplify things, rather than wondering which permissions you should grant for
 Consent permissions to the Yammer API
 
 ```sh
-cli consent --service yammer
+m365 cli consent --service yammer
 ```

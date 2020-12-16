@@ -5,20 +5,18 @@ Disconnects the specifies site collection from its hub site
 ## Usage
 
 ```sh
-spo hubsite disconnect [options]
+m365 spo hubsite disconnect [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|URL of the site collection to disconnect from its hub site
-`--confirm`|Don't prompt for confirming disconnecting from the hub site
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: URL of the site collection to disconnect from its hub site
+
+`--confirm`
+: Don't prompt for confirming disconnecting from the hub site
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,13 +28,13 @@ Option|Description
 Disconnect the site collection with URL _https://contoso.sharepoint.com/sites/sales_ from its hub site. Will prompt for confirmation before disconnecting from the hub site.
 
 ```sh
-spo hubsite disconnect --url https://contoso.sharepoint.com/sites/sales
+m365 spo hubsite disconnect --url https://contoso.sharepoint.com/sites/sales
 ```
 
 Disconnect the site collection with URL _https://contoso.sharepoint.com/sites/sales- from its hub site without prompting for confirmation
 
 ```sh
-spo hubsite disconnect --url https://contoso.sharepoint.com/sites/sales --confirm
+m365 spo hubsite disconnect --url https://contoso.sharepoint.com/sites/sales --confirm
 ```
 
 ## More information

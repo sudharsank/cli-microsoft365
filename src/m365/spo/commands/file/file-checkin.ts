@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -46,7 +44,7 @@ class SpoFileCheckinCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let type: CheckinType = CheckinType.Major;
     if (args.options.type) {
       switch (args.options.type.toLowerCase()) {
@@ -77,18 +75,18 @@ class SpoFileCheckinCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .post(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log('DONE');
+          logger.logToStderr('DONE');
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -120,71 +118,39 @@ class SpoFileCheckinCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
+
+    if (args.options.id) {
+      if (!Utils.isValidGuid(args.options.id)) {
+        return `${args.options.id} is not a valid GUID`;
       }
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
+    if (args.options.id && args.options.fileUrl) {
+      return 'Specify either fileUrl or id but not both';
+    }
+
+    if (!args.options.id && !args.options.fileUrl) {
+      return 'Specify fileUrl or id, one is required';
+    }
+
+    if (args.options.comment && args.options.comment.length > 1023) {
+      return 'The length of the comment must be less than 1024 letters';
+    }
+
+    if (args.options.type) {
+      const allowedValues: string[] = ['minor', 'major', 'overwrite'];
+      const type: string = args.options.type.toLowerCase();
+      if (allowedValues.indexOf(type) === -1) {
+        return 'Wrong type specified. Available values are Minor|Major|Overwrite';
       }
+    }
 
-      if (args.options.id) {
-        if (!Utils.isValidGuid(args.options.id)) {
-          return `${args.options.id} is not a valid GUID`;
-        }
-      }
-
-      if (args.options.id && args.options.fileUrl) {
-        return 'Specify either fileUrl or id but not both';
-      }
-
-      if (!args.options.id && !args.options.fileUrl) {
-        return 'Specify fileUrl or id, one is required';
-      }
-
-      if (args.options.comment && args.options.comment.length > 1023) {
-        return 'The length of the comment must be less than 1024 letters';
-      }
-
-      if (args.options.type) {
-        const allowedValues: string[] = ['minor', 'major', 'overwrite'];
-        const type: string = args.options.type.toLowerCase();
-        if (allowedValues.indexOf(type) === -1) {
-          return 'Wrong type specified. Available values are Minor|Major|Overwrite';
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Checks in file with UniqueId ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531d6')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_CHECKIN} --webUrl https://contoso.sharepoint.com/sites/project-x --id 'b2307a39-e878-458b-bc90-03bc578531d6' 
-
-    Checks in file with server-relative url
-    ${chalk.grey('/sites/project-x/documents/Test1.docx')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_CHECKIN} --webUrl https://contoso.sharepoint.com/sites/project-x --fileUrl '/sites/project-x/documents/Test1.docx'
-
-    Checks in minor version of file with server-relative url
-      ${chalk.grey('/sites/project-x/documents/Test1.docx')} located in site
-      ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-        ${commands.FILE_CHECKIN} --webUrl https://contoso.sharepoint.com/sites/project-x --fileUrl '/sites/project-x/documents/Test1.docx' --type minor
-
-    Checks in file ${chalk.grey('/sites/project-x/documents/Test1.docx')} with comment located in site
-      ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-        ${commands.FILE_CHECKIN} --webUrl https://contoso.sharepoint.com/sites/project-x --fileUrl '/sites/project-x/documents/Test1.docx' --comment 'approved'
-      `);
+    return true;
   }
 }
 

@@ -1,17 +1,14 @@
-import commands from '../commands';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Logger } from '../../../cli';
+import {
+  CommandOption
+} from '../../../Command';
 import GlobalOptions from '../../../GlobalOptions';
 import request from '../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../Command';
-import AzmgmtCommand from '../../base/AzmgmtCommand';
 import Utils from '../../../Utils';
-import * as os from 'os';
-import * as path from 'path';
-import * as fs from 'fs';
-
-const vorpal: Vorpal = require('../../../vorpal-init');
+import AzmgmtCommand from '../../base/AzmgmtCommand';
+import commands from '../commands';
 
 interface CommandArgs {
   options: Options;
@@ -48,18 +45,18 @@ class FlowExportCommand extends AzmgmtCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let filenameFromApi = '';
     const formatArgument = args.options.format ? args.options.format.toLowerCase() : '';
 
     if (this.verbose) {
-      cmd.log(`Retrieving package resources for Microsoft Flow ${args.options.id}...`);
+      logger.logToStderr(`Retrieving package resources for Microsoft Flow ${args.options.id}...`);
     }
 
     ((): Promise<any> => {
       if (formatArgument === 'json') {
         if (this.debug) {
-          cmd.log('format = json, skipping listing package resources step');
+          logger.logToStderr('format = json, skipping listing package resources step');
         }
 
         return Promise.resolve();
@@ -70,19 +67,23 @@ class FlowExportCommand extends AzmgmtCommand {
         headers: {
           accept: 'application/json'
         },
-        body: {
+        data: {
           "baseResourceIds": [
             `/providers/Microsoft.Flow/flows/${args.options.id}`
           ]
         },
-        json: true
+        responseType: 'json'
       };
 
       return request.post(requestOptions);
     })()
       .then((res: any): Promise<{}> => {
+        if (typeof res !== 'undefined' && res.errors && res.errors.length && res.errors.length > 0) {
+          return Promise.reject(res.errors[0].message);
+        }
+
         if (this.verbose) {
-          cmd.log(`Initiating package export for Microsoft Flow ${args.options.id}...`);
+          logger.logToStderr(`Initiating package export for Microsoft Flow ${args.options.id}...`);
         }
 
         const requestOptions: any = {
@@ -92,11 +93,19 @@ class FlowExportCommand extends AzmgmtCommand {
           headers: {
             accept: 'application/json'
           },
-          json: true
+          responseType: 'json'
         };
 
         if (formatArgument !== 'json') {
-          requestOptions['body'] = {
+          // adds suggestedCreationType property to all resources
+          // see https://github.com/pnp/cli-microsoft365/issues/1845
+          Object.keys(res.resources).forEach((key) => {
+            res.resources[key].type === 'Microsoft.Flow/flows'
+              ? res.resources[key].suggestedCreationType = 'Update'
+              : res.resources[key].suggestedCreationType = 'Existing';
+          });
+
+          requestOptions['data'] = {
             "includedResourceIds": [
               `/providers/Microsoft.Flow/flows/${args.options.id}`
             ],
@@ -114,11 +123,7 @@ class FlowExportCommand extends AzmgmtCommand {
       })
       .then((res: any): Promise<string> => {
         if (this.verbose) {
-          cmd.log(`Getting file for Microsoft Flow ${args.options.id}...`);
-        }
-
-        if (res.errors && res.errors.length && res.errors.length > 0) {
-          return Promise.reject(res.errors[0].message)
+          logger.logToStderr(`Getting file for Microsoft Flow ${args.options.id}...`);
         }
 
         const downloadFileUrl: string = formatArgument === 'json' ? '' : res.packageLink.value;
@@ -126,20 +131,22 @@ class FlowExportCommand extends AzmgmtCommand {
         filenameFromApi = formatArgument === 'json' ? `${res.properties.displayName}.json` : (filenameRegEx.exec(downloadFileUrl) || ['output.zip'])[0];
 
         if (this.debug) {
-          cmd.log(`Filename from PowerApps API: ${filenameFromApi}`);
-          cmd.log('');
+          logger.logToStderr(`Filename from PowerApps API: ${filenameFromApi}`);
+          logger.logToStderr('');
         }
 
         const requestOptions: any = {
           url: formatArgument === 'json' ?
             `${this.resource}/providers/Microsoft.ProcessSimple/environments/${encodeURIComponent(args.options.environment)}/flows/${encodeURIComponent(args.options.id)}/exportToARMTemplate?api-version=2016-11-01`
             : downloadFileUrl,
-          encoding: null, // Set encoding to null, otherwise binary data will be encoded to utf8 and binary data is corrupt 
+          // Set responseType to arraybuffer, otherwise binary data will be encoded
+          // to utf8 and binary data is corrupt 
+          responseType: 'arraybuffer',
           headers: formatArgument === 'json' ? {
             accept: 'application/json'
           } : {
-            'x-anonymous': true
-          }
+              'x-anonymous': true
+            }
         };
 
         return formatArgument === 'json' ?
@@ -152,15 +159,15 @@ class FlowExportCommand extends AzmgmtCommand {
         fs.writeFileSync(path, file, 'binary');
         if (!args.options.path || this.verbose) {
           if (this.verbose) {
-            cmd.log(`File saved to path '${path}'`);
+            logger.logToStderr(`File saved to path '${path}'`);
           }
           else {
-            cmd.log(path);
+            logger.log(path);
           }
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -204,84 +211,40 @@ class FlowExportCommand extends AzmgmtCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
+  public validate(args: CommandArgs): boolean | string {
+    const lowerCaseFormat = args.options.format ? args.options.format.toLowerCase() : '';
 
-      const lowerCaseFormat = args.options.format ? args.options.format.toLowerCase() : '';
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (!args.options.id) {
-        return 'Required option id missing';
+    if (args.options.format && (lowerCaseFormat !== 'json' && lowerCaseFormat !== 'zip')) {
+      return 'Option format must be json or zip. Default is zip';
+    }
+
+    if (lowerCaseFormat === 'json') {
+      if (args.options.packageCreatedBy) {
+        return 'packageCreatedBy cannot be specified with output of json';
       }
 
-      if (!args.options.environment) {
-        return 'Required option environment missing';
+      if (args.options.packageDescription) {
+        return 'packageDescription cannot be specified with output of json';
       }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
+      if (args.options.packageDisplayName) {
+        return 'packageDisplayName cannot be specified with output of json';
       }
 
-      if (args.options.format && (lowerCaseFormat !== 'json' && lowerCaseFormat !== 'zip')) {
-        return 'Option format must be json or zip. Default is zip';
+      if (args.options.packageSourceEnvironment) {
+        return 'packageSourceEnvironment cannot be specified with output of json';
       }
+    }
 
-      if (lowerCaseFormat === 'json') {
-        if (args.options.packageCreatedBy) {
-          return 'packageCreatedBy cannot be specified with output of json';
-        }
+    if (args.options.path && !fs.existsSync(path.dirname(args.options.path))) {
+      return 'Specified path where to save the file does not exist';
+    }
 
-        if (args.options.packageDescription) {
-          return 'packageDescription cannot be specified with output of json';
-        }
-
-        if (args.options.packageDisplayName) {
-          return 'packageDisplayName cannot be specified with output of json';
-        }
-
-        if (args.options.packageSourceEnvironment) {
-          return 'packageSourceEnvironment cannot be specified with output of json';
-        }
-      }
-
-      if (args.options.path && !fs.existsSync(path.dirname(args.options.path))) {
-        return 'Specified path where to save the file does not exist';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.FLOW_EXPORT).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-  
-    If the environment with the name you specified doesn't exist, you will get
-    the ${chalk.grey('Access to the environment \'xyz\' is denied.')} error.
-
-    If the Microsoft Flow with the id you specified doesn't exist, you will
-    get the ${chalk.grey(`The caller with object id \'abc\' does not have permission${os.EOL}` +
-        '    for connection \'xyz\' under Api \'shared_logicflows\'.')} error.
-   
-  Examples:
-  
-    Export the specified Microsoft Flow as a ZIP file
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --id 3989cb59-ce1a-4a5c-bb78-257c5c39381d
-
-    Export the specified Microsoft Flow as a JSON file
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --id 3989cb59-ce1a-4a5c-bb78-257c5c39381d --format json
-
-    Export the specified Microsoft Flow as a ZIP file with a package display name of 'My flow name'
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --id 3989cb59-ce1a-4a5c-bb78-257c5c39381d --packageDisplayName 'My flow name'
-
-    Export the specified Microsoft Flow as a ZIP file named 'MyFlow.zip' saved to the current directory
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --id 3989cb59-ce1a-4a5c-bb78-257c5c39381d --path './MyFlow.zip'
-`);
+    return true;
   }
 }
 

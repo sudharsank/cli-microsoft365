@@ -1,20 +1,20 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
-import {
-  CommandOption, CommandValidate
-} from '../../../../Command';
-import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
 import { Channel } from '../../Channel';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
 }
 
 interface Options extends GlobalOptions {
-  teamId: string;
+  teamId?: string;
+  teamName?: string;
 }
 
 class TeamsChannelListCommand extends GraphItemsListCommand<Channel>{
@@ -26,35 +26,75 @@ class TeamsChannelListCommand extends GraphItemsListCommand<Channel>{
     return 'Lists channels in the specified Microsoft Teams team';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const endpoint: string = `${this.resource}/v1.0/teams/${args.options.teamId}/channels`;
-    
-    this
-      .getAllItems(endpoint, cmd, true)
-      .then((): void => {
-        if (args.options.output === 'json') {
-          cmd.log(this.items);
-        }
-        else {
-          cmd.log(this.items.map(m => {
-            return {
-              id: m.id,
-              displayName: m.displayName
-            }
-          }));
+  public defaultProperties(): string[] | undefined {
+    return ['id', 'displayName'];
+  }
+
+  public getTelemetryProperties(args: CommandArgs): any {
+    const telemetryProps: any = super.getTelemetryProperties(args);
+    telemetryProps.teamId = typeof args.options.teamId !== 'undefined';
+    telemetryProps.teamName = typeof args.options.teamName !== 'undefined';
+    return telemetryProps;
+  }
+
+  private getTeamId(args: CommandArgs): Promise<string> {
+    if (args.options.teamId) {
+      return Promise.resolve(args.options.teamId);
+    }
+
+    const requestOptions: any = {      
+      url: `${this.resource}/beta/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team') and displayName eq '${encodeURIComponent(args.options.teamName as string)}'`,
+      headers: {
+        accept: 'application/json;odata.metadata=none'
+      },
+      responseType: 'json'
+    };
+
+    return request
+      .get<{ value: [{ id: string }] }>(requestOptions)
+      .then(response => {
+        const groupItem: { id: string } | undefined = response.value[0];
+
+        if (!groupItem) {
+          return Promise.reject(`The specified team does not exist in the Microsoft Teams`);
         }
 
+        if (response.value.length > 1) {
+          return Promise.reject(`Multiple Microsoft Teams teams with name ${args.options.teamName} found: ${response.value.map(x => x.id)}`);
+        }
+
+        return Promise.resolve(groupItem.id);
+      });
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    this
+      .getTeamId(args)
+      .then((teamId: string): Promise<void> => {
+        const endpoint: string = `${this.resource}/v1.0/teams/${teamId}/channels`;
+
+        return this
+          .getAllItems(endpoint, logger, true)
+      })
+      .then((): void => {
+        logger.log(this.items);
+
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
+
   public options(): CommandOption[] {
     const options: CommandOption[] = [
       {
-        option: '-i, --teamId <teamId>',
-        description: 'The ID of the team to list the channels of'
+        option: '-i, --teamId [teamId]',
+        description: 'The ID of the team to list the channels of. Specify either teamId or teamName but not both'
+      },
+      {
+        option: '--teamName [teamName]',
+        description: 'The display name of the team to list the channels of. Specify either teamId or teamName but not both'
       }
     ];
 
@@ -62,28 +102,20 @@ class TeamsChannelListCommand extends GraphItemsListCommand<Channel>{
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.teamId && args.options.teamName) {
+      return 'Specify either teamId or teamName, but not both';
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId as string)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-      
-      return true;
-    };
-  }
+    if (!args.options.teamId && !args.options.teamName) {
+      return 'Specify teamId or teamName, one is required';
+    }
 
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    List the channels in a specified Microsoft Teams team
-      ${this.name} --teamId 00000000-0000-0000-0000-000000000000
-`   );
+    if (args.options.teamId && !Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
+
+    return true;
   }
 }
 

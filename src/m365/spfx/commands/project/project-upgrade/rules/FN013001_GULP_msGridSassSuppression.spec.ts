@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN013001_GULP_msGridSassSuppression } from './FN013001_GULP_msGridSassSuppression';
 
 describe('FN013001_GULP_msGridSassSuppression', () => {
@@ -20,7 +20,7 @@ describe('FN013001_GULP_msGridSassSuppression', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if gulpfile.js is not available', () => {
@@ -28,6 +28,6 @@ describe('FN013001_GULP_msGridSassSuppression', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

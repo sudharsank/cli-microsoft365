@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./customaction-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./customaction-add');
 
 describe(commands.CUSTOMACTION_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let defaultCommandOptions: any;
   let initDefaultPostStubs = (): sinon.SinonStub => {
     return sinon.stub(request, 'post').callsFake((opts) => {
@@ -35,18 +35,19 @@ describe(commands.CUSTOMACTION_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     defaultCommandOptions = {
       url: 'https://contoso.sharepoint.com',
       title: 'title',
@@ -58,7 +59,6 @@ describe(commands.CUSTOMACTION_ADD, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -72,18 +72,18 @@ describe(commands.CUSTOMACTION_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.CUSTOMACTION_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.CUSTOMACTION_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('has a permissionsKindMap', () => {
-    assert.equal((command as any)['permissionsKindMap'].length, 37);
+    assert.strictEqual((command as any)['permissionsKindMap'].length, 37);
   });
 
-  it('correct https body send when custom action with location StandardMenu', (done) => {
+  it('correct https data send when custom action with location StandardMenu', (done) => {
     const postRequestSpy = initDefaultPostStubs();
     const options: any = {
       url: 'https://contoso.sharepoint.com',
@@ -96,10 +96,10 @@ describe(commands.CUSTOMACTION_ADD, () => {
       actionUrl: '~site/Shared%20Documents/Forms/AllItems.aspx'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
-          body: {
+          data: {
             Title: 'title1',
             Name: 'name1',
             Location: 'Microsoft.SharePoint.StandardMenu',
@@ -117,7 +117,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
     });
   });
 
-  it('correct https body send when custom action with location ClientSideExtension.ApplicationCustomizer', (done) => {
+  it('correct https data send when custom action with location ClientSideExtension.ApplicationCustomizer', (done) => {
     const postRequestSpy = initDefaultPostStubs();
     const options: any = {
       url: 'https://contoso.sharepoint.com',
@@ -131,10 +131,10 @@ describe(commands.CUSTOMACTION_ADD, () => {
       debug: true
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
-          body: {
+          data: {
             Title: 'title1',
             Name: 'name1',
             Location: 'ClientSideExtension.ApplicationCustomizer',
@@ -152,7 +152,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
     });
   });
 
-  it('correct https body send when custom action with location ClientSideExtension.ListViewCommandSet', (done) => {
+  it('correct https data send when custom action with location ClientSideExtension.ListViewCommandSet', (done) => {
     const postRequestSpy = initDefaultPostStubs();
     const options: any = {
       url: 'https://contoso.sharepoint.com',
@@ -167,10 +167,10 @@ describe(commands.CUSTOMACTION_ADD, () => {
       registrationType: 'List'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
-          body: {
+          data: {
             Title: 'title1',
             Name: 'name1',
             Location: 'ClientSideExtension.ListViewCommandSet',
@@ -190,7 +190,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
     });
   });
 
-  it('correct https body send when custom action with location EditControlBlock', (done) => {
+  it('correct https data send when custom action with location EditControlBlock', (done) => {
     const postRequestSpy = initDefaultPostStubs();
     const options: any = {
       url: 'https://contoso.sharepoint.com',
@@ -204,10 +204,10 @@ describe(commands.CUSTOMACTION_ADD, () => {
       registrationType: 'List'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
-          body: {
+          data: {
             Title: 'title1',
             Name: 'name1',
             Location: 'EditControlBlock',
@@ -226,7 +226,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
     });
   });
 
-  it('correct https body send when custom action with location ScriptLink', (done) => {
+  it('correct https data send when custom action with location ScriptLink', (done) => {
     const postRequestSpy = initDefaultPostStubs();
     const options: any = {
       url: 'https://contoso.sharepoint.com',
@@ -239,10 +239,10 @@ describe(commands.CUSTOMACTION_ADD, () => {
       scope: 'Site'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
-          body: {
+          data: {
             Title: 'title1',
             Name: 'name1',
             Location: 'ScriptLink',
@@ -259,7 +259,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
     });
   });
 
-  it('correct https body send when custom action with location ScriptLink and ScriptBlock', (done) => {
+  it('correct https data send when custom action with location ScriptLink and ScriptBlock', (done) => {
     const postRequestSpy = initDefaultPostStubs();
     const options: any = {
       url: 'https://contoso.sharepoint.com',
@@ -270,10 +270,10 @@ describe(commands.CUSTOMACTION_ADD, () => {
       scriptBlock: '(function(){ return console.log("Hello CLI for Microsoft 365!"); })();'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
-          body: {
+          data: {
             Title: 'title1',
             Name: 'name1',
             Location: 'ScriptLink',
@@ -289,7 +289,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
     });
   });
 
-  it('correct https body send when custom action with location CommandUI.Ribbon', (done) => {
+  it('correct https data send when custom action with location CommandUI.Ribbon', (done) => {
     const postRequestSpy = initDefaultPostStubs();
     const options: any = {
       url: 'https://contoso.sharepoint.com',
@@ -303,10 +303,10 @@ describe(commands.CUSTOMACTION_ADD, () => {
       scope: 'Web'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
-          body: {
+          data: {
             Title: 'title1',
             Name: 'name1',
             Location: 'CommandUI.Ribbon',
@@ -324,7 +324,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
     });
   });
 
-  it('correct https body send when custom action with delegated rights', (done) => {
+  it('correct https data send when custom action with delegated rights', (done) => {
     const postRequestSpy = initDefaultPostStubs();
     const options: any = {
       url: 'https://contoso.sharepoint.com',
@@ -337,10 +337,10 @@ describe(commands.CUSTOMACTION_ADD, () => {
       rights: 'AddListItems,DeleteListItems,ManageLists',
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
-          body: {
+          data: {
             Title: 'title1',
             Name: 'name1',
             Location: 'Microsoft.SharePoint.StandardMenu',
@@ -400,9 +400,9 @@ describe(commands.CUSTOMACTION_ADD, () => {
 
     defaultCommandOptions.verbose = true;
 
-    cmdInstance.action({ options: defaultCommandOptions }, () => {
+    command.action(logger, { options: defaultCommandOptions } as any, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogToStderrSpy.calledWith({
           ClientSideComponentId: '015e0fcf-fe9d-4037-95af-0a4776cdfbb4',
           ClientSideComponentProperties: '{"testMessage":"Test message"}',
           CommandUIExtension: null,
@@ -436,9 +436,9 @@ describe(commands.CUSTOMACTION_ADD, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({ options: defaultCommandOptions }, (err?: any) => {
+    command.action(logger, { options: defaultCommandOptions } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -448,7 +448,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
   });
 
   it('offers autocomplete for the registrationType option', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     for (let i = 0; i < options.length; i++) {
       if (options[i].option.indexOf('--registrationType') > -1) {
         assert(options[i].autocomplete);
@@ -459,7 +459,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
   });
 
   it('offers autocomplete for the rights option', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     for (let i = 0; i < options.length; i++) {
       if (options[i].option.indexOf('--rights') > -1) {
         assert(options[i].autocomplete);
@@ -470,7 +470,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
   });
 
   it('offers autocomplete for the scope option', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     for (let i = 0; i < options.length; i++) {
       if (options[i].option.indexOf('--scope') > -1) {
         assert(options[i].autocomplete);
@@ -505,118 +505,102 @@ describe(commands.CUSTOMACTION_ADD, () => {
     assert(registrationType === 4);
   });
 
-  it('fails validation if the url option not specified', () => {
-    defaultCommandOptions.url = undefined;
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, 'Missing required option url');
-  });
-
   it('fails if non existing PermissionKind rights specified', () => {
     defaultCommandOptions.rights = 'abc';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Rights option '${defaultCommandOptions.rights}' is not recognized as valid PermissionKind choice. Please note it is case sensitive`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `Rights option '${defaultCommandOptions.rights}' is not recognized as valid PermissionKind choice. Please note it is case sensitive`);
   });
 
   it('has correct PermissionKind rights specified', () => {
     defaultCommandOptions.rights = 'FullMask';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
+    const actual = command.validate({ options: defaultCommandOptions });
     assert(actual === true);
   });
 
   it('fails if clientSideComponentId not specified', () => {
     defaultCommandOptions.clientSideComponentProperties = 'abc';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Option clientSideComponentProperties is specified, but the clientSideComponentId option is missing`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `Option clientSideComponentProperties is specified, but the clientSideComponentId option is missing`);
   });
 
   it('fails if clientSideComponentId is not a valid GUID', () => {
     defaultCommandOptions.clientSideComponentId = 'abc';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `ClientSideComponentId ${defaultCommandOptions.clientSideComponentId} is not a valid GUID`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `ClientSideComponentId ${defaultCommandOptions.clientSideComponentId} is not a valid GUID`);
   });
 
   it('fails if the sequence value less than 0', () => {
     defaultCommandOptions.sequence = -1;
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Invalid option sequence. Expected value in range from 0 to 65536`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `Invalid option sequence. Expected value in range from 0 to 65536`);
   });
 
   it('fails if the sequence value is higher than 65536', () => {
     defaultCommandOptions.sequence = 65537;
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Invalid option sequence. Expected value in range from 0 to 65536`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `Invalid option sequence. Expected value in range from 0 to 65536`);
   });
 
   it('fails if both option scriptSrc and scriptBlock specified', () => {
     defaultCommandOptions.location = 'ScriptLink';
     defaultCommandOptions.scriptSrc = 'abc';
     defaultCommandOptions.scriptBlock = 'abc';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Either option scriptSrc or scriptBlock can be specified, but not both`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `Either option scriptSrc or scriptBlock can be specified, but not both`);
   });
 
   it('fails if scriptSrc or scriptBlock, but the location is not ScriptLink', () => {
     defaultCommandOptions.location = 'abc';
     defaultCommandOptions.scriptSrc = 'abc';
     defaultCommandOptions.scriptBlock = 'abc';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Option scriptSrc or scriptBlock is specified, but the location option is different than ScriptLink. Please use --actionUrl, if the location should be different than ScriptLink`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `Option scriptSrc or scriptBlock is specified, but the location option is different than ScriptLink. Please use --actionUrl, if the location should be different than ScriptLink`);
   });
 
   it('fails if scriptSrc and scriptBlock not specified when location ScriptLink', () => {
     defaultCommandOptions.location = 'ScriptLink';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Option scriptSrc or scriptBlock is required when the location is set to ScriptLink`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `Option scriptSrc or scriptBlock is required when the location is set to ScriptLink`);
   });
 
   it('fails if registrationType, but not registrationId', () => {
     defaultCommandOptions.registrationType = 'abc';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Option registrationType is specified, but registrationId is missing`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `Option registrationType is specified, but registrationId is missing`);
   });
 
   it('fails if registrationId, but not registrationType', () => {
     defaultCommandOptions.registrationId = 'abc';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Option registrationId is specified, but registrationType is missing`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `Option registrationId is specified, but registrationType is missing`);
   });
 
-  it('fails if location missing', () => {
-    defaultCommandOptions.location = undefined;
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Missing required option location`);
-  });
-
-  it('fails if name missing', () => {
-    defaultCommandOptions.name = undefined;
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Missing required option name`);
-  });
-
-  it('fails if title missing', () => {
-    defaultCommandOptions.title = undefined;
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `Missing required option title`);
+  it('fails if the specified URL is invalid', () => {
+    defaultCommandOptions.location = 'Microsoft.SharePoint.StandardMenu';
+    defaultCommandOptions.group = 'SiteActions';
+    defaultCommandOptions.url = 'foo';
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails if location that requires group option is set, but group is not set', () => {
     defaultCommandOptions.location = 'Microsoft.SharePoint.StandardMenu';
     defaultCommandOptions.group = undefined;
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
-    assert.equal(actual, `The location specified requires the group option to be specified as well`);
+    const actual = command.validate({ options: defaultCommandOptions });
+    assert.strictEqual(actual, `The location specified requires the group option to be specified as well`);
   });
 
   it('success if location that requires group option is set, but group is also set', () => {
     defaultCommandOptions.location = 'Microsoft.SharePoint.StandardMenu';
     defaultCommandOptions.group = 'SiteActions';
-    const actual = (command.validate() as CommandValidate)({ options: defaultCommandOptions });
+    const actual = command.validate({ options: defaultCommandOptions });
     assert(actual === true);
   });
 
   it('calls the correct endpoint (url) when scope is Web', (done) => {
     const postRequestSpy = initDefaultPostStubs();
 
-    cmdInstance.action({ options: defaultCommandOptions }, () => {
+    command.action(logger, { options: defaultCommandOptions } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
           url: 'https://contoso.sharepoint.com/_api/Web/UserCustomActions',
@@ -633,7 +617,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
     const postRequestSpy = initDefaultPostStubs();
 
     defaultCommandOptions.scope = "Site";
-    cmdInstance.action({ options: defaultCommandOptions }, () => {
+    command.action(logger, { options: defaultCommandOptions } as any, () => {
       try {
         assert(postRequestSpy.calledWith(sinon.match({
           url: 'https://contoso.sharepoint.com/_api/Site/UserCustomActions',
@@ -648,14 +632,14 @@ describe(commands.CUSTOMACTION_ADD, () => {
 
   it('rejects invalid string scope', () => {
     defaultCommandOptions.scope = 'All';
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: defaultCommandOptions
     });
-    assert.equal(actual, `${defaultCommandOptions.scope} is not a valid custom action scope. Allowed values are Site|Web`);
+    assert.strictEqual(actual, `${defaultCommandOptions.scope} is not a valid custom action scope. Allowed values are Site|Web`);
   });
 
   it('doesn\'t fail validation if the optional scope option not specified', () => {
-    const actual = (command.validate() as CommandValidate)(
+    const actual = command.validate(
       {
         options: defaultCommandOptions
       });
@@ -663,7 +647,7 @@ describe(commands.CUSTOMACTION_ADD, () => {
   });
 
   it('supports specifying scope', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsScopeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('[scope]') > -1) {
@@ -675,13 +659,13 @@ describe(commands.CUSTOMACTION_ADD, () => {
 
   it('doesn\'t fail if the parent doesn\'t define options', () => {
     sinon.stub(Command.prototype, 'options').callsFake(() => { return []; });
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     Utils.restore(Command.prototype.options);
     assert(options.length > 0);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -689,39 +673,5 @@ describe(commands.CUSTOMACTION_ADD, () => {
       }
     });
     assert(containsDebugOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.CUSTOMACTION_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

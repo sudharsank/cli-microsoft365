@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandError, CommandOption, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./message-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./message-get');
 
 describe(commands.TEAMS_MESSAGE_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.TEAMS_MESSAGE_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      action: command.action(),
-      commandWrapper: {
-        command: commands.TEAMS_MESSAGE_GET
-      },
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,91 +51,46 @@ describe(commands.TEAMS_MESSAGE_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TEAMS_MESSAGE_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.TEAMS_MESSAGE_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TEAMS_MESSAGE_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('fails validation if teamId, channelId and messageId are not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         debug: false,
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if channelId and messageId are not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         debug: false,
         teamId: "5f5d7b71-1161-44d8-bcc1-3da710eb4171"
       }
     });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if messageId is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        debug: false,
-        teamId: "5f5d7b71-1161-44d8-bcc1-3da710eb4171",
-        channelId: "19:88f7e66a8dfe42be92db19505ae912a8@thread.skype"
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the teamId is not a valid guid', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: "5f5d7b71-1161-44",
         channelId: "19:88f7e66a8dfe42be92db19505ae912a8@thread.skype",
         messageId: "1540911392778"
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -146,37 +101,37 @@ describe(commands.TEAMS_MESSAGE_GET, () => {
   });
 
   it('validates for a correct input', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: "5f5d7b71-1161-44d8-bcc1-3da710eb4171",
         channelId: "19:88f7e66a8dfe42be92db19505ae912a8@thread.skype",
         messageId: "1540911392778"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('fails validates for a incorrect channelId missing leading 19:.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '00000000-0000-0000-0000-000000000000',
         channelId: '552b7125655c46d5b5b86db02ee7bfdf@thread.skype',
         messageId: "1540911392778"
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('fails validates for a incorrect channelId missing trailing @thread.skpye.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '00000000-0000-0000-0000-000000000000',
         channelId: '19:552b7125655c46d5b5b86db02ee7bfdf@thread',
         messageId: "1540911392778"
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
@@ -207,7 +162,7 @@ describe(commands.TEAMS_MESSAGE_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         teamId: "5f5d7b71-1161-44d8-bcc1-3da710eb4171",
@@ -216,7 +171,7 @@ describe(commands.TEAMS_MESSAGE_GET, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           attachments: [],
           body: { "contentType": "text", "content": "Konnichiwa" },
           createdDateTime: "2018-10-28T15:56:25.116Z",
@@ -270,7 +225,7 @@ describe(commands.TEAMS_MESSAGE_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         teamId: "5f5d7b71-1161-44d8-bcc1-3da710eb4171",
@@ -279,7 +234,7 @@ describe(commands.TEAMS_MESSAGE_GET, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           attachments: [],
           body: { "contentType": "text", "content": "Konnichiwa" },
           createdDateTime: "2018-10-28T15:56:25.116Z",
@@ -311,16 +266,16 @@ describe(commands.TEAMS_MESSAGE_GET, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         teamId: "5f5d7b71-1161-44d8-bcc1-3da710eb4171",
         channelId: "19:88f7e66a8dfe42be92db19505ae912a8@thread.skype",
         messageId: "1540911392778"
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {

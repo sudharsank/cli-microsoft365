@@ -1,11 +1,11 @@
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandValidate } from '../../../../Command';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -31,7 +31,7 @@ class TeamsArchiveCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const siteReadOnlyForMembers: boolean = args.options.shouldSetSpoSiteReadOnlyForMembers === true;
     const requestOptions: any = {
       url: `${this.resource}/v1.0/teams/${encodeURIComponent(args.options.teamId)}/archive`,
@@ -39,8 +39,8 @@ class TeamsArchiveCommand extends GraphCommand {
         'content-type': 'application/json;odata=nometadata',
         'accept': 'application/json;odata.metadata=none'
       },
-      json: true,
-      body: {
+      responseType: 'json',
+      data: {
         shouldSetSpoSiteReadOnlyForMembers: siteReadOnlyForMembers
       }
     };
@@ -49,11 +49,11 @@ class TeamsArchiveCommand extends GraphCommand {
       .post(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (res: any): void => this.handleRejectedODataJsonPromise(res, cmd, cb));
+      }, (res: any): void => this.handleRejectedODataJsonPromise(res, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -72,42 +72,12 @@ class TeamsArchiveCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    Using this command, global admins and Microsoft Teams service admins can
-    access teams that they are not a member of.
-
-    When a team is archived, users can no longer send or like messages on any
-    channel in the team, edit the team\'s name, description, or other settings,
-    or in general make most changes to the team. Membership changes to the team
-    continue to be allowed.
-
-  Examples:
-    
-    Archive the specified Microsoft Teams team
-      ${commands.TEAMS_TEAM_ARCHIVE} --teamId 6f6fd3f7-9ba5-4488-bbe6-a789004d0d55
-    
-    Archive the specified Microsoft Teams team and set permissions for team
-    members to read-only on the SharePoint Online site associated with the team
-      ${commands.TEAMS_TEAM_ARCHIVE} --teamId 6f6fd3f7-9ba5-4488-bbe6-a789004d0d55 --shouldSetSpoSiteReadOnlyForMembers
-    `);
+    return true;
   }
 }
 

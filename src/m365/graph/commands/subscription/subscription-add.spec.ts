@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./subscription-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./subscription-add');
 
 describe(commands.SUBSCRIPTION_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let mockNowNumber = Date.parse("2019-01-01T00:00:00.000Z");
 
   before(() => {
@@ -22,24 +22,24 @@ describe(commands.SUBSCRIPTION_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       Date.now
     ]);
@@ -54,11 +54,11 @@ describe(commands.SUBSCRIPTION_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SUBSCRIPTION_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.SUBSCRIPTION_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('adds subscription', (done) => {
@@ -80,8 +80,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         resource: "me/mailFolders('Inbox')/messages",
@@ -92,7 +91,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(JSON.stringify(log[0]), JSON.stringify({
+        assert.strictEqual(JSON.stringify(log[0]), JSON.stringify({
           "@odata.context": "https://graph.microsoft.com/beta/$metadata#subscriptions/$entity",
           "id": "7f105c7d-2dc5-4530-97cd-4e7ae6534c07",
           "resource": "me/mailFolders('Inbox')/messages",
@@ -131,8 +130,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         resource: "groups",
@@ -142,7 +140,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith("Matching resource in default values 'groups' => 'groups'"));
+        assert(loggerLogToStderrSpy.calledWith("Matching resource in default values 'groups' => 'groups'"));
         done();
       }
       catch (e) {
@@ -171,8 +169,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         verbose: true,
@@ -183,7 +180,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith("An expiration maximum delay is resolved for the resource 'groups' : 4230 minutes."));
+        assert(loggerLogToStderrSpy.calledWith("An expiration maximum delay is resolved for the resource 'groups' : 4230 minutes."));
         done();
       }
       catch (e) {
@@ -211,8 +208,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         resource: "groups",
@@ -223,7 +219,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith("Expiration date time is specified (2019-01-03T00:00:00Z)."));
+        assert(loggerLogToStderrSpy.calledWith("Expiration date time is specified (2019-01-03T00:00:00Z)."));
         done();
       }
       catch (e) {
@@ -236,7 +232,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
     sinon.stub(Date, 'now').callsFake(() => mockNowNumber);
     let requestBodyArg: any = null;
     sinon.stub(request, 'post').callsFake((opts) => {
-      requestBodyArg = opts.body;
+      requestBodyArg = opts.data;
       if (opts.url === `https://graph.microsoft.com/v1.0/subscriptions`) {
         return Promise.resolve({
           "@odata.context": "https://graph.microsoft.com/beta/$metadata#subscriptions/$entity",
@@ -253,8 +249,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         resource: "groups",
@@ -267,7 +262,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
         // Expected for groups resource is 4230 minutes (-1 minutes for safe delay) = 72h - 1h31
         const expected = '2019-01-03T22:29:00.000Z';
         const actual = requestBodyArg.expirationDateTime;
-        assert.equal(actual, expected);
+        assert.strictEqual(actual, expected);
         done();
       }
       catch (e) {
@@ -294,8 +289,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         // NOTE Teams is not a supported resource and has no default maximum expiration delay
@@ -306,7 +300,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith("An expiration maximum delay couldn't be resolved for the resource 'teams'. Will use generic default value: 4230 minutes."));
+        assert(loggerLogToStderrSpy.calledWith("An expiration maximum delay couldn't be resolved for the resource 'teams'. Will use generic default value: 4230 minutes."));
         done();
       }
       catch (e) {
@@ -334,8 +328,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         // NOTE Teams is not a supported resource and has no default maximum expiration delay
@@ -347,8 +340,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
     }, () => {
       try {
         // Expected for groups resource is 4230 minutes (-1 minutes for safe delay) = 72h - 1h31
-        // assert.equal(log[4], expectedLog);
-        assert(cmdInstanceLogSpy.calledWith("Actual expiration date time: 2019-01-03T22:29:00.000Z"));
+        assert(loggerLogToStderrSpy.calledWith("Actual expiration date time: 2019-01-03T22:29:00.000Z"));
         done();
       }
       catch (e) {
@@ -362,8 +354,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         resource: "me/mailFolders('Inbox')/messages",
@@ -372,9 +363,9 @@ describe(commands.SUBSCRIPTION_ADD, () => {
         notificationUrl: "https://webhook.azurewebsites.net/api/send/myNotifyClient",
         expirationDateTime: '2016-11-20T18:23:45.935Z'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -384,7 +375,7 @@ describe(commands.SUBSCRIPTION_ADD, () => {
   });
 
   it('fails validation if expirationDateTime is not valid', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         debug: false,
         resource: "me/mailFolders('Inbox')/messages",
@@ -394,39 +385,11 @@ describe(commands.SUBSCRIPTION_ADD, () => {
         expirationDateTime: 'foo'
       }
     });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if resource is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        debug: false,
-        resource: null,
-        changeType: 'updated',
-        clientState: 'secretClientValue',
-        notificationUrl: "https://webhook.azurewebsites.net/api/send/myNotifyClient",
-        expirationDateTime: '2016-11-20T18:23:45.935Z'
-      }
-    });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if notificationUrl is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        debug: false,
-        resource: "me/mailFolders('Inbox')/messages",
-        changeType: 'updated',
-        clientState: 'secretClientValue',
-        notificationUrl: null,
-        expirationDateTime: '2016-11-20T18:23:45.935Z'
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if notificationUrl is not valid', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         debug: false,
         resource: "me/mailFolders('Inbox')/messages",
@@ -436,25 +399,11 @@ describe(commands.SUBSCRIPTION_ADD, () => {
         expirationDateTime: '2016-11-20T18:23:45.935Z'
       }
     });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if changeType is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        debug: false,
-        resource: "me/mailFolders('Inbox')/messages",
-        changeType: null,
-        clientState: 'secretClientValue',
-        notificationUrl: "https://webhook.azurewebsites.net/api/send/myNotifyClient",
-        expirationDateTime: '2016-11-20T18:23:45.935Z'
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if changeType is not valid', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         debug: false,
         resource: "me/mailFolders('Inbox')/messages",
@@ -464,11 +413,11 @@ describe(commands.SUBSCRIPTION_ADD, () => {
         expirationDateTime: '2016-11-20T18:23:45.935Z'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the clientState exceeds maximum allowed length', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         debug: false,
         resource: "me/mailFolders('Inbox')/messages",
@@ -478,11 +427,11 @@ describe(commands.SUBSCRIPTION_ADD, () => {
         expirationDateTime: null
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the expirationDateTime is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         debug: false,
         resource: "me/mailFolders('Inbox')/messages",
@@ -492,11 +441,11 @@ describe(commands.SUBSCRIPTION_ADD, () => {
         expirationDateTime: null
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -504,39 +453,5 @@ describe(commands.SUBSCRIPTION_ADD, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SUBSCRIPTION_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

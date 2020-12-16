@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./site-commsite-enable');
-import * as assert from 'assert';
-import request from '../../../../request';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import config from '../../../../config';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./site-commsite-enable');
 
 describe(commands.SITE_COMMSITE_ENABLE, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
+  let logger: Logger;
   
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -23,14 +23,15 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
+    logger = {
+      log: (msg: string) => {
+        log.push(msg);
       },
-      action: command.action(),
-      log: (msg: any) => {
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -38,7 +39,6 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -54,17 +54,17 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SITE_COMMSITE_ENABLE), true);
+    assert.strictEqual(command.name.startsWith(commands.SITE_COMMSITE_ENABLE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('enables communication site features on the specified site', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1 &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Method Name="EnableCommSite" Id="5" ObjectPathId="3"><Parameters><Parameter Type="String">https://contoso.sharepoint.com</Parameter><Parameter Type="Guid">{d604dac3-50d3-405e-9ab9-d4713cda74ef}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Method Name="EnableCommSite" Id="5" ObjectPathId="3"><Parameters><Parameter Type="String">https://contoso.sharepoint.com</Parameter><Parameter Type="Guid">{d604dac3-50d3-405e-9ab9-d4713cda74ef}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7331.1205", "ErrorInfo": null, "TraceCorrelationId": "54d8499e-b001-5000-cb83-9445b3944fb9"
@@ -74,7 +74,7 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, url: 'https://contoso.sharepoint.com' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, url: 'https://contoso.sharepoint.com' } } as any, (err?: any) => {
       try {
         assert.strictEqual(err, undefined);
         done();
@@ -88,7 +88,7 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
   it('enables communication site features on the specified site (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1 &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Method Name="EnableCommSite" Id="5" ObjectPathId="3"><Parameters><Parameter Type="String">https://contoso.sharepoint.com</Parameter><Parameter Type="Guid">{d604dac3-50d3-405e-9ab9-d4713cda74ef}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Method Name="EnableCommSite" Id="5" ObjectPathId="3"><Parameters><Parameter Type="String">https://contoso.sharepoint.com</Parameter><Parameter Type="Guid">{d604dac3-50d3-405e-9ab9-d4713cda74ef}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7331.1205", "ErrorInfo": null, "TraceCorrelationId": "54d8499e-b001-5000-cb83-9445b3944fb9"
@@ -98,7 +98,7 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, url: 'https://contoso.sharepoint.com' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, url: 'https://contoso.sharepoint.com' } } as any, (err?: any) => {
       try {
         assert.strictEqual(err, undefined);
         done();
@@ -112,7 +112,7 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
   it('escapes XML in user input', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1 &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Method Name="EnableCommSite" Id="5" ObjectPathId="3"><Parameters><Parameter Type="String">https://contoso.sharepoint.com&gt;</Parameter><Parameter Type="Guid">{d604dac3-50d3-405e-9ab9-d4713cda74ef}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Method Name="EnableCommSite" Id="5" ObjectPathId="3"><Parameters><Parameter Type="String">https://contoso.sharepoint.com&gt;</Parameter><Parameter Type="Guid">{d604dac3-50d3-405e-9ab9-d4713cda74ef}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7331.1205", "ErrorInfo": null, "TraceCorrelationId": "54d8499e-b001-5000-cb83-9445b3944fb9"
@@ -122,7 +122,7 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, url: 'https://contoso.sharepoint.com>' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, url: 'https://contoso.sharepoint.com>' } } as any, (err?: any) => {
       try {
         assert.strictEqual(err, undefined);
         done();
@@ -136,7 +136,7 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
   it('correctly handles a generic error when setting tenant property', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1 &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Method Name="EnableCommSite" Id="5" ObjectPathId="3"><Parameters><Parameter Type="String">https://contoso.sharepoint.com</Parameter><Parameter Type="Guid">{d604dac3-50d3-405e-9ab9-d4713cda74ef}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Method Name="EnableCommSite" Id="5" ObjectPathId="3"><Parameters><Parameter Type="String">https://contoso.sharepoint.com</Parameter><Parameter Type="Guid">{d604dac3-50d3-405e-9ab9-d4713cda74ef}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7018.1204", "ErrorInfo": {
@@ -149,7 +149,7 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, url: 'https://contoso.sharepoint.com' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, url: 'https://contoso.sharepoint.com' } } as any, (err?: any) => {
       try {
         assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
@@ -163,7 +163,7 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
   it('correctly handles random API error', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => Promise.reject('An error has occurred'));
 
-    cmdInstance.action({ options: { debug: true, url: 'https://contoso.sharepoint.com' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, url: 'https://contoso.sharepoint.com' } } as any, (err?: any) => {
       try {
         assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
@@ -175,7 +175,7 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -186,95 +186,61 @@ describe(commands.SITE_COMMSITE_ENABLE, () => {
   });
 
   it('requires site URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     assert(options.find(o => o.option.indexOf('<url>') > -1));
   });
 
   it('supports specifying design package ID', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     assert(options.find(o => o.option.indexOf('[designPackageId]') > -1));
   });
 
   it('fails validation when no site URL specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {}
     });
     assert.notStrictEqual(actual, true);
   });
 
   it('fails validation when invalid site URL specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: { url: 'http://contoso.sharepoint.com' }
     });
     assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when valid site URL specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: { url: 'https://contoso.sharepoint.com' }
     });
     assert.strictEqual(actual, true);
   });
 
   it('passes validation when valid site URL specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: { url: 'https://contoso.sharepoint.com' }
     });
     assert.strictEqual(actual, true);
   });
 
   it('fails validation when invalid design package ID specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: { url: 'https://contoso.sharepoint.com', designPackageId: 'invalid' }
     });
     assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when no design package ID specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: { url: 'https://contoso.sharepoint.com' }
     });
     assert.strictEqual(actual, true);
   });
 
   it('passes validation when valid design package ID specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: { url: 'https://contoso.sharepoint.com', designPackageId: '18eefaa9-ca7b-4ca4-802c-db6d254c533d' }
     });
     assert.strictEqual(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SITE_COMMSITE_ENABLE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

@@ -1,13 +1,11 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -26,9 +24,13 @@ class SpoUserListCommand extends SpoCommand {
     return 'Lists all the users within specific web';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['Id', 'Title', 'LoginName'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving users from web ${args.options.webUrl}...`);
+      logger.logToStderr(`Retrieving users from web ${args.options.webUrl}...`);
     }
 
     let requestUrl: string = '';
@@ -41,26 +43,15 @@ class SpoUserListCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get(requestOptions)
       .then((users: any): void => {
-        if (args.options.output === 'json') {
-          cmd.log(users);
-        }
-        else {
-          cmd.log(users.value.map((user: any) => {
-            return {
-              Id: user.Id,
-              Title:user.Title,
-              LoginName: user.LoginName
-            };
-          }));
-        }
+        logger.log(users);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -75,25 +66,8 @@ class SpoUserListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-      
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Get list of users in web ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.USER_LIST} --webUrl https://contoso.sharepoint.com/sites/project-x 
-    `);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

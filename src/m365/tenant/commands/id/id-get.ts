@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, {
+    CommandError, CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import Command, {
-  CommandOption,
-  CommandError
-} from '../../../../Command';
-import auth from '../../../../Auth';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -27,7 +25,7 @@ class TenantIdGetCommand extends Command {
     return 'Gets Microsoft 365 tenant ID for the specified domain';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let domainName: string = args.options.domainName;
     if (!domainName) {
       const userName: string = Utils.getUserNameFromAccessToken(auth.service.accessTokens[auth.defaultResource].value);
@@ -41,7 +39,7 @@ class TenantIdGetCommand extends Command {
         accept: 'application/json',
         'x-anonymous': true
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -53,11 +51,11 @@ class TenantIdGetCommand extends Command {
         }
 
         if (res.token_endpoint) {
-          cmd.log(res.token_endpoint.split('/')[3]);
+          logger.log(res.token_endpoint.split('/')[3]);
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -70,25 +68,6 @@ class TenantIdGetCommand extends Command {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public commandHelp(args: any, log: (help: string) => void): void {
-    log(vorpal.find(commands.TENANT_ID_GET).helpInformation());
-    log(
-      `  Remarks:
-
-    If no domain name is specified, the command will return the tenant ID of
-    the tenant to which you are currently logged in.
-
-  Examples:
-
-    Get Microsoft 365 tenant ID for the specified domain
-      ${commands.TENANT_ID_GET} --domainName contoso.com
-
-    Get Microsoft 365 tenant ID of the the tenant to which you are currently logged
-    in
-      ${commands.TENANT_ID_GET}
-`);
   }
 }
 

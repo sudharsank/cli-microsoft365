@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Cli, Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -41,10 +39,10 @@ class SpoListItemRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeListItem: () => void = (): void => {
       if (this.verbose) {
-        cmd.log(`Removing list item in site at ${args.options.webUrl}...`);
+        logger.logToStderr(`Removing list item in site at ${args.options.webUrl}...`);
       }
 
       let requestUrl: string = '';
@@ -70,7 +68,7 @@ class SpoListItemRemoveCommand extends SpoCommand {
           'If-Match': '*',
           'accept': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -78,14 +76,14 @@ class SpoListItemRemoveCommand extends SpoCommand {
         .then((): void => {
           // REST post call doesn't return anything
           cb();
-        }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
       removeListItem();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -133,59 +131,31 @@ class SpoListItemRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const id: number = parseInt(args.options.id);
+    if (isNaN(id)) {
+      return `${args.options.id} is not a valid list item ID`;
+    }
 
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const id: number = parseInt(args.options.id);
-      if (isNaN(id)) {
-        return `${args.options.id} is not a valid list item ID`;
-      }
+    if (args.options.listId &&
+      !Utils.isValidGuid(args.options.listId as string)) {
+      return `${args.options.listId} is not a valid GUID`;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return 'Specify id or title, but not both';
+    }
 
-      if (args.options.listId &&
-        !Utils.isValidGuid(args.options.listId as string)) {
-        return `${args.options.listId} is not a valid GUID`;
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return 'Specify id or title';
+    }
 
-      if (args.options.listId && args.options.listTitle) {
-        return 'Specify id or title, but not both';
-      }
-
-      if (!args.options.listId && !args.options.listTitle) {
-        return 'Specify id or title';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Remove the list item with ID ${chalk.grey(1)} from list with ID
-    ${chalk.grey('0cd891ef-afce-4e55-b836-fce03286cccf')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-      ${commands.LISTITEM_REMOVE} --webUrl https://contoso.sharepoint.com/sites/project-x --listId 0cd891ef-afce-4e55-b836-fce03286cccf --id 1
-
-    Remove the list item with with ID ${chalk.grey(1)} from list with title
-    ${chalk.grey('List 1')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-      ${commands.LISTITEM_REMOVE} --webUrl https://contoso.sharepoint.com/sites/project-x --listTitle 'List 1' --id 1
-      `);
+    return true;
   }
 }
 

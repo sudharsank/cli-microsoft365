@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./cdn-origin-remove');
-import * as assert from 'assert';
-import request from '../../../../request';
+import { Cli, Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import config from '../../../../config';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./cdn-origin-remove');
 
 describe(commands.CDN_ORIGIN_REMOVE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
+  let logger: Logger;
   let requests: any[];
   let promptOptions: any;
 
@@ -31,8 +31,8 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
         if (opts.headers &&
           opts.headers['X-RequestDigest'] &&
-          opts.body) {
-          if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
+          opts.data) {
+          if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
             return Promise.resolve(JSON.stringify([{ "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7018.1204", "ErrorInfo": null, "TraceCorrelationId": "4456299e-d09e-4000-ae61-ddde716daa27" }, 31, { "IsNull": false }, 33, { "IsNull": false }, 35, { "IsNull": false }]));
           }
         }
@@ -43,29 +43,28 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
         log.push(msg);
       },
-      prompt: (options: any, cb: (result: { continue: boolean }) => void) => {
-        promptOptions = options;
-        cb({ continue: false });
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
+        log.push(msg);
       }
     };
     requests = [];
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
+      promptOptions = options;
+      cb({ continue: false });
+    });
     promptOptions = undefined;
   });
 
   afterEach(() => {
-    Utils.restore([
-      vorpal.find
-    ]);
+    Utils.restore(Cli.prompt);
   });
 
   after(() => {
@@ -81,20 +80,20 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.CDN_ORIGIN_REMOVE), true);
+    assert.strictEqual(command.name.startsWith(commands.CDN_ORIGIN_REMOVE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('removes existing CDN origin from the public CDN when Public type specified without prompting with confirmation argument', (done) => {
-    cmdInstance.action({ options: { debug: false, origin: '*/cdn', confirm: true, type: 'Public' } }, () => {
+    command.action(logger, { options: { debug: false, origin: '*/cdn', confirm: true, type: 'Public' } }, () => {
       let deleteRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
           r.headers['X-RequestDigest'] &&
-          r.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
+          r.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
           deleteRequestIssued = true;
         }
       });
@@ -110,12 +109,12 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('removes existing CDN origin from the private CDN when Private type specified without prompting with confirmation argument', (done) => {
-    cmdInstance.action({ options: { debug: false, origin: '*/cdn', confirm: true, type: 'Private' } }, () => {
+    command.action(logger, { options: { debug: false, origin: '*/cdn', confirm: true, type: 'Private' } }, () => {
       let deleteRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
           r.headers['X-RequestDigest'] &&
-          r.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">1</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
+          r.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">1</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
           deleteRequestIssued = true;
         }
       });
@@ -131,12 +130,12 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('removes existing CDN origin from the private CDN when Private type specified without prompting with confirmation argument (debug)', (done) => {
-    cmdInstance.action({ options: { debug: true, origin: '*/cdn', confirm: true, type: 'Private' } }, () => {
+    command.action(logger, { options: { debug: true, origin: '*/cdn', confirm: true, type: 'Private' } }, () => {
       let deleteRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
           r.headers['X-RequestDigest'] &&
-          r.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">1</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
+          r.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">1</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
           deleteRequestIssued = true;
         }
       });
@@ -152,12 +151,12 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('removes existing CDN origin from the public CDN when no type specified without prompting with confirmation argument', (done) => {
-    cmdInstance.action({ options: { debug: false, origin: '*/cdn', confirm: true } }, () => {
+    command.action(logger, { options: { debug: false, origin: '*/cdn', confirm: true } }, () => {
       let deleteRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
           r.headers['X-RequestDigest'] &&
-          r.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
+          r.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
           deleteRequestIssued = true;
         }
       });
@@ -173,7 +172,7 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('prompts before removing CDN origin when confirmation argument not passed', (done) => {
-    cmdInstance.action({ options: { debug: true, origin: '*/cdn' } }, () => {
+    command.action(logger, { options: { debug: true, origin: '*/cdn' } }, () => {
       let promptIssued = false;
 
       if (promptOptions && promptOptions.type === 'confirm') {
@@ -191,10 +190,11 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('aborts removing CDN origin when prompt not confirmed', (done) => {
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({ options: { debug: true, origin: '*/cdn' } }, () => {
+    });
+    command.action(logger, { options: { debug: true, origin: '*/cdn' } }, () => {
       try {
         assert(requests.length === 0);
         done();
@@ -206,10 +206,11 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('removes CDN origin when prompt confirmed', (done) => {
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({ options: { debug: true, origin: '*/cdn' } }, () => {
+    });
+    command.action(logger, { options: { debug: true, origin: '*/cdn' } }, () => {
       let doneResponse = false;
       log.forEach(l => {
         if (l &&
@@ -243,8 +244,8 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
         if (opts.headers &&
           opts.headers['X-RequestDigest'] &&
-          opts.body) {
-          if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
+          opts.data) {
+          if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="RemoveTenantCdnOrigin" Id="33" ObjectPathId="29"><Parameters><Parameter Type="Enum">0</Parameter><Parameter Type="String">*/cdn</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="29" Name="abc" /></ObjectPaths></Request>`) {
             return Promise.resolve(JSON.stringify([
               {
                 "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7018.1204", "ErrorInfo": {
@@ -259,9 +260,9 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, origin: '*/cdn', confirm: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, origin: '*/cdn', confirm: true } } as any, (err?: any) => {
       try {
-        assert.equal(err.message, 'An error has occurred');
+        assert.strictEqual(err.message, 'An error has occurred');
         done();
       }
       catch (e) {
@@ -279,9 +280,9 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({ options: { debug: false, origin: '*/cdn', confirm: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, origin: '*/cdn', confirm: true } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -294,7 +295,7 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsdebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -305,7 +306,7 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('supports suppressing confirmation prompt', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsConfirmOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--confirm') > -1) {
@@ -316,7 +317,7 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
   });
 
   it('requires CDN origin name', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let requiresCdnOriginName = false;
     options.forEach(o => {
       if (o.option.indexOf('<origin>') > -1) {
@@ -328,63 +329,29 @@ describe(commands.CDN_ORIGIN_REMOVE, () => {
 
   it('doesn\'t fail if the parent doesn\'t define options', () => {
     sinon.stub(Command.prototype, 'options').callsFake(() => { return []; });
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     Utils.restore(Command.prototype.options);
     assert(options.length > 0);
   });
 
   it('accepts Public SharePoint Online CDN type', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { type: 'Public' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { type: 'Public' } });
+    assert.strictEqual(actual, true);
   });
 
   it('accepts Private SharePoint Online CDN type', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { type: 'Private' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { type: 'Private' } });
+    assert.strictEqual(actual, true);
   });
 
   it('rejects invalid SharePoint Online CDN type', () => {
     const type = 'foo';
-    const actual = (command.validate() as CommandValidate)({ options: { type: type } });
-    assert.equal(actual, `${type} is not a valid CDN type. Allowed values are Public|Private`);
+    const actual = command.validate({ options: { type: type } });
+    assert.strictEqual(actual, `${type} is not a valid CDN type. Allowed values are Public|Private`);
   });
 
   it('doesn\'t fail validation if the optional type option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => {},
-      prompt: () => {},
-      helpInformation: () => {}
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => {});
-    assert(find.calledWith(commands.CDN_ORIGIN_REMOVE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => {},
-      helpInformation: () => {}
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => {});
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: {} });
+    assert.strictEqual(actual, true);
   });
 });

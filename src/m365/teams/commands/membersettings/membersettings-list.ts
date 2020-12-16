@@ -1,15 +1,14 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import GraphCommand from "../../../base/GraphCommand";
-import { Team } from '../../Team';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import GraphCommand from "../../../base/GraphCommand";
+import commands from '../../commands';
+import { Team } from '../../Team';
 
 interface CommandArgs {
   options: Options;
@@ -28,26 +27,26 @@ class TeamsMemberSettingsListCommand extends GraphCommand {
     return 'Lists member settings for a Microsoft Teams team';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const requestOptions: any = {
       url: `${this.resource}/v1.0/teams/${encodeURIComponent(args.options.teamId)}?$select=memberSettings`,
       headers: {
         accept: 'application/json;odata.metadata=none'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get<Team>(requestOptions)
       .then((res: Team): void => {
-        cmd.log(res.memberSettings);
+        logger.log(res.memberSettings);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -62,28 +61,12 @@ class TeamsMemberSettingsListCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-         
-    Get member settings for a Microsoft Teams team
-      ${commands.TEAMS_MEMBERSETTINGS_LIST} --teamId 2609af39-7775-4f94-a3dc-0dd67657e900
-`);
+    return true;
   }
 }
 

@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN012005_TSC_typeRoots_microsoft } from './FN012005_TSC_typeRoots_microsoft';
 
 describe('FN012005_TSC_typeRoots_microsoft', () => {
@@ -22,7 +22,7 @@ describe('FN012005_TSC_typeRoots_microsoft', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if tsconfig is not available', () => {
@@ -30,6 +30,6 @@ describe('FN012005_TSC_typeRoots_microsoft', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

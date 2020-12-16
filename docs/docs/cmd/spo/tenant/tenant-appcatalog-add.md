@@ -5,23 +5,27 @@ Creates new tenant app catalog site
 ## Usage
 
 ```sh
-spo tenant appcatalog add [options]
+m365 spo tenant appcatalog add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|The absolute site url
-`--owner <owner>`|The account name of the site owner
-`-z, --timeZone <timeZone>`|Integer representing time zone to use for the site
-`--wait`|Wait for the site to be provisioned before completing the command
-`--force`|Force creating a new app catalog site if one already exists
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: The absolute site url
+
+`--owner <owner>`
+: The account name of the site owner
+
+`-z, --timeZone <timeZone>`
+: Integer representing time zone to use for the site
+
+`--wait`
+: Wait for the site to be provisioned before completing the command
+
+`--force`
+: Force creating a new app catalog site if one already exists
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -39,17 +43,17 @@ Creating an app catalog site might take a while. If you need to wait for the sit
 Creates new app catalog. Will fail if another app catalog or site at the specified URL exists
 
 ```sh
-spo tenant appcatalog add --url https://contoso.sharepoint.com/sites/apps --owner admin@contoso.com --timeZone 4
+m365 spo tenant appcatalog add --url https://contoso.sharepoint.com/sites/apps --owner admin@contoso.com --timeZone 4
 ```
 
 Creates new app catalog and waits for completion. Will fail if another app catalog or site at the specified URL exists
 
 ```sh
-spo tenant appcatalog add --url https://contoso.sharepoint.com/sites/apps --owner admin@contoso.com --timeZone 4 --wait
+m365 spo tenant appcatalog add --url https://contoso.sharepoint.com/sites/apps --owner admin@contoso.com --timeZone 4 --wait
 ```
 
 Creates new app catalog and deletes existing app catalog and existing site at the specified URL
 
 ```sh
-spo tenant appcatalog add --url https://contoso.sharepoint.com/sites/apps --owner admin@contoso.com --timeZone 4 --force
+m365 spo tenant appcatalog add --url https://contoso.sharepoint.com/sites/apps --owner admin@contoso.com --timeZone 4 --force
 ```

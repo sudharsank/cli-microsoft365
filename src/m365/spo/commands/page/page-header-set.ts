@@ -1,13 +1,13 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import GlobalOptions from '../../../../GlobalOptions';
-import { PageHeader, CustomPageHeader, CustomPageHeaderServerProcessedContent, CustomPageHeaderProperties } from './PageHeader';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { CustomPageHeader, CustomPageHeaderProperties, CustomPageHeaderServerProcessedContent, PageHeader } from './PageHeader';
 
 interface CommandArgs {
   options: Options;
@@ -54,7 +54,7 @@ class SpoPageHeaderSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const noPageHeader: PageHeader = {
       "id": "cbe7b0a9-3504-44dd-a3a3-0e5cacd07788",
       "instanceId": "cbe7b0a9-3504-44dd-a3a3-0e5cacd07788",
@@ -147,7 +147,7 @@ class SpoPageHeaderSetCommand extends SpoCommand {
     let title: string;
 
     if (this.verbose) {
-      cmd.log(`Retrieving information about the page...`);
+      logger.logToStderr(`Retrieving information about the page...`);
     }
 
     const requestOptions: any = {
@@ -155,7 +155,7 @@ class SpoPageHeaderSetCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -172,7 +172,7 @@ class SpoPageHeaderSetCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
@@ -232,9 +232,9 @@ class SpoPageHeaderSetCommand extends SpoCommand {
           }
 
           return Promise.all([
-            this.getSiteId(args.options.webUrl, this.verbose, cmd),
-            this.getWebId(args.options.webUrl, this.verbose, cmd),
-            this.getImageInfo(args.options.webUrl, args.options.imageUrl as string, this.verbose, cmd),
+            this.getSiteId(args.options.webUrl, this.verbose, logger),
+            this.getWebId(args.options.webUrl, this.verbose, logger),
+            this.getImageInfo(args.options.webUrl, args.options.imageUrl as string, this.verbose, logger),
           ]);
         }
         else {
@@ -265,26 +265,26 @@ class SpoPageHeaderSetCommand extends SpoCommand {
             'accept': 'application/json;odata=nometadata',
             'content-type': 'application/json;odata=nometadata'
           },
-          body: {
+          data: {
             LayoutWebpartsContent: JSON.stringify([header])
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
-  private getSiteId(siteUrl: string, verbose: boolean, cmd: CommandInstance): Promise<any> {
+  private getSiteId(siteUrl: string, verbose: boolean, logger: Logger): Promise<any> {
     if (verbose) {
-      cmd.log(`Retrieving information about the site collection...`);
+      logger.logToStderr(`Retrieving information about the site collection...`);
     }
 
     const requestOptions: any = {
@@ -292,15 +292,15 @@ class SpoPageHeaderSetCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.get(requestOptions);
   }
 
-  private getWebId(siteUrl: string, verbose: boolean, cmd: CommandInstance): Promise<any> {
+  private getWebId(siteUrl: string, verbose: boolean, logger: Logger): Promise<any> {
     if (verbose) {
-      cmd.log(`Retrieving information about the site...`);
+      logger.logToStderr(`Retrieving information about the site...`);
     }
 
     const requestOptions: any = {
@@ -308,15 +308,15 @@ class SpoPageHeaderSetCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.get(requestOptions);
   }
 
-  private getImageInfo(siteUrl: string, imageUrl: string, verbose: boolean, cmd: CommandInstance): Promise<any> {
+  private getImageInfo(siteUrl: string, imageUrl: string, verbose: boolean, logger: Logger): Promise<any> {
     if (verbose) {
-      cmd.log(`Retrieving information about the header image...`);
+      logger.logToStderr(`Retrieving information about the header image...`);
     }
 
     const requestOptions: any = {
@@ -324,7 +324,7 @@ class SpoPageHeaderSetCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.get(requestOptions);
@@ -393,73 +393,35 @@ class SpoPageHeaderSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.pageName) {
-        return 'Required parameter pageName missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.type &&
+      args.options.type !== 'None' &&
+      args.options.type !== 'Default' &&
+      args.options.type !== 'Custom') {
+      return `${args.options.type} is not a valid type value. Allowed values None|Default|Custom`;
+    }
 
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+    if (args.options.translateX && isNaN(args.options.translateX)) {
+      return `${args.options.translateX} is not a valid number`;
+    }
 
-      if (args.options.type &&
-        args.options.type !== 'None' &&
-        args.options.type !== 'Default' &&
-        args.options.type !== 'Custom') {
-        return `${args.options.type} is not a valid type value. Allowed values None|Default|Custom`;
-      }
+    if (args.options.translateY && isNaN(args.options.translateY)) {
+      return `${args.options.translateY} is not a valid number`;
+    }
 
-      if (args.options.translateX && isNaN(args.options.translateX)) {
-        return `${args.options.translateX} is not a valid number`;
-      }
+    if (args.options.layout &&
+      args.options.layout !== 'FullWidthImage' &&
+      args.options.layout !== 'NoImage') {
+      return `${args.options.layout} is not a valid layout value. Allowed values FullWidthImage|NoImage`;
+    }
 
-      if (args.options.translateY && isNaN(args.options.translateY)) {
-        return `${args.options.translateY} is not a valid number`;
-      }
+    if (args.options.textAlignment &&
+      args.options.textAlignment !== 'Left' &&
+      args.options.textAlignment !== 'Center') {
+      return `${args.options.textAlignment} is not a valid textAlignment value. Allowed values Left|Center`;
+    }
 
-      if (args.options.layout &&
-        args.options.layout !== 'FullWidthImage' &&
-        args.options.layout !== 'NoImage') {
-        return `${args.options.layout} is not a valid layout value. Allowed values FullWidthImage|NoImage`;
-      }
-
-      if (args.options.textAlignment &&
-        args.options.textAlignment !== 'Left' &&
-        args.options.textAlignment !== 'Center') {
-        return `${args.options.textAlignment} is not a valid textAlignment value. Allowed values Left|Center`;
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('name')} doesn't refer to an existing modern page, you will get
-    a ${chalk.grey('File doesn\'t exists')} error.
-
-    The ${chalk.blue('showKicker')}, ${chalk.blue('kicker')} and ${chalk.blue('authors')} options are based on preview
-    functionality that isn't available on all tenants yet.
-
-  Examples:
-
-    Reset the page header to default
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx
-
-    Reset the page header to default and set authors
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --authors "steve@contoso.com, bob@contoso.com"
-
-    Use the specified image focused on the given coordinates in the page header
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --type Custom --imageUrl /sites/team-a/SiteAssets/hero.jpg --altText 'Sunset over the ocean' --translateX 42.3837520042758 --translateY 56.4285714285714
-
-    Center the page title in the header and show the publishing date
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --textAlignment Center --showPublishDate
-`);
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

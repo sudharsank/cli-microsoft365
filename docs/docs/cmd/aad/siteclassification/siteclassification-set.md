@@ -5,22 +5,24 @@ Updates site classification configuration
 ## Usage
 
 ```sh
-aad siteclassification set [options]
+m365 aad siteclassification set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-c, --classifications [classifications]`|Comma-separated list of classifications
-`-d, --defaultClassification [defaultClassification]`|Classification to use by default
-`-u, --usageGuidelinesUrl [usageGuidelinesUrl]`|URL with usage guidelines for members
-`-g, --guestUsageGuidelinesUrl [guestUsageGuidelinesUrl]`|URL with usage guidelines for guests
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-c, --classifications [classifications]`
+: Comma-separated list of classifications
+
+`-d, --defaultClassification [defaultClassification]`
+: Classification to use by default
+
+`-u, --usageGuidelinesUrl [usageGuidelinesUrl]`
+: URL with usage guidelines for members
+
+`-g, --guestUsageGuidelinesUrl [guestUsageGuidelinesUrl]`
+: URL with usage guidelines for guests
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -32,25 +34,25 @@ Option|Description
 Update Microsoft 365 Tenant site classification configuration
 
 ```sh
-aad siteclassification set --classifications "High, Medium, Low" --defaultClassification "Medium"
+m365 aad siteclassification set --classifications "High, Medium, Low" --defaultClassification "Medium"
 ```
 
 Update only the default classification
 
 ```sh
-aad siteclassification set --defaultClassification "Low"
+m365 aad siteclassification set --defaultClassification "Low"
 ```
 
 Update site classification with a usage guidelines URL
 
 ```sh
-aad siteclassification set --usageGuidelinesUrl "http://aka.ms/pnp"
+m365 aad siteclassification set --usageGuidelinesUrl "http://aka.ms/pnp"
 ```
 
 Update site classification with usage guidelines URLs for guests and members
 
 ```sh
-aad siteclassification set --usageGuidelinesUrl "http://aka.ms/pnp" --guestUsageGuidelinesUrl "http://aka.ms/pnp"
+m365 aad siteclassification set --usageGuidelinesUrl "http://aka.ms/pnp" --guestUsageGuidelinesUrl "http://aka.ms/pnp"
 ```
 
 ## More information

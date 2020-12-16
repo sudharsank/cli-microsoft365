@@ -5,18 +5,12 @@ Gets the URL of the tenant app catalog
 ## Usage
 
 ```sh
-spo tenant appcatalogurl get [options]
+m365 spo tenant appcatalogurl get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -26,5 +20,5 @@ Option|Description
 Get the URL of the tenant app catalog
 
 ```sh
-spo tenant appcatalogurl get
+m365 spo tenant appcatalogurl get
 ```

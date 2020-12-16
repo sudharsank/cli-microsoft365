@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./message-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./message-get');
 
 describe(commands.YAMMER_MESSAGE_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
   let firstMessage: any = {"sender_id":1496550646, "replied_to_id":1496550647,"id":10123190123123,"thread_id": "", group_id: 11231123123, created_at: "2019/09/09 07:53:18 +0000", "content_excerpt": "message1"};
   let secondMessage: any = {"sender_id":1496550640, "replied_to_id":"","id":10123190123124,"thread_id": "", group_id: "", created_at: "2019/09/08 07:53:18 +0000", "content_excerpt": "message2"};
 
@@ -23,24 +23,24 @@ describe(commands.YAMMER_MESSAGE_GET, () => {
   }); 
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -54,21 +54,25 @@ describe(commands.YAMMER_MESSAGE_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.YAMMER_MESSAGE_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.YAMMER_MESSAGE_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['id', 'sender_id', 'replied_to_id', 'thread_id', 'group_id', 'created_at', 'direct_message', 'system_message', 'privacy', 'message_type', 'content_excerpt']);
   });
 
   it('id must be a number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 'nonumber' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: 'nonumber' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('id is required', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('calls the messaging endpoint with the right parameters', function (done) {
@@ -78,9 +82,9 @@ describe(commands.YAMMER_MESSAGE_GET, () => {
       }
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { id:10123190123123, debug: true } }, (err?: any) => {
+    command.action(logger, { options: { id:10123190123123, debug: true } } as any, (err?: any) => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0].id, 10123190123123)
+        assert.strictEqual(loggerLogSpy.lastCall.args[0].id, 10123190123123)
         done();
       }
       catch (e) {
@@ -98,9 +102,9 @@ describe(commands.YAMMER_MESSAGE_GET, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("An error has occurred.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("An error has occurred.")));
         done();
       }
       catch (e) {
@@ -116,9 +120,9 @@ describe(commands.YAMMER_MESSAGE_GET, () => {
       }
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: true, id:10123190123124, output: "json" } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, id:10123190123124, output: "json" } } as any, (err?: any) => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0].id, 10123190123124);
+        assert.strictEqual(loggerLogSpy.lastCall.args[0].id, 10123190123124);
         done();
       }
       catch (e) {
@@ -128,12 +132,12 @@ describe(commands.YAMMER_MESSAGE_GET, () => {
   });
 
   it('passes validation with parameters', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 10123123 }});
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: 10123123 }});
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -141,39 +145,5 @@ describe(commands.YAMMER_MESSAGE_GET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.YAMMER_MESSAGE_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

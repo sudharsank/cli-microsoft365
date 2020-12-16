@@ -1,17 +1,17 @@
-import commands from '../../commands';
-import sinon = require('sinon');
+import * as assert from 'assert';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-import Utils from '../../../../Utils';
+import { Logger } from '../../../../cli';
+import Command, { CommandError, CommandTypes } from '../../../../Command';
 import request from '../../../../request';
-import * as assert from 'assert';
-import Command, { CommandValidate, CommandOption, CommandTypes, CommandError } from '../../../../Command';
+import Utils from '../../../../Utils';
+import commands from '../../commands';
+import sinon = require('sinon');
 const command: Command = require('./feature-disable');
 
 describe(commands.FEATURE_DISABLE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
+  let logger: Logger;
   let requests: any[];
 
   before(() => {
@@ -21,15 +21,16 @@ describe(commands.FEATURE_DISABLE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
     requests = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -37,7 +38,6 @@ describe(commands.FEATURE_DISABLE, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -51,97 +51,51 @@ describe(commands.FEATURE_DISABLE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FEATURE_DISABLE), true);
+    assert.strictEqual(command.name.startsWith(commands.FEATURE_DISABLE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('configures command types', () => {
-    assert.notEqual(typeof command.types(), 'undefined', 'command types undefined');
-    assert.notEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
+    assert.notStrictEqual(typeof command.types(), 'undefined', 'command types undefined');
+    assert.notStrictEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
   });
 
   it('configures scope as string option', () => {
     const types = (command.types() as CommandTypes);
     ['s', 'scope'].forEach(o => {
-      assert.notEqual((types.string as string[]).indexOf(o), -1, `option ${o} not specified as string`);
+      assert.notStrictEqual((types.string as string[]).indexOf(o), -1, `option ${o} not specified as string`);
     });
-  });
-
-  it('fails validation if the url is not provided', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        force: false,
-        scope: 'web',
-        featureId: '780ac353-eaf8-4ac2-8c47-536d93c03fd6'
-      }
-    });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the url is empty', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        url: '',
-        force: false,
-        scope: 'web',
-        featureId: '780ac353-eaf8-4ac2-8c47-536d93c03fd6'
-      }
-    });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the featureId is not provided', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        url: 'https://contoso.sharepoint.com/sites/sales',
-        force: false,
-        scope: 'web'
-      }
-    });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the featureId is empty', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        url: 'https://contoso.sharepoint.com/sites/sales',
-        force: false,
-        scope: 'web',
-        featureId: ''
-      }
-    });
-    assert.notEqual(actual, true);
   });
 
   it('fails validation if scope is not site|web', () => {
     const scope = 'list';
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         url: "https://contoso.sharepoint.com",
         featureId: "780ac353-eaf8-4ac2-8c47-536d93c03fd6",
         scope: scope
       }
     });
-    assert.equal(actual, `${scope} is not a valid Feature scope. Allowed values are Site|Web`);
+    assert.strictEqual(actual, `${scope} is not a valid Feature scope. Allowed values are Site|Web`);
   });
 
   it('passes validation if url and featureId is correct', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         url: "https://contoso.sharepoint.com",
         featureId: "780ac353-eaf8-4ac2-8c47-536d93c03fd6"
       }
     });
 
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
 
   });
 
   it('supports specifying scope', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsScopeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('[scope]') > -1) {
@@ -167,7 +121,7 @@ describe(commands.FEATURE_DISABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, featureId: '780ac353-eaf8-4ac2-8c47-536d93c03fd6', url: 'https://contoso.sharepoint.com' } }, () => {
+    command.action(logger, { options: { debug: true, featureId: '780ac353-eaf8-4ac2-8c47-536d93c03fd6', url: 'https://contoso.sharepoint.com' } }, () => {
       let correctRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf(requestUrl) > -1 && r.headers.accept && r.headers.accept.indexOf('application/json') === 0) {
@@ -203,7 +157,7 @@ describe(commands.FEATURE_DISABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, featureId: '780ac353-eaf8-4ac2-8c47-536d93c03fd6', url: 'https://contoso.sharepoint.com', force: true } }, () => {
+    command.action(logger, { options: { debug: true, featureId: '780ac353-eaf8-4ac2-8c47-536d93c03fd6', url: 'https://contoso.sharepoint.com', force: true } }, () => {
       let correctRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf(requestUrl) > -1 && r.headers.accept && r.headers.accept.indexOf('application/json') === 0) {
@@ -239,7 +193,7 @@ describe(commands.FEATURE_DISABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, featureId: '780ac353-eaf8-4ac2-8c47-536d93c03fd6', url: 'https://contoso.sharepoint.com', scope: 'site' } }, () => {
+    command.action(logger, { options: { debug: true, featureId: '780ac353-eaf8-4ac2-8c47-536d93c03fd6', url: 'https://contoso.sharepoint.com', scope: 'site' } }, () => {
       let correctRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf(requestUrl) > -1 && r.headers.accept && r.headers.accept.indexOf('application/json') === 0) {
@@ -271,7 +225,7 @@ describe(commands.FEATURE_DISABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         url: 'https://contoso.sharepoint.com',
@@ -280,68 +234,12 @@ describe(commands.FEATURE_DISABLE, () => {
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
         done(e);
       }
     });
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FEATURE_DISABLE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
-  });
-
-  it('has help with remarks', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsRemarks: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Remarks:') > -1) {
-        containsRemarks = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsRemarks);
   });
 });

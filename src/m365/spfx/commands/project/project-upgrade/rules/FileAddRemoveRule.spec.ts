@@ -1,10 +1,10 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as sinon from 'sinon';
-import { Finding } from '../Finding';
-import { Project } from '../../model';
-import { FileAddRemoveRule } from './FileAddRemoveRule';
 import Utils from '../../../../../../Utils';
+import { Project } from '../../model';
+import { Finding } from '../Finding';
+import { FileAddRemoveRule } from './FileAddRemoveRule';
 
 class FileAddRule extends FileAddRemoveRule {
   constructor(add: boolean) {
@@ -35,7 +35,7 @@ describe('FileAddRemoveRule', () => {
       path: '/usr/tmp',
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if the file exists and should be added', () => {
@@ -45,7 +45,7 @@ describe('FileAddRemoveRule', () => {
       path: '/usr/tmp',
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('adjusts description when the file should be created', () => {

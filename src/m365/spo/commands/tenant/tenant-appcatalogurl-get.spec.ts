@@ -1,20 +1,21 @@
-import commands from '../../commands';
-import Command, { CommandError, CommandOption } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./tenant-appcatalogurl-get');
-import * as assert from 'assert';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import auth from '../../../../Auth';
+import commands from '../../commands';
+const command: Command = require('./tenant-appcatalogurl-get');
 
 describe(commands.TENANT_APPCATALOGURL_GET, () => {
-  let vorpal: Vorpal;
   let log: any[];
   let requests: any[];
-  let cmdInstance: any;
+  let logger: Logger;
 
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -25,24 +26,25 @@ describe(commands.TENANT_APPCATALOGURL_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
     requests = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -57,15 +59,15 @@ describe(commands.TENANT_APPCATALOGURL_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TENANT_APPCATALOGURL_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.TENANT_APPCATALOGURL_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -73,40 +75,6 @@ describe(commands.TENANT_APPCATALOGURL_GET, () => {
       }
     });
     assert(containsDebugOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TENANT_APPCATALOGURL_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 
   it('handles promise error while getting tenant appcatalog', (done) => {
@@ -119,13 +87,13 @@ describe(commands.TENANT_APPCATALOGURL_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
 
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -144,13 +112,13 @@ describe(commands.TENANT_APPCATALOGURL_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.lastCall.args[0] === 'https://contoso.sharepoint.com/sites/apps');
+        assert(loggerLogSpy.lastCall.args[0] === 'https://contoso.sharepoint.com/sites/apps');
         done();
       }
       catch (e) {
@@ -169,13 +137,13 @@ describe(commands.TENANT_APPCATALOGURL_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -194,13 +162,13 @@ describe(commands.TENANT_APPCATALOGURL_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith('Tenant app catalog is not configured.'));
+        assert(loggerLogToStderrSpy.calledWith('Tenant app catalog is not configured.'));
         done();
       }
       catch (e) {

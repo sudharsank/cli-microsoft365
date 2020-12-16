@@ -1,17 +1,17 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./list-webhook-set');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError, CommandOption } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./list-webhook-set');
 
 describe(commands.LIST_WEBHOOK_SET, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
+  let logger: Logger;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -20,22 +20,22 @@ describe(commands.LIST_WEBHOOK_SET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
         log.push(msg);
       },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
+        log.push(msg);
+      }
     };
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.patch
     ]);
   });
@@ -49,11 +49,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.LIST_WEBHOOK_SET), true);
+    assert.strictEqual(command.name.startsWith(commands.LIST_WEBHOOK_SET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('uses correct API url when list id option is passed', (done) => {
@@ -65,7 +65,7 @@ describe(commands.LIST_WEBHOOK_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         id: '0cd891ef-afce-4e55-b836-fce03286cccf',
@@ -94,7 +94,7 @@ describe(commands.LIST_WEBHOOK_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         id: '0cd891ef-afce-4e55-b836-fce03286cccf',
@@ -122,14 +122,14 @@ describe(commands.LIST_WEBHOOK_SET, () => {
     });
     sinon.stub(request, 'patch').callsFake((opts) => {
       if ((opts.url as string).indexOf(`https://contoso.sharepoint.com/sites/ninja/_api/web/lists/GetByTitle('Documents')/Subscriptions('cc27a922-8224-4296-90a5-ebbc54da2e81')`) > -1) {
-        actual = JSON.stringify(opts.body);
+        actual = JSON.stringify(opts.data);
         return Promise.resolve();
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options:
       {
         debug: true,
@@ -141,7 +141,7 @@ describe(commands.LIST_WEBHOOK_SET, () => {
       }
     }, () => {
       try {
-        assert.equal(actual, expected);
+        assert.strictEqual(actual, expected);
         done();
       }
       catch (e) {
@@ -158,14 +158,14 @@ describe(commands.LIST_WEBHOOK_SET, () => {
     });
     sinon.stub(request, 'patch').callsFake((opts) => {
       if ((opts.url as string).indexOf(`https://contoso.sharepoint.com/sites/ninja/_api/web/lists(guid'cc27a922-8224-4296-90a5-ebbc54da2e77')/Subscriptions('cc27a922-8224-4296-90a5-ebbc54da2e81')`) > -1) {
-        actual = JSON.stringify(opts.body);
+        actual = JSON.stringify(opts.data);
         return Promise.resolve();
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options:
       {
         verbose: true,
@@ -177,7 +177,7 @@ describe(commands.LIST_WEBHOOK_SET, () => {
       }
     }, () => {
       try {
-        assert.equal(actual, expected);
+        assert.strictEqual(actual, expected);
         done();
       }
       catch (e) {
@@ -194,14 +194,14 @@ describe(commands.LIST_WEBHOOK_SET, () => {
     });
     sinon.stub(request, 'patch').callsFake((opts) => {
       if ((opts.url as string).indexOf(`https://contoso.sharepoint.com/sites/ninja/_api/web/lists/GetByTitle('Documents')/Subscriptions('cc27a922-8224-4296-90a5-ebbc54da2e81')`) > -1) {
-        actual = JSON.stringify(opts.body);
+        actual = JSON.stringify(opts.data);
         return Promise.resolve();
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options:
       {
         debug: false,
@@ -213,7 +213,7 @@ describe(commands.LIST_WEBHOOK_SET, () => {
       }
     }, () => {
       try {
-        assert.equal(actual, expected);
+        assert.strictEqual(actual, expected);
         done();
       }
       catch (e) {
@@ -229,14 +229,14 @@ describe(commands.LIST_WEBHOOK_SET, () => {
     });
     sinon.stub(request, 'patch').callsFake((opts) => {
       if ((opts.url as string).indexOf(`https://contoso.sharepoint.com/sites/ninja/_api/web/lists/GetByTitle('Documents')/Subscriptions('cc27a922-8224-4296-90a5-ebbc54da2e81')`) > -1) {
-        actual = JSON.stringify(opts.body);
+        actual = JSON.stringify(opts.data);
         return Promise.resolve();
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options:
       {
         debug: false,
@@ -247,7 +247,7 @@ describe(commands.LIST_WEBHOOK_SET, () => {
       }
     }, () => {
       try {
-        assert.equal(actual, expected);
+        assert.strictEqual(actual, expected);
         done();
       }
       catch (e) {
@@ -263,14 +263,14 @@ describe(commands.LIST_WEBHOOK_SET, () => {
     });
     sinon.stub(request, 'patch').callsFake((opts) => {
       if ((opts.url as string).indexOf(`https://contoso.sharepoint.com/sites/ninja/_api/web/lists/GetByTitle('Documents')/Subscriptions('cc27a922-8224-4296-90a5-ebbc54da2e81')`) > -1) {
-        actual = JSON.stringify(opts.body);
+        actual = JSON.stringify(opts.data);
         return Promise.resolve();
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options:
       {
         debug: false,
@@ -281,7 +281,7 @@ describe(commands.LIST_WEBHOOK_SET, () => {
       }
     }, () => {
       try {
-        assert.equal(actual, expected);
+        assert.strictEqual(actual, expected);
         done();
       }
       catch (e) {
@@ -295,7 +295,7 @@ describe(commands.LIST_WEBHOOK_SET, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options:
       {
         debug: false,
@@ -304,9 +304,9 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         id: 'cc27a922-8224-4296-90a5-ebbc54da2e81',
         expirationDateTime: '2019-03-02'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -315,21 +315,8 @@ describe(commands.LIST_WEBHOOK_SET, () => {
     });
   });
 
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options:
-      {
-        id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-        listTitle: 'Documents',
-        notificationUrl: 'https://contoso-funcions.azurewebsites.net/webhook',
-        expirationDateTime: '2018-10-09'
-      }
-    });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if both list id and title options are not passed', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -338,11 +325,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if webhook id option is not passed', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -351,11 +338,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'foo',
@@ -365,11 +352,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the url option is a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -379,11 +366,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if the id option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -393,11 +380,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the listid option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -407,11 +394,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the id option is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -421,11 +408,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation if the listid option is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -435,11 +422,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if both id and title options are passed', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -450,11 +437,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both notificationUrl and expirationDateTime options are not passed', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -462,11 +449,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         id: 'cc27a922-8224-4296-90a5-ebbc54da2e81'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the notificationUrl option is passed, but expirationDateTime is not', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -475,11 +462,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         notificationUrl: 'https://contoso-funcions.azurewebsites.net/webhook'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation if the expirationDateTime option is passed, but notificationUrl is not', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -488,11 +475,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-10-09'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if the expirationDateTime option is not a valid date string', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -501,11 +488,11 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         expirationDateTime: '2018-X-09'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the expirationDateTime option is not a valid date string (json output)', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'https://contoso.sharepoint.com',
@@ -515,7 +502,7 @@ describe(commands.LIST_WEBHOOK_SET, () => {
         output: 'json'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('supports verbose mode', () => {
@@ -527,39 +514,5 @@ describe(commands.LIST_WEBHOOK_SET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.LIST_WEBHOOK_SET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

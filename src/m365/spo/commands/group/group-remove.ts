@@ -1,13 +1,11 @@
-import commands from '../../commands';
+import { Cli, Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -37,10 +35,10 @@ class SpoGroupRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeGroup: () => void = (): void => {
       if (this.verbose) {
-        cmd.log(`Removing group in web at ${args.options.webUrl}...`);
+        logger.logToStderr(`Removing group in web at ${args.options.webUrl}...`);
       }
 
       let groupId: number | undefined;
@@ -52,7 +50,7 @@ class SpoGroupRemoveCommand extends SpoCommand {
             headers: {
               accept: 'application/json'
             },
-            json: true
+            responseType: 'json'
           };
           return request.get(requestOptions);
         }
@@ -72,21 +70,21 @@ class SpoGroupRemoveCommand extends SpoCommand {
             'content-length': 0,
             'accept': 'application/json'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions)
       }).then((): void => {
         // REST post call doesn't return anything
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
       removeGroup();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -126,46 +124,25 @@ class SpoGroupRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.id && args.options.name) {
+      return 'Specify id or name, but not both';
+    }
 
-      if (args.options.id && args.options.name) {
-        return 'Specify id or name, but not both';
-      }
+    if (!args.options.id && !args.options.name) {
+      return 'Specify id or name';
+    }
 
-      if (!args.options.id && !args.options.name) {
-        return 'Specify id or name';
-      }
+    if (args.options.id && typeof args.options.id !== 'number') {
+      return `${args.options.id} is not a number`;
+    }
 
-      if (args.options.id && typeof args.options.id !== 'number') {
-        return `${args.options.id} is not a number`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-
-    Removes group with id ${chalk.grey('5')} from web ${chalk.grey('https://contoso.sharepoint.com/sites/mysite')}
-      ${commands.GROUP_REMOVE} --webUrl https://contoso.sharepoint.com/sites/mysite --id 5
-
-    Removes group with name ${chalk.grey('Team Site Owners')} from web
-    ${chalk.grey('https://contoso.sharepoint.com/sites/mysite')}
-      ${commands.GROUP_REMOVE} --webUrl https://contoso.sharepoint.com/sites/mysite --name "Team Site Owners"
-      `);
+    return true;
   }
 }
 

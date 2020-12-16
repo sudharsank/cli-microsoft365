@@ -5,21 +5,21 @@ Adds site script for use with site designs
 ## Usage
 
 ```sh
-spo sitescript add [options]
+m365 spo sitescript add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-t, --title <title>`|Site script title
-`-c, --content <content>`|JSON string containing the site script
-`-d, --description [description]`|Site script description
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-t, --title <title>`
+: Site script title
+
+`-c, --content <content>`
+: JSON string containing the site script
+
+`-d, --description [description]`
+: Site script description
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,7 +30,7 @@ Each time you execute the `spo sitescript add` command, it will create a new sit
 Create new site script for use with site designs. Script contents are stored in the `$script` variable
 
 ```sh
-spo sitescript add --title "Contoso" --description "Contoso theme script" --content $script
+m365 spo sitescript add --title "Contoso" --description "Contoso theme script" --content $script
 ```
 
 ## More information

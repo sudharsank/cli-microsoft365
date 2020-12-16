@@ -1,20 +1,21 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
+import config from '../../../../config';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import config from '../../../../config';
+import commands from '../../commands';
 
 const command: Command = require('./folder-rename');
 
 describe(commands.FOLDER_RENAME, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let stubAllPostRequests: any;
 
   before(() => {
@@ -32,7 +33,7 @@ describe(commands.FOLDER_RENAME, () => {
     ): sinon.SinonStub => {
       return sinon.stub(request, 'post').callsFake((opts) => {
         // fake requestObjectIdentity
-        if (opts.body.indexOf('3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a') > -1) {
+        if (opts.data.indexOf('3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a') > -1) {
           if (requestObjectIdentityResp) {
             return requestObjectIdentityResp;
           } else {
@@ -50,7 +51,7 @@ describe(commands.FOLDER_RENAME, () => {
         }
   
         // fake requestFolderObjectIdentity
-        if (opts.body.indexOf('GetFolderByServerRelativeUrl') > -1) {
+        if (opts.data.indexOf('GetFolderByServerRelativeUrl') > -1) {
           if (folderObjectIdentityResp) {
             return folderObjectIdentityResp;
           } else {
@@ -68,7 +69,7 @@ describe(commands.FOLDER_RENAME, () => {
         }
   
         // fake folder rename/move success
-        if (opts.body.indexOf('Name="MoveTo"') > -1) {
+        if (opts.data.indexOf('Name="MoveTo"') > -1) {
           if (folderRenameResp) {
             return folderRenameResp;
           } else {
@@ -87,23 +88,24 @@ describe(commands.FOLDER_RENAME, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -118,14 +120,14 @@ describe(commands.FOLDER_RENAME, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FOLDER_RENAME), true);
+    assert.strictEqual(command.name.startsWith(commands.FOLDER_RENAME), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
-  it('should send correct folder remove request body', (done) => {
+  it('should send correct folder remove request data', (done) => {
     const requestStub: sinon.SinonStub = stubAllPostRequests();
     const options: Object = {
       webUrl: 'https://contoso.sharepoint.com/sites/abc',
@@ -136,10 +138,10 @@ describe(commands.FOLDER_RENAME, () => {
     }
     const folderObjectIdentity: string = "e52c649e-a019-5000-c38d-8d334a079fd2|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:7f1c42fe-5933-430d-bafb-6c839aa87a5c:web:30a3906a-a55e-4f48-aaae-ecf45346bf53:folder:10c46485-5035-475f-a40f-d842bab30708";
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         const bodyPayload = `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="MoveTo" Id="32" ObjectPathId="26"><Parameters><Parameter Type="String">/sites/abc/Shared Documents/test1</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="26" Name="${folderObjectIdentity}" /></ObjectPaths></Request>`;
-        assert.equal(requestStub.lastCall.args[0].body, bodyPayload);
+        assert.strictEqual(requestStub.lastCall.args[0].data, bodyPayload);
         done();
       }
       catch (e) {
@@ -157,9 +159,9 @@ describe(commands.FOLDER_RENAME, () => {
       verbose: true
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0], 'DONE');
+        assert.strictEqual(loggerLogToStderrSpy.lastCall.args[0], 'DONE');
         done();
       }
       catch (e) {
@@ -176,9 +178,9 @@ describe(commands.FOLDER_RENAME, () => {
       name: 'test1'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.called, false);
+        assert.strictEqual(loggerLogSpy.called, false);
         done();
       }
       catch (e) {
@@ -195,9 +197,9 @@ describe(commands.FOLDER_RENAME, () => {
       name: 'test1',
       verbose: true
     }
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity error')));
         done();
       }
       catch (e) {
@@ -215,9 +217,9 @@ describe(commands.FOLDER_RENAME, () => {
       name: 'test1',
       verbose: true
     }
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity ClientSvc error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity ClientSvc error')));
         done();
       }
       catch (e) {
@@ -234,9 +236,9 @@ describe(commands.FOLDER_RENAME, () => {
       name: 'test1',
       verbose: true
     }
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('abc 1')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('abc 1')));
         done();
       }
       catch (e) {
@@ -254,9 +256,9 @@ describe(commands.FOLDER_RENAME, () => {
       name: 'test1',
       verbose: true
     }
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('requestFolderObjectIdentity error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('requestFolderObjectIdentity error')));
         done();
       }
       catch (e) {
@@ -275,9 +277,9 @@ describe(commands.FOLDER_RENAME, () => {
       verbose: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
         done();
       }
       catch (e) {
@@ -294,9 +296,9 @@ describe(commands.FOLDER_RENAME, () => {
       name: 'abc'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. Folder _ObjectIdentity_ not found')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. Folder _ObjectIdentity_ not found')));
         done();
       }
       catch (e) {
@@ -313,9 +315,9 @@ describe(commands.FOLDER_RENAME, () => {
       name: 'abc'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('folder remove promise error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('folder remove promise error')));
         done();
       }
       catch (e) {
@@ -333,9 +335,9 @@ describe(commands.FOLDER_RENAME, () => {
       name: 'abc'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('File Not Found')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('File Not Found')));
         done();
       }
       catch (e) {
@@ -354,9 +356,9 @@ describe(commands.FOLDER_RENAME, () => {
       verbose: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
         done();
       }
       catch (e) {
@@ -366,7 +368,7 @@ describe(commands.FOLDER_RENAME, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsVerboseOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -378,33 +380,18 @@ describe(commands.FOLDER_RENAME, () => {
 
   it('doesn\'t fail if the parent doesn\'t define options', () => {
     sinon.stub(Command.prototype, 'options').callsFake(() => { return []; });
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     Utils.restore(Command.prototype.options);
     assert(options.length > 0);
   });
 
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.equal(actual, "Required parameter webUrl missing");
-  });
-
   it('fails validation if the webUrl option is not valid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {webUrl:'abc'} });
-    assert.equal(actual, "abc is not a valid SharePoint Online site URL");
-  });
-
-  it('fails validation if the folderUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {webUrl:'https://contoso.sharepoint.com'} });
-    assert.equal(actual, "Required parameter folderUrl missing");
-  });
-
-  it('fails validation if the name option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {webUrl:'https://contoso.sharepoint.com', folderUrl: '/Shared Documents/test'} });
-    assert.equal(actual, "Required parameter name missing");
+    const actual = command.validate({ options: {webUrl:'abc'} });
+    assert.strictEqual(actual, "abc is not a valid SharePoint Online site URL");
   });
 
   it('passes validation when the url option specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           webUrl: 'https://contoso.sharepoint.com',
@@ -412,40 +399,6 @@ describe(commands.FOLDER_RENAME, () => {
           name: 'abc'
         }
     });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FOLDER_RENAME));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.strictEqual(actual, true);
   });
 });

@@ -1,22 +1,18 @@
+import { Logger } from '../../../../cli';
+import {
+  CommandError, CommandOption
+} from "../../../../Command";
 import config from "../../../../config";
-import commands from "../../commands";
 import GlobalOptions from "../../../../GlobalOptions";
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate,
-  CommandError
-} from "../../../../Command";
-import SpoCommand from "../../../base/SpoCommand";
 import Utils from "../../../../Utils";
-import {
-  ContextInfo,
-  ClientSvcResponse,
-  ClientSvcResponseContents,
-} from "../../spo";
+import SpoCommand from "../../../base/SpoCommand";
 import { ClientSvc, IdentityResponse } from "../../ClientSvc";
-
-const vorpal: Vorpal = require("../../../../vorpal-init");
+import commands from "../../commands";
+import {
+  ClientSvcResponse,
+  ClientSvcResponseContents, ContextInfo
+} from "../../spo";
 
 interface CommandArgs {
   options: Options;
@@ -47,8 +43,8 @@ class SpoListItemRecordDeclareCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
-    const clientSvc: ClientSvc = new ClientSvc(cmd, this.debug);
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
+    const clientSvc: ClientSvc = new ClientSvc(logger, this.debug);
     let formDigestValue: string = '';
     let webIdentity: string = '';
     let listId: string = '';
@@ -76,7 +72,7 @@ class SpoListItemRecordDeclareCommand extends SpoCommand {
           headers: {
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         }
 
         return request.get(requestOptions);
@@ -91,7 +87,7 @@ class SpoListItemRecordDeclareCommand extends SpoCommand {
             'Content-Type': 'text/xml',
             'X-RequestDigest': formDigestValue
           },
-          body: requestBody
+          data: requestBody
         };
 
         return request.post(requestOptions);
@@ -105,10 +101,10 @@ class SpoListItemRecordDeclareCommand extends SpoCommand {
         }
         else {
           const result: boolean = json[json.length - 1];
-          cmd.log(result);
+          logger.log(result);
           cb();
         }
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   protected getDeclareRecordRequestBody(webIdentity: string, listId: string, id: string, date: string): string {
@@ -151,76 +147,38 @@ class SpoListItemRecordDeclareCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return `Specify listId or listTitle`;
+    }
 
-      if (!args.options.listId && !args.options.listTitle) {
-        return `Specify listId or listTitle`;
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return `Specify listId or listTitle but not both`;
+    }
 
-      if (args.options.listId && args.options.listTitle) {
-        return `Specify listId or listTitle but not both`;
-      }
+    if (args.options.listId && !Utils.isValidGuid(args.options.listId)) {
+      return `${args.options.listId} in option listId is not a valid GUID`;
+    }
 
-      if (args.options.listId && !Utils.isValidGuid(args.options.listId)) {
-        return `${args.options.listId} in option listId is not a valid GUID`;
-      }
+    const id: number = parseInt(args.options.id);
+    if (isNaN(id)) {
+      return `${args.options.id} is not a number`;
+    }
 
-      if (!args.options.id) {
-        return `Specify id for item to declare as a record`;
-      }
+    if (id < 1) {
+      return `Item ID must be a positive number`;
+    }
 
-      const id: number = parseInt(args.options.id);
-      if (isNaN(id)) {
-        return `${args.options.id} is not a number`;
-      }
+    if (args.options.date && !Utils.isValidISODate(args.options.date)) {
+      return `${args.options.date} in option date is not in ISO format (yyyy-mm-dd)`;
+    }
 
-      if (id < 1) {
-        return `Item ID must be a positive number`;
-      }
-
-      if (args.options.date && !Utils.isValidISODate(args.options.date)) {
-        return `${args.options.date} in option date is not in ISO format (yyyy-mm-dd)`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Declare a document with id ${chalk.grey("1")} as a record in list with title ${chalk.grey("Demo List")}
-    located in site ${chalk.grey("https://contoso.sharepoint.com/sites/project-x")}
-      ${commands.LISTITEM_RECORD_DECLARE} --webUrl https://contoso.sharepoint.com/sites/project-x --listTitle "Demo List" --id 1
-
-    Declare a document with id ${chalk.grey("1")} as a record in list with id
-    ${chalk.grey("ea8e1109-2013-1a69-bc05-1403201257fc")} located in site
-    ${chalk.grey("https://contoso.sharepoint.com/sites/project-x")}
-      ${commands.LISTITEM_RECORD_DECLARE} --webUrl https://contoso.sharepoint.com/sites/project-x --listId ea8e1109-2013-1a69-bc05-1403201257fc --id 1
-  
-    Declare a document with id ${chalk.grey("1")} as a record with record declaration date
-    ${chalk.grey("March 14, 2012")} in list with title ${chalk.grey("Demo List")} located in site
-    ${chalk.grey("https://contoso.sharepoint.com/sites/project-x")}
-      ${commands.LISTITEM_RECORD_DECLARE} --webUrl https://contoso.sharepoint.com/sites/project-x --listTitle "Demo List" --id 1 --date 2012-03-14
-
-    Declare a document with id ${chalk.grey("1")} as a record with record declaration date
-    ${chalk.grey("September 3, 2013")} in list with id ${chalk.grey("ea8e1356-5910-abc9-bc05-2408198057fc")}
-    located in site ${chalk.grey("https://contoso.sharepoint.com/sites/project-x")}
-      ${commands.LISTITEM_RECORD_DECLARE} --webUrl https://contoso.sharepoint.com/sites/project-x --listId ea8e1356-5910-abc9-bc05-2408198057fc --id 1 --date 2013-09-03
-   `
-    );
+    return true;
   }
 }
 module.exports = new SpoListItemRecordDeclareCommand();

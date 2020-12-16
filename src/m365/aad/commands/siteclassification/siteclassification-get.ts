@@ -1,14 +1,13 @@
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
-import GraphCommand from '../../../base/GraphCommand';
-import { DirectorySettingTemplatesRsp } from './DirectorySettingTemplatesRsp';
-import { DirectorySetting } from './DirectorySetting';
-import { DirectorySettingValue } from './DirectorySettingValue';
-import { SiteClassificationSettings } from './SiteClassificationSettings'
+import { Logger } from '../../../../cli';
 import { CommandError } from '../../../../Command';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import GraphCommand from '../../../base/GraphCommand';
+import commands from '../../commands';
+import { DirectorySetting } from './DirectorySetting';
+import { DirectorySettingTemplatesRsp } from './DirectorySettingTemplatesRsp';
+import { DirectorySettingValue } from './DirectorySettingValue';
+import { SiteClassificationSettings } from './SiteClassificationSettings';
 
 interface CommandArgs {
   options: Options;
@@ -26,13 +25,13 @@ class AadSiteClassificationGetCommand extends GraphCommand {
     return 'Gets site classification configuration';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const requestOptions: any = {
       url: `${this.resource}/beta/settings`,
       headers: {
         accept: 'application/json;odata.metadata=none'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -94,32 +93,10 @@ class AadSiteClassificationGetCommand extends GraphCommand {
           siteClassificationsSettings.DefaultClassification = defaultClassification[0].value;
         }
 
-        cmd.log(JSON.parse(JSON.stringify(siteClassificationsSettings)));
+        logger.log(JSON.parse(JSON.stringify(siteClassificationsSettings)));
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-
-  Examples:
-  
-    Get information about the Microsoft 365 Tenant site classification
-      ${this.name}
-
-  More information:
-
-    SharePoint "modern" sites classification
-      https://docs.microsoft.com/en-us/sharepoint/dev/solution-guidance/modern-experience-site-classification
-    `);
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 }
 

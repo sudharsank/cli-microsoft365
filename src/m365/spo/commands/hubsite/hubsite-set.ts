@@ -1,19 +1,18 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate,
-  CommandError,
+  CommandError, CommandOption,
+
   CommandTypes
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 import { HubSiteProperties } from './HubSiteProperties';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -43,11 +42,11 @@ class SpoHubSiteSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
 
@@ -55,7 +54,7 @@ class SpoHubSiteSetCommand extends SpoCommand {
       })
       .then((res: ContextInfo): Promise<string> => {
         if (this.verbose) {
-          cmd.log(`Updating hub site ${args.options.id}...`);
+          logger.logToStderr(`Updating hub site ${args.options.id}...`);
         }
 
         const title: string = typeof args.options.title === 'string' ? `<SetProperty Id="13" ObjectPathId="10" Name="Title"><Parameter Type="String">${Utils.escapeXml(args.options.title)}</Parameter></SetProperty>` : '';
@@ -67,7 +66,7 @@ class SpoHubSiteSetCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="9" ObjectPathId="8" /><ObjectPath Id="11" ObjectPathId="10" /><Query Id="12" ObjectPathId="10"><Query SelectAllProperties="true"><Properties /></Query></Query>${title}${logoUrl}${description}<Method Name="Update" Id="16" ObjectPathId="10" /></Actions><ObjectPaths><Constructor Id="8" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /><Method Id="10" ParentId="8" Name="GetHubSitePropertiesById"><Parameters><Parameter Type="Guid">${Utils.escapeXml(args.options.id)}</Parameter></Parameters></Method></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="9" ObjectPathId="8" /><ObjectPath Id="11" ObjectPathId="10" /><Query Id="12" ObjectPathId="10"><Query SelectAllProperties="true"><Properties /></Query></Query>${title}${logoUrl}${description}<Method Name="Update" Id="16" ObjectPathId="10" /></Actions><ObjectPaths><Constructor Id="8" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /><Method Id="10" ParentId="8" Name="GetHubSitePropertiesById"><Parameters><Parameter Type="Guid">${Utils.escapeXml(args.options.id)}</Parameter></Parameters></Method></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -83,17 +82,17 @@ class SpoHubSiteSetCommand extends SpoCommand {
           const hubSite: HubSiteProperties = json.pop();
           delete hubSite._ObjectType_;
 
-          hubSite.ID = hubSite.ID.replace('/Guid(','').replace(')/','');
-          hubSite.SiteId = hubSite.SiteId.replace('/Guid(','').replace(')/','');
+          hubSite.ID = hubSite.ID.replace('/Guid(', '').replace(')/', '');
+          hubSite.SiteId = hubSite.SiteId.replace('/Guid(', '').replace(')/', '');
 
-          cmd.log(hubSite);
+          logger.log(hubSite);
 
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -120,24 +119,18 @@ class SpoHubSiteSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required option id missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
+    if (!args.options.title &&
+      !args.options.description &&
+      !args.options.logoUrl) {
+      return 'Specify title, description or logoUrl to update';
+    }
 
-      if (!args.options.title &&
-        !args.options.description &&
-        !args.options.logoUrl) {
-        return 'Specify title, description or logoUrl to update';
-      }
-
-      return true;
-    };
+    return true;
   }
 
   public types(): CommandTypes {
@@ -145,37 +138,6 @@ class SpoHubSiteSetCommand extends SpoCommand {
     return {
       string: ['t', 'title', 'd', 'description', 'l', 'logoUrl']
     }
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.HUBSITE_SET).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-        
-  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on a SharePoint API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-
-    If the specified ${chalk.grey('id')} doesn't refer to an existing hub site, you will get
-    an ${chalk.grey('Unknown Error')} error.
-
-  Examples:
-  
-    Update hub site's title
-      ${this.name} --id 255a50b2-527f-4413-8485-57f4c17a24d1 --title Sales
-
-    Update hub site's title and description
-      ${this.name} --id 255a50b2-527f-4413-8485-57f4c17a24d1 --title Sales --description "All things sales"
-
-  More information:
-
-    SharePoint hub sites new in Microsoft 365
-      https://techcommunity.microsoft.com/t5/SharePoint-Blog/SharePoint-hub-sites-new-in-Office-365/ba-p/109547
-`);
   }
 }
 

@@ -5,19 +5,15 @@ Removes site collection app catalog from the specified site
 ## Usage
 
 ```sh
-spo site appcatalog remove [options]
+m365 spo site appcatalog remove [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|URL of the site collection containing the app catalog to disable
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: URL of the site collection containing the app catalog to disable
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -31,7 +27,7 @@ While the command uses the term *'remove'*, like its equivalent PowerShell cmdle
 Remove the site collection app catalog from specified site
 
 ```sh
-spo site appcatalog remove --url https://contoso.sharepoint/sites/site
+m365 spo site appcatalog remove --url https://contoso.sharepoint/sites/site
 ```
 
 ## More information

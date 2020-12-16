@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./groupsettingtemplate-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./groupsettingtemplate-get');
 
 describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,24 +21,24 @@ describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -52,11 +52,11 @@ describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.GROUPSETTINGTEMPLATE_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.GROUPSETTINGTEMPLATE_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('retrieves group setting template by id', (done) => {
@@ -69,10 +69,9 @@ describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false, id: '62375ab9-6b52-47ed-826b-58e47e0e304b' } }, () => {
+    command.action(logger, { options: { debug: false, id: '62375ab9-6b52-47ed-826b-58e47e0e304b' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({"id":"62375ab9-6b52-47ed-826b-58e47e0e304b","deletedDateTime":null,"displayName":"Group.Unified","description":"\n        Setting templates define the different settings that can be used for the associated ObjectSettings. This template defines\n        settings that can be used for Unified Groups.\n      ","values":[{"name":"CustomBlockedWordsList","type":"System.String","defaultValue":"","description":"A comma-delimited list of blocked words for Unified Group displayName and mailNickName."},{"name":"EnableMSStandardBlockedWords","type":"System.Boolean","defaultValue":"false","description":"A flag indicating whether or not to enable the Microsoft Standard list of blocked words for Unified Group displayName and mailNickName."},{"name":"ClassificationDescriptions","type":"System.String","defaultValue":"","description":"A comma-delimited list of structured strings describing the classification values in the ClassificationList. The structure of the string is: Value: Description"},{"name":"DefaultClassification","type":"System.String","defaultValue":"","description":"The classification value to be used by default for Unified Group creation."},{"name":"PrefixSuffixNamingRequirement","type":"System.String","defaultValue":"","description":"A structured string describing how a Unified Group displayName and mailNickname should be structured. Please refer to docs to discover how to structure a valid requirement."},{"name":"AllowGuestsToBeGroupOwner","type":"System.Boolean","defaultValue":"false","description":"Flag indicating if guests are allowed to be owner in any Unified Group."},{"name":"AllowGuestsToAccessGroups","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if guests are allowed to access any Unified Group resources."},{"name":"GuestUsageGuidelinesUrl","type":"System.String","defaultValue":"","description":"A link to the Group Usage Guidelines for guests."},{"name":"GroupCreationAllowedGroupId","type":"System.Guid","defaultValue":"","description":"Guid of the security group that is always allowed to create Unified Groups."},{"name":"AllowToAddGuests","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if guests are allowed in any Unified Group."},{"name":"UsageGuidelinesUrl","type":"System.String","defaultValue":"","description":"A link to the Group Usage Guidelines."},{"name":"ClassificationList","type":"System.String","defaultValue":"","description":"A comma-delimited list of valid classification values that can be applied to Unified Groups."},{"name":"EnableGroupCreation","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if group creation feature is on."}]}));
+        assert(loggerLogSpy.calledWith({"id":"62375ab9-6b52-47ed-826b-58e47e0e304b","deletedDateTime":null,"displayName":"Group.Unified","description":"\n        Setting templates define the different settings that can be used for the associated ObjectSettings. This template defines\n        settings that can be used for Unified Groups.\n      ","values":[{"name":"CustomBlockedWordsList","type":"System.String","defaultValue":"","description":"A comma-delimited list of blocked words for Unified Group displayName and mailNickName."},{"name":"EnableMSStandardBlockedWords","type":"System.Boolean","defaultValue":"false","description":"A flag indicating whether or not to enable the Microsoft Standard list of blocked words for Unified Group displayName and mailNickName."},{"name":"ClassificationDescriptions","type":"System.String","defaultValue":"","description":"A comma-delimited list of structured strings describing the classification values in the ClassificationList. The structure of the string is: Value: Description"},{"name":"DefaultClassification","type":"System.String","defaultValue":"","description":"The classification value to be used by default for Unified Group creation."},{"name":"PrefixSuffixNamingRequirement","type":"System.String","defaultValue":"","description":"A structured string describing how a Unified Group displayName and mailNickname should be structured. Please refer to docs to discover how to structure a valid requirement."},{"name":"AllowGuestsToBeGroupOwner","type":"System.Boolean","defaultValue":"false","description":"Flag indicating if guests are allowed to be owner in any Unified Group."},{"name":"AllowGuestsToAccessGroups","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if guests are allowed to access any Unified Group resources."},{"name":"GuestUsageGuidelinesUrl","type":"System.String","defaultValue":"","description":"A link to the Group Usage Guidelines for guests."},{"name":"GroupCreationAllowedGroupId","type":"System.Guid","defaultValue":"","description":"Guid of the security group that is always allowed to create Unified Groups."},{"name":"AllowToAddGuests","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if guests are allowed in any Unified Group."},{"name":"UsageGuidelinesUrl","type":"System.String","defaultValue":"","description":"A link to the Group Usage Guidelines."},{"name":"ClassificationList","type":"System.String","defaultValue":"","description":"A comma-delimited list of valid classification values that can be applied to Unified Groups."},{"name":"EnableGroupCreation","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if group creation feature is on."}]}));
         done();
       }
       catch (e) {
@@ -91,10 +90,9 @@ describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: true, displayName: 'Group.Unified' } }, () => {
+    command.action(logger, { options: { debug: true, displayName: 'Group.Unified' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({"id":"62375ab9-6b52-47ed-826b-58e47e0e304b","deletedDateTime":null,"displayName":"Group.Unified","description":"\n        Setting templates define the different settings that can be used for the associated ObjectSettings. This template defines\n        settings that can be used for Unified Groups.\n      ","values":[{"name":"CustomBlockedWordsList","type":"System.String","defaultValue":"","description":"A comma-delimited list of blocked words for Unified Group displayName and mailNickName."},{"name":"EnableMSStandardBlockedWords","type":"System.Boolean","defaultValue":"false","description":"A flag indicating whether or not to enable the Microsoft Standard list of blocked words for Unified Group displayName and mailNickName."},{"name":"ClassificationDescriptions","type":"System.String","defaultValue":"","description":"A comma-delimited list of structured strings describing the classification values in the ClassificationList. The structure of the string is: Value: Description"},{"name":"DefaultClassification","type":"System.String","defaultValue":"","description":"The classification value to be used by default for Unified Group creation."},{"name":"PrefixSuffixNamingRequirement","type":"System.String","defaultValue":"","description":"A structured string describing how a Unified Group displayName and mailNickname should be structured. Please refer to docs to discover how to structure a valid requirement."},{"name":"AllowGuestsToBeGroupOwner","type":"System.Boolean","defaultValue":"false","description":"Flag indicating if guests are allowed to be owner in any Unified Group."},{"name":"AllowGuestsToAccessGroups","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if guests are allowed to access any Unified Group resources."},{"name":"GuestUsageGuidelinesUrl","type":"System.String","defaultValue":"","description":"A link to the Group Usage Guidelines for guests."},{"name":"GroupCreationAllowedGroupId","type":"System.Guid","defaultValue":"","description":"Guid of the security group that is always allowed to create Unified Groups."},{"name":"AllowToAddGuests","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if guests are allowed in any Unified Group."},{"name":"UsageGuidelinesUrl","type":"System.String","defaultValue":"","description":"A link to the Group Usage Guidelines."},{"name":"ClassificationList","type":"System.String","defaultValue":"","description":"A comma-delimited list of valid classification values that can be applied to Unified Groups."},{"name":"EnableGroupCreation","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if group creation feature is on."}]}));
+        assert(loggerLogSpy.calledWith({"id":"62375ab9-6b52-47ed-826b-58e47e0e304b","deletedDateTime":null,"displayName":"Group.Unified","description":"\n        Setting templates define the different settings that can be used for the associated ObjectSettings. This template defines\n        settings that can be used for Unified Groups.\n      ","values":[{"name":"CustomBlockedWordsList","type":"System.String","defaultValue":"","description":"A comma-delimited list of blocked words for Unified Group displayName and mailNickName."},{"name":"EnableMSStandardBlockedWords","type":"System.Boolean","defaultValue":"false","description":"A flag indicating whether or not to enable the Microsoft Standard list of blocked words for Unified Group displayName and mailNickName."},{"name":"ClassificationDescriptions","type":"System.String","defaultValue":"","description":"A comma-delimited list of structured strings describing the classification values in the ClassificationList. The structure of the string is: Value: Description"},{"name":"DefaultClassification","type":"System.String","defaultValue":"","description":"The classification value to be used by default for Unified Group creation."},{"name":"PrefixSuffixNamingRequirement","type":"System.String","defaultValue":"","description":"A structured string describing how a Unified Group displayName and mailNickname should be structured. Please refer to docs to discover how to structure a valid requirement."},{"name":"AllowGuestsToBeGroupOwner","type":"System.Boolean","defaultValue":"false","description":"Flag indicating if guests are allowed to be owner in any Unified Group."},{"name":"AllowGuestsToAccessGroups","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if guests are allowed to access any Unified Group resources."},{"name":"GuestUsageGuidelinesUrl","type":"System.String","defaultValue":"","description":"A link to the Group Usage Guidelines for guests."},{"name":"GroupCreationAllowedGroupId","type":"System.Guid","defaultValue":"","description":"Guid of the security group that is always allowed to create Unified Groups."},{"name":"AllowToAddGuests","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if guests are allowed in any Unified Group."},{"name":"UsageGuidelinesUrl","type":"System.String","defaultValue":"","description":"A link to the Group Usage Guidelines."},{"name":"ClassificationList","type":"System.String","defaultValue":"","description":"A comma-delimited list of valid classification values that can be applied to Unified Groups."},{"name":"EnableGroupCreation","type":"System.Boolean","defaultValue":"true","description":"Flag indicating if group creation feature is on."}]}));
         done();
       }
       catch (e) {
@@ -113,10 +111,9 @@ describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false, id: '62375ab9-6b52-47ed-826b-58e47e0e304c' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: '62375ab9-6b52-47ed-826b-58e47e0e304c' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Resource '62375ab9-6b52-47ed-826b-58e47e0e304c' does not exist.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Resource '62375ab9-6b52-47ed-826b-58e47e0e304c' does not exist.`)));
         done();
       }
       catch (e) {
@@ -135,10 +132,9 @@ describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false, displayName: 'Invalid' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, displayName: 'Invalid' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Resource 'Invalid' does not exist.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Resource 'Invalid' does not exist.`)));
         done();
       }
       catch (e) {
@@ -152,10 +148,9 @@ describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: false, displayName: 'Invalid' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, displayName: 'Invalid' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`An error has occurred`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`An error has occurred`)));
         done();
       }
       catch (e) {
@@ -165,32 +160,32 @@ describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
   });
 
   it('fails validation if neither the id nor the displayName are specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both the id and the displayName are specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '68be84bf-a585-4776-80b3-30aa5207aa22', displayName: 'Group.Unified' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '68be84bf-a585-4776-80b3-30aa5207aa22', displayName: 'Group.Unified' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the id is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the id is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '68be84bf-a585-4776-80b3-30aa5207aa22' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '68be84bf-a585-4776-80b3-30aa5207aa22' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation if the displayName is specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { displayName: 'Group.Unified' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { displayName: 'Group.Unified' } });
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -198,39 +193,5 @@ describe(commands.GROUPSETTINGTEMPLATE_GET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.GROUPSETTINGTEMPLATE_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

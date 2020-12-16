@@ -5,19 +5,15 @@ Lists CDN policies settings for the current SharePoint Online tenant
 ## Usage
 
 ```sh
-spo cdn policy list [options]
+m365 spo cdn policy list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-t, --type [type]`|Type of CDN to manage. `Public,Private`. Default `Public`
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-t, --type [type]`
+: Type of CDN to manage. `Public,Private`. Default `Public`
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -31,13 +27,13 @@ Using the `-t, --type` option you can choose whether you want to manage the sett
 Show the list of policies configured for the Public CDN
 
 ```sh
-spo cdn policy list
+m365 spo cdn policy list
 ```
 
 Show the list of policies configured for the Private CDN
 
 ```sh
-spo cdn policy list -t Private
+m365 spo cdn policy list -t Private
 ```
 
 ## More information

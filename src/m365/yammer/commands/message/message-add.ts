@@ -1,10 +1,9 @@
-import { CommandOption, CommandValidate } from '../../../../Command';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import YammerCommand from '../../../base/YammerCommand';
 import commands from '../../commands';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -36,14 +35,18 @@ class YammerMessageAddCommand extends YammerCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['id'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const requestOptions: any = {
       url: `${this.resource}/v1/messages.json`,
       headers: {
         accept: 'application/json;odata.metadata=none',
         'content-type': 'application/json;odata=nometadata'
       },
-      json: true,
+      responseType: 'json',
       body: {
         body: args.options.body,
         replied_to_id: args.options.repliedToId,
@@ -61,16 +64,9 @@ class YammerMessageAddCommand extends YammerCommand {
           result = res.messages[0];
         }
 
-        if (args.options.output === 'json') {
-          cmd.log(result);
-        }
-        else {
-          cmd.log({
-            id: result.id
-          });
-        }
+        logger.log(result);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -101,61 +97,20 @@ class YammerMessageAddCommand extends YammerCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.body) {
-        return 'Required body value is missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.groupId && typeof args.options.groupId !== 'number') {
+      return `${args.options.groupId} is not a number`;
+    }
 
-      if (args.options.groupId && typeof args.options.groupId !== 'number') {
-        return `${args.options.groupId} is not a number`;
-      }
+    if (args.options.networkId && typeof args.options.networkId !== 'number') {
+      return `${args.options.networkId} is not a number`;
+    }
 
-      if (args.options.networkId && typeof args.options.networkId !== 'number') {
-        return `${args.options.networkId} is not a number`;
-      }
+    if (args.options.repliedToId && typeof args.options.repliedToId !== 'number') {
+      return `${args.options.repliedToId} is not a number`;
+    }
 
-      if (args.options.repliedToId && typeof args.options.repliedToId !== 'number') {
-        return `${args.options.repliedToId} is not a number`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-  
-    ${chalk.yellow('Attention:')} In order to use this command, you need to grant the Azure AD
-    application used by the CLI for Microsoft 365 the permission to the Yammer API.
-    To do this, execute the ${chalk.blue('cli consent --service yammer')} command.
-    
-  Examples:
-  
-    Posts a message to the "All Company" feed 
-      ${this.name} --body "Hello everyone!"
-
-    Replies to a message with the ID 1231231231 
-      ${this.name} --body "Hello everyone!" --repliedToId 1231231231
-    
-    Sends a private conversation to the user with the ID 1231231231 
-      ${this.name} --body "Hello everyone!" --directToUserIds 1231231231
-
-    Sends a private conversation to multiple users by ID
-      ${this.name} --body "Hello everyone!" --directToUserIds "1231231231,1121312"
-
-    Sends a private conversation to the user with the e-mail pl@nubo.eu and sc@nubo.eu 
-      ${this.name} --body "Hello everyone!" --directToUserIds "pl@nubo.eu,sc@nubo.eu"
-     
-    Posts a message to the group with the ID 12312312312 
-      ${this.name} --body "Hello everyone!" --groupId 12312312312
-
-    Posts a message to the "All Company" feed of the network 11112312 
-      ${this.name} --body "Hello everyone!" --networkId 11112312
-    `);
+    return true;
   }
 }
 

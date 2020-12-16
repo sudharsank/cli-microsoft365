@@ -1,14 +1,12 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { CustomAction } from './customaction';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -34,13 +32,17 @@ class SpoCustomActionListCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['Name', 'Location', 'Scope', 'Id'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const scope: string = args.options.scope ? args.options.scope : 'All';
 
     ((): Promise<CustomAction[]> => {
       if (this.debug) {
-        cmd.log(`Attempt to get custom actions list with scope: ${scope}`);
-        cmd.log('');
+        logger.logToStderr(`Attempt to get custom actions list with scope: ${scope}`);
+        logger.logToStderr('');
       }
 
       if (scope && scope.toLowerCase() !== "all") {
@@ -52,26 +54,18 @@ class SpoCustomActionListCommand extends SpoCommand {
       .then((customActions: CustomAction[]): void => {
         if (customActions.length === 0) {
           if (this.verbose) {
-            cmd.log(`Custom actions not found`);
+            logger.logToStderr(`Custom actions not found`);
           }
         }
         else {
-          if (args.options.output === 'json') {
-            cmd.log(customActions);
+          if (args.options.output !== 'json') {
+            customActions.forEach(a => a.Scope = this.humanizeScope(a.Scope) as any);
           }
-          else {
-            cmd.log(customActions.map(a => {
-              return {
-                Name: a.Name,
-                Location: a.Location,
-                Scope: this.humanizeScope(a.Scope),
-                Id: a.Id
-              };
-            }));
-          }
+
+          logger.log(customActions);
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   private getCustomActions(options: Options): Promise<CustomAction[]> {
@@ -80,7 +74,7 @@ class SpoCustomActionListCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     return new Promise<CustomAction[]>((resolve: (list: CustomAction[]) => void, reject: (error: any) => void): void => {
@@ -149,59 +143,20 @@ class SpoCustomActionListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
+  public validate(args: CommandArgs): boolean | string {
+    if (SpoCommand.isValidSharePointUrl(args.options.url) !== true) {
+      return 'Missing required option url';
+    }
 
-      if (SpoCommand.isValidSharePointUrl(args.options.url) !== true) {
-        return 'Missing required option url';
+    if (args.options.scope) {
+      if (args.options.scope !== 'Site' &&
+        args.options.scope !== 'Web' &&
+        args.options.scope !== 'All') {
+        return `${args.options.scope} is not a valid custom action scope. Allowed values are Site|Web|All`;
       }
+    }
 
-      if (args.options.scope) {
-        if (args.options.scope !== 'Site' &&
-          args.options.scope !== 'Web' &&
-          args.options.scope !== 'All') {
-          return `${args.options.scope} is not a valid custom action scope. Allowed values are Site|Web|All`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.CUSTOMACTION_LIST).helpInformation());
-    log(
-      `  Remarks:
-
-    When using the text output type (default), the command lists only the values
-    of the ${chalk.grey('Name')}, ${chalk.grey('Location')}, ${chalk.grey('Scope')} and ${chalk.grey('Id')} properties of the custom action.
-    When setting the output type to JSON, all available properties are included
-    in the command output.
-
-  Examples:
-  
-    Return details about all user custom actions located
-    in site or site collection ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_LIST} --url https://contoso.sharepoint.com/sites/test
-
-    Return details about all user custom actions located
-    in site or site collection ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_LIST} --url https://contoso.sharepoint.com/sites/test
-
-    Return details about all user custom actions located 
-    in site collection ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_LIST} --url https://contoso.sharepoint.com/sites/test --scope Site
-
-    Return details about all user custom actions located 
-    in site ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_LIST} --url https://contoso.sharepoint.com/sites/test --scope Web
-
-  More information:
-
-    UserCustomAction REST API resources:
-      https://msdn.microsoft.com/en-us/library/office/dn531432.aspx#bk_UserCustomAction
-      `);
+    return true;
   }
 }
 

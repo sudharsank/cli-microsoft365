@@ -5,19 +5,15 @@ Lists tenant properties stored on the specified SharePoint Online app catalog
 ## Usage
 
 ```sh
-spo storageentity list [options]
+m365 spo storageentity list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --appCatalogUrl <appCatalogUrl>`|URL of the app catalog site
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --appCatalogUrl <appCatalogUrl>`
+: URL of the app catalog site
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -28,7 +24,7 @@ Tenant properties are stored in the app catalog site. To list all tenant propert
 List all tenant properties stored in the _https://contoso.sharepoint.com/sites/appcatalog_ app catalog site
 
 ```sh
-spo storageentity list -u https://contoso.sharepoint.com/sites/appcatalog
+m365 spo storageentity list -u https://contoso.sharepoint.com/sites/appcatalog
 ```
 
 ## More information

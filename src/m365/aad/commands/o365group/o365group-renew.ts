@@ -1,14 +1,13 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -27,9 +26,9 @@ class AadO365GroupRenewCommand extends GraphCommand {
     return `Renews Microsoft 365 group's expiration`;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Renewing Microsoft 365 group's expiration: ${args.options.id}...`);
+      logger.logToStderr(`Renewing Microsoft 365 group's expiration: ${args.options.id}...`);
     }
 
     const requestOptions: any = {
@@ -43,11 +42,11 @@ class AadO365GroupRenewCommand extends GraphCommand {
       .post(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -62,35 +61,12 @@ class AadO365GroupRenewCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required option id missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('id')} doesn't refer to an existing group, you will get
-    a ${chalk.grey('The remote server returned an error: (404) Not Found.')} error.
-
-  Examples:
-
-    Renew expiration of a Microsoft 365 group with ID
-    ${chalk.grey('28beab62-7540-4db1-a23f-29a6018a3848')}.
-      ${this.name} --id 28beab62-7540-4db1-a23f-29a6018a3848
-  `);
+    return true;
   }
 }
 

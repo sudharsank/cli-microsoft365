@@ -1,13 +1,13 @@
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -36,7 +36,7 @@ class AadUserGetCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const properties: string = args.options.properties ?
       `?$select=${args.options.properties.split(',').map(p => encodeURIComponent(p.trim())).join(',')}` :
       '';
@@ -46,20 +46,20 @@ class AadUserGetCommand extends GraphCommand {
       headers: {
         accept: 'application/json;odata.metadata=none'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get(requestOptions)
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -82,55 +82,21 @@ class AadUserGetCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id && !args.options.userName) {
-        return 'Specify either id or userName';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.id && !args.options.userName) {
+      return 'Specify either id or userName';
+    }
 
-      if (args.options.id && args.options.userName) {
-        return 'Specify either id or userName but not both';
-      }
+    if (args.options.id && args.options.userName) {
+      return 'Specify either id or userName but not both';
+    }
 
-      if (args.options.id &&
-        !Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
+    if (args.options.id &&
+      !Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    You can retrieve information about a user, either by specifying that user's
-    id or user name (${chalk.grey(`userPrincipalName`)}), but not both.
-
-    If the user with the specified id or user name doesn't exist, you will get
-    a ${chalk.grey(`Resource 'xyz' does not exist or one of its queried reference-property`)}
-    ${chalk.grey(`objects are not present.`)} error.
-
-  Examples:
-
-    Get information about the user with id ${chalk.grey(`1caf7dcd-7e83-4c3a-94f7-932a1299c844`)}
-      ${this.name} --id 1caf7dcd-7e83-4c3a-94f7-932a1299c844
-
-    Get information about the user with user name ${chalk.grey(`AarifS@contoso.onmicrosoft.com`)}
-      ${this.name} --userName AarifS@contoso.onmicrosoft.com
-
-    For the user with id ${chalk.grey(`1caf7dcd-7e83-4c3a-94f7-932a1299c844`)}
-    retrieve the user name, e-mail address and full name
-      ${this.name} --id 1caf7dcd-7e83-4c3a-94f7-932a1299c844 --properties "userPrincipalName,mail,displayName"
-
-  More information:
-
-    Microsoft Graph User properties
-      https://developer.microsoft.com/en-us/graph/docs/api-reference/v1.0/resources/user#properties
-`);
+    return true;
   }
 }
 

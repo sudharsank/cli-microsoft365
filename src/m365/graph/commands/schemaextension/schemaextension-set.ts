@@ -1,13 +1,13 @@
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import GraphCommand from '../../../base/GraphCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import GraphCommand from '../../../base/GraphCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -40,13 +40,13 @@ class GraphSchemaExtensionSetCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Updating schema extension with id '${args.options.id}'...`);
+      logger.logToStderr(`Updating schema extension with id '${args.options.id}'...`);
     }
 
-    // The default request body always contains owner
-    const body: {
+    // The default request data always contains owner
+    const data: {
       owner: string;
       description?: string;
       status?: string;
@@ -56,42 +56,42 @@ class GraphSchemaExtensionSetCommand extends GraphCommand {
       owner: args.options.owner
     };
 
-    // Add the description to request body if any
+    // Add the description to request data if any
     if (args.options.description) {
       if (this.debug) {
-        cmd.log(`Will update description to '${args.options.description}'...`);
+        logger.logToStderr(`Will update description to '${args.options.description}'...`);
       }
-      body.description = args.options.description;
+      data.description = args.options.description;
     }
 
-    // Add the status to request body if any
+    // Add the status to request data if any
     if (args.options.status) {
       if (this.debug) {
-        cmd.log(`Will update status to '${args.options.status}'...`);
+        logger.logToStderr(`Will update status to '${args.options.status}'...`);
       }
-      body.status = args.options.status;
+      data.status = args.options.status;
     }
 
-    // Add the target types to request body if any
+    // Add the target types to request data if any
     const targetTypes: string[] = args.options.targetTypes
       ? args.options.targetTypes.split(',').map(t => t.trim())
       : [];
     if (targetTypes.length > 0) {
       if (this.debug) {
-        cmd.log(`Will update targetTypes to '${args.options.targetTypes}'...`);
+        logger.logToStderr(`Will update targetTypes to '${args.options.targetTypes}'...`);
       }
-      body.targetTypes = targetTypes;
+      data.targetTypes = targetTypes;
     }
 
-    // Add the properties to request body if any
+    // Add the properties to request data if any
     const properties: any = args.options.properties
       ? JSON.parse(args.options.properties)
       : null;
     if (properties) {
       if (this.debug) {
-        cmd.log(`Will update properties to '${args.options.properties}'...`);
+        logger.logToStderr(`Will update properties to '${args.options.properties}'...`);
       }
-      body.properties = properties;
+      data.properties = properties;
     }
 
     const requestOptions: any = {
@@ -100,23 +100,23 @@ class GraphSchemaExtensionSetCommand extends GraphCommand {
         accept: 'application/json;odata.metadata=none',
         'content-type': 'application/json'
       },
-      body,
-      json: true
+      data,
+      responseType: 'json'
     };
 
     request
       .patch(requestOptions)
       .then((res: any): void => {
         if (this.debug) {
-          cmd.log("Schema extension successfully updated.");
+          logger.logToStderr("Schema extension successfully updated.");
         }
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -151,35 +151,25 @@ class GraphSchemaExtensionSetCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required option id is missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.owner)) {
+      return `The specified owner '${args.options.owner}' is not a valid App Id`;
+    }
 
-      if (!args.options.owner) {
-        return 'Required option owner is missing';
-      }
+    if (!args.options.status && !args.options.properties && !args.options.targetTypes && !args.options.description) {
+      return `No updates were specified. Please specify at least one argument among --status, --targetTypes, --description or --properties`
+    }
 
-      if (!Utils.isValidGuid(args.options.owner)) {
-        return `The specified owner '${args.options.owner}' is not a valid App Id`;
-      }
+    const validStatusValues = ['Available', 'Deprecated'];
+    if (args.options.status && validStatusValues.indexOf(args.options.status) < 0) {
+      return `Status option is invalid. Valid statuses are: Available or Deprecated`;
+    }
 
-      if (!args.options.status && !args.options.properties && !args.options.targetTypes && !args.options.description) {
-        return `No updates were specified. Please specify at least one argument among --status, --targetTypes, --description or --properties`
-      }
+    if (args.options.properties) {
+      return this.validateProperties(args.options.properties);
+    }
 
-      const validStatusValues = ['Available', 'Deprecated'];
-      if (args.options.status && validStatusValues.indexOf(args.options.status) < 0) {
-        return `Status option is invalid. Valid statuses are: Available or Deprecated`;
-      }
-
-      if (args.options.properties) {
-        return this.validateProperties(args.options.properties);
-      }
-
-      return true;
-    };
+    return true;
   }
 
   private validateProperties(propertiesString: string): boolean | string {
@@ -215,42 +205,6 @@ class GraphSchemaExtensionSetCommand extends GraphCommand {
     }
 
     return ['Binary', 'Boolean', 'DateTime', 'Integer', 'String'].indexOf(propertyType) > -1;
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    The lifecycle state of the schema extension. 
-    The initial state upon creation is ${chalk.grey("InDevelopment")}.
-    Possible states transitions are from ${chalk.grey("InDevelopment")} to ${chalk.grey("Available")} and ${chalk.grey("Available")} to ${chalk.grey("Deprecated")}.
-
-    The target types are the set of Microsoft Graph resource types (that support
-    schema extensions) that this schema extension definition can be applied to
-    This option is specified as a comma-separated list.
-
-    When specifying the JSON string of properties on Windows, you
-    have to escape double quotes in a specific way. Considering the following
-    value for the properties option: {"Foo":"Bar"},
-    you should specify the value as ${chalk.grey('\`"{""Foo"":""Bar""}"\`')}.
-    In addition, when using PowerShell, you should use the --% argument.
-
-  Examples:
-  
-    Update the description of a schema extension
-      ${this.name} --id MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b  --description "My schema extension" 
-
-    Update the target types and properties of a schema extension
-      ${this.name} --id contoso_MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --description "My schema extension" --targetTypes "Group,User" --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --properties \`"[{""name"":""myProp1"",""type"":""Integer""},{""name"":""myProp2"",""type"":""String""}]\`
-
-    Update the properties of a schema extension in PowerShell
-      ${this.name} --id MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --properties --% \`"[{""name"":""myProp1"",""type"":""Integer""},{""name"":""myProp2"",""type"":""String""}]\`
-
-    Change the status of a schema extension to 'Available'
-      ${this.name} --id contoso_MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b  --status Available
-`);
   }
 }
 

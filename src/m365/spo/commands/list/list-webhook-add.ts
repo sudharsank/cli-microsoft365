@@ -1,14 +1,13 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
-const vorpal: Vorpal = require('../../../../vorpal-init');
 const expirationDateTimeMaxDays = 180;
 const maxExpirationDateTime: Date = new Date();
 // 180 days from now is the maximum expiration date for a webhook
@@ -45,9 +44,9 @@ class SpoListWebhookAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Adding webhook to list ${args.options.listId ? encodeURIComponent(args.options.listId) : encodeURIComponent(args.options.listTitle as string)} located at site ${args.options.webUrl}...`);
+      logger.logToStderr(`Adding webhook to list ${args.options.listId ? encodeURIComponent(args.options.listId) : encodeURIComponent(args.options.listTitle as string)} located at site ${args.options.webUrl}...`);
     }
 
     let requestUrl: string = '';
@@ -77,18 +76,18 @@ class SpoListWebhookAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      body: requestBody,
-      json: true
+      data: requestBody,
+      responseType: 'json'
     };
 
     request
       .post(requestOptions)
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         cb();
       }, (err: any): void => {
-        this.handleRejectedODataJsonPromise(err, cmd, cb)
+        this.handleRejectedODataJsonPromise(err, logger, cb)
       });
   }
 
@@ -124,74 +123,40 @@ class SpoListWebhookAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
+    if (args.options.listId) {
+      if (!Utils.isValidGuid(args.options.listId)) {
+        return `${args.options.listId} is not a valid GUID`;
       }
+    }
 
-      if (args.options.listId) {
-        if (!Utils.isValidGuid(args.options.listId)) {
-          return `${args.options.listId} is not a valid GUID`;
-        }
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return 'Specify listId or listTitle, but not both';
+    }
 
-      if (args.options.listId && args.options.listTitle) {
-        return 'Specify listId or listTitle, but not both';
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return 'Specify listId or listTitle, one is required';
+    }
 
-      if (!args.options.listId && !args.options.listTitle) {
-        return 'Specify listId or listTitle, one is required';
-      }
-
-      if (!args.options.notificationUrl) {
-        return 'Required parameter notificationUrl missing';
-      }
-
-      const parsedDateTime = Date.parse(args.options.expirationDateTime as string)
-      if (args.options.expirationDateTime && !(!parsedDateTime) !== true) {
-        return `Provide the date in one of the following formats:
+    const parsedDateTime = Date.parse(args.options.expirationDateTime as string)
+    if (args.options.expirationDateTime && !(!parsedDateTime) !== true) {
+      return `Provide the date in one of the following formats:
       'YYYY-MM-DD'
       'YYYY-MM-DDThh:mm'
       'YYYY-MM-DDThh:mmZ'
       'YYYY-MM-DDThh:mm±hh:mm'`;
-      }
+    }
 
-      if (parsedDateTime < Date.now() || new Date(parsedDateTime) >= maxExpirationDateTime) {
-        return `Provide an expiration date which is a date time in the future and within 6 months from now`;
-      }
+    if (parsedDateTime < Date.now() || new Date(parsedDateTime) >= maxExpirationDateTime) {
+      return `Provide an expiration date which is a date time in the future and within 6 months from now`;
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Add a web hook to the list ${chalk.grey('Documents')} located in site 
-    ${chalk.grey('https://contoso.sharepoint.com/sites/ninja')} with the notification url 
-    ${chalk.grey('https://contoso-functions.azurewebsites.net/webhook')} and the default expiration date
-    ${commands.LIST_WEBHOOK_ADD} --webUrl https://contoso.sharepoint.com/sites/ninja --listTitle Documents --notificationUrl https://contoso-functions.azurewebsites.net/webhook
-
-    Add a web hook to the list ${chalk.grey('Documents')} located in site 
-    ${chalk.grey('https://contoso.sharepoint.com/sites/ninja')} with the notification url 
-    ${chalk.grey('https://contoso-functions.azurewebsites.net/webhook')} and an expiration date of ${chalk.grey('January 21st, 2019')}
-    ${commands.LIST_WEBHOOK_ADD} --webUrl https://contoso.sharepoint.com/sites/ninja --listTitle Documents --notificationUrl https://contoso-functions.azurewebsites.net/webhook --expirationDateTime 2019-01-21
-    
-    Add a web hook to the list ${chalk.grey('Documents')} located in site 
-    ${chalk.grey('https://contoso.sharepoint.com/sites/ninja')} with the notification url 
-    ${chalk.grey('https://contoso-functions.azurewebsites.net/webhook')}, a very specific expiration date
-    of ${chalk.grey('6:15 PM on March 2nd, 2019')} and a client state
-    ${commands.LIST_WEBHOOK_ADD} --webUrl https://contoso.sharepoint.com/sites/ninja --listTitle Documents --notificationUrl https://contoso-functions.azurewebsites.net/webhook --expirationDateTime '2019-03-02T18:15' --clientState "Hello State!"
-      `);
+    return true;
   }
 }
 

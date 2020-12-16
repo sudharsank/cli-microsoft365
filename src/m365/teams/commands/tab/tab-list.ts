@@ -1,13 +1,13 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import Utils from '../../../../Utils';
-import { Tab } from '../../Tab';
 import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { Tab } from '../../Tab';
 
 interface CommandArgs {
   options: Options;
@@ -27,31 +27,28 @@ class TeamsTabListCommand extends GraphItemsListCommand<Tab> {
     return 'Lists tabs in the specified Microsoft Teams channel';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['id', 'displayName', 'teamsAppTabId'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const endpoint: string = `${this.resource}/v1.0/teams/${args.options.teamId}/channels/${encodeURIComponent(args.options.channelId)}/tabs?$expand=teamsApp`;
 
     this
-      .getAllItems(endpoint, cmd, true)
+      .getAllItems(endpoint, logger, true)
       .then((): void => {
-        if (args.options.output === 'json') {
-          cmd.log(this.items);
-        }
-        else {
-          cmd.log(this.items.map((t: Tab) => {
-            return {
-              id: t.id,
-              displayName: t.displayName,
-              teamsAppTabId: t.teamsApp.id,
-            }
-          }));
-        }
+        this.items.forEach(i => {
+          (i as any).teamsAppTabId = i.teamsApp.id;
+        });
+
+        logger.log(this.items);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -70,46 +67,16 @@ class TeamsTabListCommand extends GraphItemsListCommand<Tab> {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId as string)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (!args.options.channelId) {
-        return 'Required parameter channelId missing';
-      }
+    if (!Utils.isValidTeamsChannelId(args.options.channelId as string)) {
+      return `${args.options.channelId} is not a valid Teams ChannelId`;
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId as string)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      if (!Utils.isValidTeamsChannelId(args.options.channelId as string)) {
-        return `${args.options.channelId} is not a valid Teams ChannelId`;
-      } 
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    You can only retrieve tabs for teams of which you are a member.
-
-    Tabs 'Conversations' and 'Files' are present in every team and therefore not
-    included in the list of available tabs.
-
-  Examples:
-  
-    List all tabs in a Microsoft Teams channel
-      ${this.name} --teamId 00000000-0000-0000-0000-000000000000 --channelId 19:00000000000000000000000000000000@thread.skype
-
-    Include all the values from the tab configuration and associated teams app
-      ${this.name} --teamId 00000000-0000-0000-0000-000000000000 --channelId 19:00000000000000000000000000000000@thread.skype --output json
-`);
+    return true;
   }
 }
 

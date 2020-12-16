@@ -1,22 +1,19 @@
-import commands from '../../commands';
-import Command, {
-  CommandOption, CommandError, CommandAction, CommandValidate
-} from '../../../../Command';
-import GlobalOptions from '../../../../GlobalOptions';
-import * as path from 'path';
 import * as fs from 'fs';
-import { Finding, Hash, Dictionary } from './project-upgrade/';
-import { Rule } from './project-upgrade/rules/Rule';
 import * as os from 'os';
-import { Project } from './model';
-import { FindingToReport } from './project-upgrade/FindingToReport';
-import { FN017001_MISC_npm_dedupe } from './project-upgrade/rules/FN017001_MISC_npm_dedupe';
-import { ReportData, ReportDataModification } from './ReportData';
+import * as path from 'path';
+import { Logger } from '../../../../cli';
+import { CommandError, CommandOption } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import commands from '../../commands';
 import { BaseProjectCommand } from './base-project-command';
+import { Project } from './model';
+import { Dictionary, Finding, Hash } from './project-upgrade/';
+import { FindingToReport } from './project-upgrade/FindingToReport';
 import { FindingTour } from './project-upgrade/FindingTour';
 import { FindingTourStep } from './project-upgrade/FindingTourStep';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { FN017001_MISC_npm_dedupe } from './project-upgrade/rules/FN017001_MISC_npm_dedupe';
+import { Rule } from './project-upgrade/rules/Rule';
+import { ReportData, ReportDataModification } from './ReportData';
 
 interface CommandArgs {
   options: Options;
@@ -103,9 +100,9 @@ class SpfxProjectUpgradeCommand extends BaseProjectCommand {
   private static createDirectoryCommands = {
     bash: {
       createDirectoryCommand: 'mkdir',
-      createDirectoryPathParam: ' ',
+      createDirectoryPathParam: ' "',
       createDirectoryNameParam: '/',
-      createDirectoryItemTypeParam: '',
+      createDirectoryItemTypeParam: '"',
     },
     powershell: {
       createDirectoryCommand: 'New-Item',
@@ -169,16 +166,7 @@ class SpfxProjectUpgradeCommand extends BaseProjectCommand {
     return telemetryProps;
   }
 
-  public action(): CommandAction {
-    const cmd: Command = this;
-    return function (this: CommandInstance, args: CommandArgs, cb: (err?: any) => void) {
-      args = (cmd as any).processArgs(args);
-      (cmd as any).initAction(args, this);
-      cmd.commandAction(this, args, cb);
-    }
-  }
-
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     this.projectRootPath = this.getProjectRoot(process.cwd());
     if (this.projectRootPath === null) {
       cb(new CommandError(`Couldn't find project root folder`, SpfxProjectUpgradeCommand.ERROR_NO_PROJECT_ROOT_FOLDER));
@@ -213,19 +201,19 @@ class SpfxProjectUpgradeCommand extends BaseProjectCommand {
     }
 
     if (pos === posTo) {
-      cmd.log(`Project doesn't need to be upgraded`);
+      logger.log(`Project doesn't need to be upgraded`);
       cb();
       return;
     }
 
     if (this.verbose) {
-      cmd.log('Collecting project...');
+      logger.logToStderr('Collecting project...');
     }
     const project: Project = this.getProject(this.projectRootPath);
 
     if (this.debug) {
-      cmd.log('Collected project');
-      cmd.log(project);
+      logger.logToStderr('Collected project');
+      logger.logToStderr(project);
     }
 
     // reverse the list of versions to upgrade to, so that most recent findings
@@ -361,29 +349,30 @@ class SpfxProjectUpgradeCommand extends BaseProjectCommand {
 
     switch (args.options.output) {
       case 'json':
-        cmd.log(findingsToReport);
+        logger.log(findingsToReport);
         break;
       case 'tour':
-        this.writeReportTourFolder(this.getTourReport(findingsToReport, project), cmd, args.options);
+        this.writeReportTourFolder(this.getTourReport(findingsToReport, project), logger, args.options);
         break;
       case 'md':
-        cmd.log(this.getMdReport(findingsToReport));       
+        logger.log(this.getMdReport(findingsToReport));
         break;
       default:
-        cmd.log(this.getTextReport(findingsToReport));
+        logger.log(this.getTextReport(findingsToReport));
     }
 
     cb();
   }
 
-  private writeReportTourFolder(findingsToReport: any, cmd: CommandInstance, options: Options): void {
+  private writeReportTourFolder(findingsToReport: any, logger: Logger, options: Options): void {
     const toursFolder: string = path.join(this.projectRootPath as string, '.tours');
 
     if (!fs.existsSync(toursFolder)) {
       fs.mkdirSync(toursFolder, { recursive: false });
     }
-    const tourFilePath = path.join(this.projectRootPath as string, '.tours', 'upgrade.tour');
-    fs.writeFileSync(path.resolve(tourFilePath),findingsToReport, 'utf-8');
+
+    const tourFilePath: string = path.join(this.projectRootPath as string, '.tours', 'upgrade.tour');
+    fs.writeFileSync(path.resolve(tourFilePath), findingsToReport, 'utf-8');
   }
 
   private getTextReport(findings: FindingToReport[]): string {
@@ -723,82 +712,20 @@ ${f.resolution}
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (args.options.packageManager) {
-        if (['npm', 'pnpm', 'yarn'].indexOf(args.options.packageManager) < 0) {
-          return `${args.options.packageManager} is not a supported package manager. Supported package managers are npm, pnpm and yarn`;
-        }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.packageManager) {
+      if (['npm', 'pnpm', 'yarn'].indexOf(args.options.packageManager) < 0) {
+        return `${args.options.packageManager} is not a supported package manager. Supported package managers are npm, pnpm and yarn`;
       }
+    }
 
-      if (args.options.shell) {
-        if (['bash', 'powershell', 'cmd'].indexOf(args.options.shell) < 0) {
-          return `${args.options.shell} is not a supported shell. Supported shells are bash, powershell and cmd`;
-        }
-      }     
+    if (args.options.shell) {
+      if (['bash', 'powershell', 'logger'].indexOf(args.options.shell) < 0) {
+        return `${args.options.shell} is not a supported shell. Supported shells are bash, powershell and cmd`;
+      }
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: any, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.PROJECT_UPGRADE).helpInformation());
-    log(
-      `   ${chalk.yellow('Important:')} Run this command in the folder where the project
-    that you want to upgrade is located. This command doesn't change your
-    project files.
-      
-  Remarks:
-
-    The ${this.name} command helps you upgrade your SharePoint Framework
-    project to the specified version. If no version is specified, the command
-    will upgrade to the latest version of the SharePoint Framework it supports
-    (v1.11.0).
-
-    This command doesn't change your project files. Instead, it gives you
-    a report with all steps necessary to upgrade your project to the specified
-    version of the SharePoint Framework. Changing project files is error-prone,
-    especially when it comes to updating your solution's code. This is why at
-    this moment, this command produces a report that you can use yourself to
-    perform the necessary updates and verify that everything is working as
-    expected.
-
-    Using this command you can upgrade SharePoint Framework projects built using
-    versions: 1.0.0, 1.0.1, 1.0.2, 1.1.0, 1.1.1, 1.1.3, 1.2.0, 1.3.0, 1.3.1,
-    1.3.2, 1.3.4, 1.4.0, 1.4.1, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0,
-    1.8.1, 1.8.2, 1.9.1 and 1.10.0.
-
-  Examples:
-  
-    Get instructions to upgrade the current SharePoint Framework project to
-    SharePoint Framework version 1.5.0 and save the findings in a Markdown file
-      ${this.name} --toVersion 1.5.0 --output md > "upgrade-report.md"
-
-    Get instructions to Upgrade the current SharePoint Framework project to
-    SharePoint Framework version 1.5.0 and show the summary of the findings
-    in the shell
-      ${this.name} --toVersion 1.5.0
-
-    Get instructions to upgrade the current SharePoint Framework project to the
-    latest SharePoint Framework version supported by the CLI for Microsoft 365 using
-    pnpm
-      ${this.name} --packageManager pnpm
-
-    Get instructions to upgrade the current SharePoint Framework project to the
-    latest SharePoint Framework version supported by the CLI for Microsoft 365
-      ${this.name}
-
-    Get instructions to upgrade the current SharePoint Framework project to the
-    latest SharePoint Framework version supported by the CLI for Microsoft 365 using
-    PowerShell
-      ${this.name} --shell powershell
-
-    Get instructions to upgrade the current SharePoint Framework project to
-    the latest version of SharePoint Framework and save the findings in a 
-    CodeTour file
-        ${this.name} --output tour
-`);
+    return true;
   }
 }
 

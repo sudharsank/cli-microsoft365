@@ -1,14 +1,13 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { NavigationNode } from './NavigationNode';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -34,9 +33,9 @@ class SpoNavigationNodeListCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving navigation nodes...`);
+      logger.logToStderr(`Retrieving navigation nodes...`);
     }
 
     const requestOptions: any = {
@@ -44,13 +43,13 @@ class SpoNavigationNodeListCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get<{ value: NavigationNode[] }>(requestOptions)
       .then((res: { value: NavigationNode[] }): void => {
-        cmd.log(res.value.map(n => {
+        logger.log(res.value.map(n => {
           return {
             Id: n.Id,
             Title: n.Title,
@@ -59,11 +58,11 @@ class SpoNavigationNodeListCommand extends SpoCommand {
         }));
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -83,42 +82,18 @@ class SpoNavigationNodeListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required option webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.location !== 'QuickLaunch' &&
+      args.options.location !== 'TopNavigationBar') {
+      return `${args.options.location} is not a valid value for the location option. Allowed values are QuickLaunch|TopNavigationBar`;
+    }
 
-      if (!args.options.location) {
-        return 'Required option location missing';
-      }
-      else {
-        if (args.options.location !== 'QuickLaunch' &&
-          args.options.location !== 'TopNavigationBar') {
-          return `${args.options.location} is not a valid value for the location option. Allowed values are QuickLaunch|TopNavigationBar`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (message: string) => void): void {
-    log(vorpal.find(commands.NAVIGATION_NODE_LIST).helpInformation());
-    log(
-      `  Examples:
-  
-    Retrieve nodes from the top navigation
-      ${commands.NAVIGATION_NODE_LIST} --webUrl https://contoso.sharepoint.com/sites/team-a --location TopNavigationBar
-
-    Retrieve nodes from the quick launch
-      ${commands.NAVIGATION_NODE_LIST} --webUrl https://contoso.sharepoint.com/sites/team-a --location QuickLaunch
-`);
+    return true;
   }
 }
 

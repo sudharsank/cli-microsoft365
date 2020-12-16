@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN006003_CFG_PS_isDomainIsolated } from './FN006003_CFG_PS_isDomainIsolated';
 
 describe('FN006003_CFG_PS_isDomainIsolated', () => {
@@ -23,7 +23,7 @@ describe('FN006003_CFG_PS_isDomainIsolated', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if package-solution.json is not available', () => {
@@ -31,6 +31,6 @@ describe('FN006003_CFG_PS_isDomainIsolated', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

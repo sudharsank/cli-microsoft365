@@ -5,20 +5,21 @@ Adds a user to a Yammer Group
 ## Usage
 
 ```sh
-yammer group user add [options]
+m365 yammer group user add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--id <id>`|The ID of the group to add the user to
-`--userId [userId]`|ID of the user to add to the group. If not specified, adds the current user
-`--email [email]`|E-mail of the user to add to the group
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--id <id>`
+: The ID of the group to add the user to
+
+`--userId [userId]`
+: ID of the user to add to the group. If not specified, adds the current user
+
+`--email [email]`
+: E-mail of the user to add to the group
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -32,17 +33,17 @@ If the specified user is not a member of the network, the command will return an
 Adds the current user to the group with the ID `5611239081`
 
 ```sh
-yammer group user add --id 5611239081
+m365 yammer group user add --id 5611239081
 ```
 
 Adds the user with ID `66622349` to the group with the ID `5611239081`
 
 ```sh
-yammer group user add --id 5611239081 --userId 66622349
+m365 yammer group user add --id 5611239081 --userId 66622349
 ```
 
 Adds the user with e-mail `suzy@contoso.com` to the group with ID `5611239081`
 
 ```sh
-yammer group user add --id 5611239081 --email suzy@contoso.com
+m365 yammer group user add --id 5611239081 --email suzy@contoso.com
 ```

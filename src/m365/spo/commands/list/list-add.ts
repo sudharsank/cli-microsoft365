@@ -1,19 +1,17 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import request from '../../../../request';
+import { Logger } from '../../../../cli';
 import {
   CommandOption,
-  CommandValidate,
   CommandTypes
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-import { ListInstance } from "./ListInstance";
-import { ListTemplateType } from './ListTemplateType';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { DraftVisibilityType } from './DraftVisibilityType';
 import { ListExperience } from './ListExperience';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { ListInstance } from "./ListInstance";
+import { ListTemplateType } from './ListTemplateType';
 
 interface CommandArgs {
   options: Options;
@@ -235,9 +233,9 @@ class SpoListAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Creating list in site at ${args.options.webUrl}...`);
+      logger.logToStderr(`Creating list in site at ${args.options.webUrl}...`);
     }
 
     const requestBody: any = this.mapRequestBody(args.options);
@@ -248,17 +246,17 @@ class SpoListAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      body: requestBody,
-      json: true
+      data: requestBody,
+      responseType: 'json'
     };
 
     request
       .post<ListInstance>(requestOptions)
       .then((listInstance: ListInstance): void => {
-        cmd.log(listInstance);
+        logger.log(listInstance);
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -582,135 +580,84 @@ class SpoListAddCommand extends SpoCommand {
     };
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.title) {
-        return 'Required parameter title missing';
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
+
+    const template: ListTemplateType = ListTemplateType[(args.options.baseTemplate.trim() as keyof typeof ListTemplateType)];
+    if (!template) {
+      return `${args.options.baseTemplate} is not a valid baseTemplate value`;
+    }
+
+    for (let i = 0; i < SpoListAddCommand.booleanOptions.length; i++) {
+      const option: string = SpoListAddCommand.booleanOptions[i];
+      const value: string | undefined = (args.options as any)[option];
+      if (value && !Utils.isValidBoolean(value)) {
+        return `${value} in option ${option} is not a valid boolean value`
       }
+    }
 
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
+    if (args.options.templateFeatureId &&
+      !Utils.isValidGuid(args.options.templateFeatureId)) {
+      return `${args.options.templateFeatureId} in option templateFeatureId is not a valid GUID`;
+    }
+
+    if (args.options.defaultContentApprovalWorkflowId &&
+      !Utils.isValidGuid(args.options.defaultContentApprovalWorkflowId)) {
+      return `${args.options.defaultContentApprovalWorkflowId} in option defaultContentApprovalWorkflowId is not a valid GUID`;
+    }
+
+    if (args.options.direction &&
+      ['NONE', 'LTR', 'RTL'].indexOf(args.options.direction) === -1) {
+      return `${args.options.direction} is not a valid direction value. Allowed values are NONE|LTR|RTL`;
+    }
+
+    if (args.options.draftVersionVisibility) {
+      const draftType: DraftVisibilityType = DraftVisibilityType[(args.options.draftVersionVisibility.trim() as keyof typeof DraftVisibilityType)];
+
+      if (!draftType) {
+        return `${args.options.draftVersionVisibility} is not a valid draftVisibilityType value`;
       }
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
+    if (args.options.emailAlias && args.options.enableAssignToEmail !== 'true') {
+      return `emailAlias could not be set if enableAssignToEmail is not set to true. Please set enableAssignToEmail.`;
+    }
+
+    if (args.options.listExperienceOptions) {
+      const experience: ListExperience = ListExperience[(args.options.listExperienceOptions.trim() as keyof typeof ListExperience)];
+
+      if (!experience) {
+        return `${args.options.listExperienceOptions} is not a valid listExperienceOptions value`;
       }
+    }
 
-      if (!args.options.baseTemplate) {
-        return 'Required parameter baseTemplate missing';
-      }
-      else {
-        const template: ListTemplateType = ListTemplateType[(args.options.baseTemplate.trim() as keyof typeof ListTemplateType)];
-        if (!template) {
-          return `${args.options.baseTemplate} is not a valid baseTemplate value`;
-        }
-      }
+    if (args.options.majorVersionLimit && args.options.enableVersioning !== 'true') {
+      return `majorVersionLimit option is only valid in combination with enableVersioning.`;
+    }
 
-      for (let i = 0; i < SpoListAddCommand.booleanOptions.length; i++) {
-        const option: string = SpoListAddCommand.booleanOptions[i];
-        const value: string | undefined = (args.options as any)[option];
-        if (value && !Utils.isValidBoolean(value)) {
-          return `${value} in option ${option} is not a valid boolean value`
-        }
-      }
+    if (args.options.majorWithMinorVersionsLimit &&
+      args.options.enableMinorVersions !== 'true' &&
+      args.options.enableModeration !== 'true') {
+      return `majorWithMinorVersionsLimit option is only valid in combination with enableMinorVersions or enableModeration.`;
+    }
 
-      if (args.options.templateFeatureId &&
-        !Utils.isValidGuid(args.options.templateFeatureId)) {
-        return `${args.options.templateFeatureId} in option templateFeatureId is not a valid GUID`;
-      }
+    if (args.options.readSecurity &&
+      args.options.readSecurity !== 1 &&
+      args.options.readSecurity !== 2) {
+      return `${args.options.readSecurity} is not a valid readSecurity value. Allowed values are 1|2`;
+    }
 
-      if (args.options.defaultContentApprovalWorkflowId &&
-        !Utils.isValidGuid(args.options.defaultContentApprovalWorkflowId)) {
-        return `${args.options.defaultContentApprovalWorkflowId} in option defaultContentApprovalWorkflowId is not a valid GUID`;
-      }
+    if (args.options.writeSecurity &&
+      args.options.writeSecurity !== 1 &&
+      args.options.writeSecurity !== 2 &&
+      args.options.writeSecurity !== 4) {
+      return `${args.options.writeSecurity} is not a valid writeSecurity value. Allowed values are 1|2|4`;
+    }
 
-      if (args.options.direction &&
-        ['NONE', 'LTR', 'RTL'].indexOf(args.options.direction) === -1) {
-        return `${args.options.direction} is not a valid direction value. Allowed values are NONE|LTR|RTL`;
-      }
-
-      if (args.options.draftVersionVisibility) {
-        const draftType: DraftVisibilityType = DraftVisibilityType[(args.options.draftVersionVisibility.trim() as keyof typeof DraftVisibilityType)];
-
-        if (!draftType) {
-          return `${args.options.draftVersionVisibility} is not a valid draftVisibilityType value`;
-        }
-      }
-
-      if (args.options.emailAlias && args.options.enableAssignToEmail !== 'true') {
-        return `emailAlias could not be set if enableAssignToEmail is not set to true. Please set enableAssignToEmail.`;
-      }
-
-      if (args.options.listExperienceOptions) {
-        const experience: ListExperience = ListExperience[(args.options.listExperienceOptions.trim() as keyof typeof ListExperience)];
-
-        if (!experience) {
-          return `${args.options.listExperienceOptions} is not a valid listExperienceOptions value`;
-        }
-      }
-
-      if (args.options.majorVersionLimit && args.options.enableVersioning !== 'true') {
-        return `majorVersionLimit option is only valid in combination with enableVersioning.`;
-      }
-
-      if (args.options.majorWithMinorVersionsLimit &&
-        args.options.enableMinorVersions !== 'true' &&
-        args.options.enableModeration !== 'true') {
-        return `majorWithMinorVersionsLimit option is only valid in combination with enableMinorVersions or enableModeration.`;
-      }
-
-      if (args.options.readSecurity &&
-        args.options.readSecurity !== 1 &&
-        args.options.readSecurity !== 2) {
-        return `${args.options.readSecurity} is not a valid readSecurity value. Allowed values are 1|2`;
-      }
-
-      if (args.options.writeSecurity &&
-        args.options.writeSecurity !== 1 &&
-        args.options.writeSecurity !== 2 &&
-        args.options.writeSecurity !== 4) {
-        return `${args.options.writeSecurity} is not a valid writeSecurity value. Allowed values are 1|2|4`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Add a list with title ${chalk.grey('Announcements')} and baseTemplate ${chalk.grey('Announcements')}
-    in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_ADD} --title 'DemoList' --baseTemplate Announcements --webUrl https://contoso.sharepoint.com/sites/project-x
-
-    Add a list with title ${chalk.grey('Announcements')}, baseTemplate ${chalk.grey('Announcements')}
-    in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} using a custom
-    XML schema
-      ${commands.LIST_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --title Announcements --baseTemplate Announcements --schemaXml '<List DocTemplateUrl="" DefaultViewUrl="" MobileDefaultViewUrl="" ID="{92FF93AB-920E-4D33-AE42-58B5E245BEFF}" Title="Announcements" Description="" ImageUrl="/_layouts/15/images/itann.png?rev=44" Name="{92FF93AB-920E-4D33-AE42-58B5E245BEFF}" BaseType="0" FeatureId="{00BFEA71-D1CE-42DE-9C63-A44004CE0104}" ServerTemplate="104" Created="20161221 20:02:12" Modified="20180110 19:35:15" LastDeleted="20161221 20:02:12" Version="0" Direction="none" ThumbnailSize="0" WebImageWidth="0" WebImageHeight="0" Flags="536875008" ItemCount="1" AnonymousPermMask="0" RootFolder="/sites/project-x/Lists/Announcements"      ReadSecurity="1" WriteSecurity="1" Author="3" EventSinkAssembly="" EventSinkClass="" EventSinkData="" EmailAlias="" WebFullUrl="/sites/project-x" WebId="7694137e-7038-4831-a1bd-218b28fe5d34" SendToLocation="" ScopeId="92facaf9-8d7a-40eb-9e69-362c91513cbd" MajorVersionLimit="0" MajorWithMinorVersionsLimit="0" WorkFlowId="00000000-0000-0000-0000-000000000000" HasUniqueScopes="False" NoThrottleListOperations="False" HasRelatedLists="False" Followable="False" Acl="" Flags2="0" RootFolderId="d4d67cc1-ad6e-4293-b039-ea49263d195f" ComplianceTag="" ComplianceFlags="0" UserModified="20161221 20:03:00" ListSchemaVersion="3" AclVersion="" AllowDeletion="True" AllowMultiResponses="False" EnableAttachments="True" EnableModeration="False" EnableVersioning="False" HasExternalDataSource="False" Hidden="False" MultipleDataList="False" Ordered="False" ShowUser="True" EnablePeopleSelector="False" EnableResourceSelector="False" EnableMinorVersion="False" RequireCheckout="False" ThrottleListOperations="False" ExcludeFromOfflineClient="False" CanOpenFileAsync="True" EnableFolderCreation="False" IrmEnabled="False" IrmSyncable="False" IsApplicationList="False" PreserveEmptyValues="False" StrictTypeCoercion="False" EnforceDataValidation="False" MaxItemsPerThrottledOperation="5000"></List>'
-    
-    Add a list with title ${chalk.grey('Announcements')}, baseTemplate ${chalk.grey('Announcements')}
-    in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-    with content types and versioning enabled and major version limit set to ${chalk.grey('50')}
-      ${commands.LIST_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --title Announcements --baseTemplate Announcements --contentTypesEnabled true --enableVersioning true --majorVersionLimit 50
-
-  More information:
-
-    SPList Class Members information
-      https://msdn.microsoft.com/en-us/library/microsoft.sharepoint.client.list_members.aspx
-
-    ListTemplateType enum information
-      https://msdn.microsoft.com/en-us/library/microsoft.sharepoint.client.listtemplatetype.aspx
-
-    DraftVersionVisibilityType enum information
-      https://msdn.microsoft.com/en-us/library/microsoft.sharepoint.client.draftvisibilitytype.aspx
-
-    ListExperience enum information
-      https://msdn.microsoft.com/en-us/library/microsoft.sharepoint.client.listexperience.aspx
-      `);
+    return true;
   }
 
   private mapRequestBody(options: Options): any {

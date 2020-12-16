@@ -5,19 +5,15 @@ Gets information about the specific site collection
 ## Usage
 
 ```sh
-spo site get [options]
+m365 spo site get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|URL of the site collection to retrieve information for
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: URL of the site collection to retrieve information for
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -28,5 +24,5 @@ This command can retrieve information for both classic and modern sites.
 Return information about the _https://contoso.sharepoint.com/sites/project-x_ site collection.
 
 ```sh
-spo site get -u https://contoso.sharepoint.com/sites/project-x
+m365 spo site get -u https://contoso.sharepoint.com/sites/project-x
 ```

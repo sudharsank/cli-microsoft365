@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN001006_DEP_types_react_dom } from './FN001006_DEP_types_react_dom';
 
 describe('FN001006_DEP_types_react_dom', () => {
@@ -22,6 +22,6 @@ describe('FN001006_DEP_types_react_dom', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1);
+    assert.strictEqual(findings.length, 1);
   });
 });

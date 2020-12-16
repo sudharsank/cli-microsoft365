@@ -5,19 +5,15 @@ Gets information about the specified hub site
 ## Usage
 
 ```sh
-spo hubsite get [options]
+m365 spo hubsite get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id <id>`|Hub site ID
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id <id>`
+: Hub site ID
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -31,7 +27,7 @@ If the specified `id` doesn't refer to an existing hub site, you will get a `Res
 Get information about the hub site with ID _2c1ba4c4-cd9b-4417-832f-92a34bc34b2a_
 
 ```sh
-spo hubsite get --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a
+m365 spo hubsite get --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a
 ```
 
 ## More information

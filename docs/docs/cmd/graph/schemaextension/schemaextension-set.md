@@ -5,24 +5,30 @@ Updates a Microsoft Graph schema extension
 ## Usage
 
 ```sh
-graph schemaextension set [options]
+m365 graph schemaextension set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id <id>`|The unique identifier for the schema extension definition
-`--owner <owner>`|The ID of the Azure AD application that is the owner of the schema extension
-`-d, --description [description]`|Description of the schema extension
-`-s, --status [status]`|The lifecycle state of the schema extension. Accepted values are `Available` or `Deprecated`
-`-t, --targetTypes [targetTypes]`|Comma-separated list of Microsoft Graph resource types the schema extension targets
-`-p, --properties [properties]`|The collection of property names and types that make up the schema extension definition formatted as a JSON string
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id <id>`
+: The unique identifier for the schema extension definition
+
+`--owner <owner>`
+: The ID of the Azure AD application that is the owner of the schema extension
+
+`-d, --description [description]`
+: Description of the schema extension
+
+`-s, --status [status]`
+: The lifecycle state of the schema extension. Accepted values are `Available` or `Deprecated`
+
+`-t, --targetTypes [targetTypes]`
+: Comma-separated list of Microsoft Graph resource types the schema extension targets
+
+`-p, --properties [properties]`
+: The collection of property names and types that make up the schema extension definition formatted as a JSON string
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -38,13 +44,13 @@ In addition, when using PowerShell, you should use the `--%` argument.
  Update the description of a schema extension
 
 ```sh
-graph schemaextension set --id MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --description "My schema extension" 
+m365 graph schemaextension set --id MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --description "My schema extension" 
 ```
 
 Update the target types and properties of a schema extension
 
 ```sh
-graph schemaextension set --id contoso_MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --targetTypes "Group,User" --properties \`"[{""name"":""myProp1"",""type"":""Integer""},{""name"":""myProp2"",""type"":""String""}]\`
+m365 graph schemaextension set --id contoso_MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --targetTypes "Group,User" --properties \`"[{""name"":""myProp1"",""type"":""Integer""},{""name"":""myProp2"",""type"":""String""}]\`
 ```
 
 Update the properties of a schema extension in PowerShell
@@ -56,5 +62,5 @@ graph schemaextension set --id contoso_MySchemaExtension --owner 62375ab9-6b52-4
 Change the status of a schema extension to 'Available'
 
 ```sh
-graph schemaextension set --id contoso_MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --status Available
+m365 graph schemaextension set --id contoso_MySchemaExtension --owner 62375ab9-6b52-47ed-826b-58e47e0e304b --status Available
 ```

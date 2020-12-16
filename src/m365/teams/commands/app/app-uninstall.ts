@@ -1,11 +1,11 @@
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandValidate } from '../../../../Command';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -26,7 +26,7 @@ class TeamsAppUninstallCommand extends GraphCommand {
     return 'Uninstalls an app from a Microsoft Team team';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const uninstallApp: () => void = (): void => {
       const requestOptions: any = {
         url: `${this.resource}/v1.0/teams/${args.options.teamId}/installedApps/${args.options.appId}`,
@@ -39,18 +39,18 @@ class TeamsAppUninstallCommand extends GraphCommand {
         .delete(requestOptions)
         .then((): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
-        }, (res: Error): void => this.handleRejectedODataJsonPromise(res, cmd, cb));
+        }, (res: Error): void => this.handleRejectedODataJsonPromise(res, logger, cb));
     };
 
     if (args.options.confirm) {
       uninstallApp();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -86,39 +86,12 @@ class TeamsAppUninstallCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.appId) {
-        return 'Required parameter appId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
-
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    The ${chalk.grey(`appId`)} has to be the id the app instance installed in the Microsoft Teams
-    team. Do not use the ID from the manifest of the zip app package or the id
-    from the Microsoft Teams App Catalog.
-
-  Examples:
-
-    Uninstall an app from a Microsoft Teams team
-      ${this.name} --appId YzUyN2E0NzAtYTg4Mi00ODFjLTk4MWMtZWU2ZWZhYmE4NWM3IyM0ZDFlYTA0Ny1mMTk2LTQ1MGQtYjJlOS0wZDI4NTViYTA1YTY= --teamId 2609af39-7775-4f94-a3dc-0dd67657e900
-`);
+    return true;
   }
 }
 

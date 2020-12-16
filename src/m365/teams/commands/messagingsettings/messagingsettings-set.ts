@@ -1,13 +1,13 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import Utils from '../../../../Utils';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -47,13 +47,13 @@ class TeamsMessageSettingsSetCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const body: any = {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const data: any = {
       messagingSettings: {}
     };
     TeamsMessageSettingsSetCommand.props.forEach((p: string) => {
       if (typeof (args.options as any)[p] !== 'undefined') {
-        body.messagingSettings[p] = (args.options as any)[p].toLowerCase() === 'true';
+        data.messagingSettings[p] = (args.options as any)[p].toLowerCase() === 'true';
       }
     });
 
@@ -62,19 +62,19 @@ class TeamsMessageSettingsSetCommand extends GraphCommand {
       headers: {
         accept: 'application/json;odata.metadata=none'
       },
-      body: body,
-      json: true
+      data: data,
+      responseType: 'json'
     };
 
     request
       .patch(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -109,55 +109,36 @@ class TeamsMessageSettingsSetCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
+
+    let hasDuplicate: boolean = false;
+    let property: string = '';
+    TeamsMessageSettingsSetCommand.props.forEach((prop: string) => {
+      if ((args.options as any)[prop] instanceof Array) {
+        property = prop;
+        hasDuplicate = true;
       }
+    });
+    if (hasDuplicate) {
+      return `Duplicate option ${property} specified. Specify only one`;
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
+    let isValid: boolean = true;
+    let value: string = '';
+    TeamsMessageSettingsSetCommand.props.every((p: string) => {
+      property = p;
+      value = (args.options as any)[p];
+      isValid = typeof value === 'undefined' || Utils.isValidBoolean(value)
+      return isValid;
+    });
+    if (!isValid) {
+      return `Value ${value} for option ${property} is not a valid boolean`;
+    }
 
-      let hasDuplicate: boolean = false;
-      let property: string = '';
-      TeamsMessageSettingsSetCommand.props.forEach((prop: string) => {
-        if ((args.options as any)[prop] instanceof Array) {
-          property = prop;
-          hasDuplicate = true;
-        }
-      });
-      if (hasDuplicate) {
-        return `Duplicate option ${property} specified. Specify only one`;
-      }
-
-      let isValid: boolean = true;
-      let value: string = '';
-      TeamsMessageSettingsSetCommand.props.every((p: string) => {
-        property = p;
-        value = (args.options as any)[p];
-        isValid = typeof value === 'undefined' || Utils.isValidBoolean(value)
-        return isValid;
-      });
-      if (!isValid) {
-        return `Value ${value} for option ${property} is not a valid boolean`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Allow users to edit messages in channels
-      ${this.name} --teamId '00000000-0000-0000-0000-000000000000' --allowUserEditMessages true
-
-    Disallow users to delete messages in channels
-      ${this.name} --teamId '00000000-0000-0000-0000-000000000000' --allowUserDeleteMessages false
-`);
+    return true;
   }
 }
 

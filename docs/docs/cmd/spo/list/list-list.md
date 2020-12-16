@@ -5,26 +5,22 @@ Gets all lists within the specified site
 ## Usage
 
 ```sh
-spo list list [options]
+m365 spo list list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|URL of the site where the lists to retrieve are located
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: URL of the site where the lists to retrieve are located
+
+--8<-- "docs/cmd/_global.md"
 
 ## Examples
 
 Return all lists located in site _https://contoso.sharepoint.com/sites/project-x_
 
 ```sh
-spo list list --webUrl https://contoso.sharepoint.com/sites/project-x
+m365 spo list list --webUrl https://contoso.sharepoint.com/sites/project-x
 ```
 
 ## More information

@@ -1,13 +1,12 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import SpoCommand from '../../../base/SpoCommand';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -26,9 +25,13 @@ class SpoPageListCommand extends SpoCommand {
     return 'Lists all modern pages in the given site';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['Name', 'Title'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving client-side pages...`);
+      logger.logToStderr(`Retrieving client-side pages...`);
     }
 
     const requestOptions: any = {
@@ -36,7 +39,7 @@ class SpoPageListCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -44,25 +47,15 @@ class SpoPageListCommand extends SpoCommand {
       .then((res: { value: any[] }): void => {
         if (res.value && res.value.length > 0) {
           const clientSidePages: any[] = res.value.filter(p => p.ListItemAllFields.ClientSideApplicationId === 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec');
-          if (args.options.output === 'json') {
-            cmd.log(clientSidePages);
-          }
-          else {
-            cmd.log(clientSidePages.map(p => {
-              return {
-                Name: p.Name,
-                Title: p.Title
-              }
-            }));
-          }
+          logger.log(clientSidePages);
         }
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -77,24 +70,8 @@ class SpoPageListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Missing required option webUrl';
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    List all modern pages in the specific site
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a
-`);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

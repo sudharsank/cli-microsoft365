@@ -1,17 +1,16 @@
-import commands from '../../commands';
-import flowCommands from '../../../flow/commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import AzmgmtCommand from '../../../base/AzmgmtCommand';
-import * as path from 'path';
-import * as fs from 'fs';
+import flowCommands from '../../../flow/commands';
+import commands from '../../commands';
 import { Connector } from './Connector';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -36,7 +35,7 @@ class PaConnectorExportCommand extends AzmgmtCommand {
     return [flowCommands.CONNECTOR_EXPORT];
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const outputFolder = path.resolve(args.options.outputFolder || '.', args.options.connector);
 
     const requestOptions: any = {
@@ -44,13 +43,13 @@ class PaConnectorExportCommand extends AzmgmtCommand {
       headers: {
         accept: 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
 
     let connector: Connector;
 
     if (this.verbose) {
-      cmd.log('Downloading connector...');
+      logger.logToStderr('Downloading connector...');
     }
     request
       .get<Connector>(requestOptions)
@@ -62,7 +61,7 @@ class PaConnectorExportCommand extends AzmgmtCommand {
         }
 
         if (this.verbose) {
-          cmd.log(`Creating output folder ${outputFolder}...`);
+          logger.logToStderr(`Creating output folder ${outputFolder}...`);
         }
         fs.mkdirSync(outputFolder);
 
@@ -76,7 +75,7 @@ class PaConnectorExportCommand extends AzmgmtCommand {
           powerAppsUrl: "https://api.powerapps.com"
         };
         if (this.verbose) {
-          cmd.log('Exporting settings...');
+          logger.logToStderr('Exporting settings...');
         }
         fs.writeFileSync(path.join(outputFolder, 'settings.json'), JSON.stringify(settings, null, 2), 'utf8');
 
@@ -96,14 +95,14 @@ class PaConnectorExportCommand extends AzmgmtCommand {
           }
         });
         if (this.verbose) {
-          cmd.log('Exporting API properties...');
+          logger.logToStderr('Exporting API properties...');
         }
         fs.writeFileSync(path.join(outputFolder, 'apiProperties.json'), JSON.stringify(apiProperties, null, 2), 'utf8');
 
         if (connector.properties.apiDefinitions &&
           connector.properties.apiDefinitions.originalSwaggerUrl) {
           if (this.verbose) {
-            cmd.log(`Downloading swagger from ${connector.properties.apiDefinitions.originalSwaggerUrl}...`);
+            logger.logToStderr(`Downloading swagger from ${connector.properties.apiDefinitions.originalSwaggerUrl}...`);
           }
           return request
             .get({
@@ -115,7 +114,7 @@ class PaConnectorExportCommand extends AzmgmtCommand {
         }
         else {
           if (this.debug) {
-            cmd.log('originalSwaggerUrl not set. Skipping');
+            logger.logToStderr('originalSwaggerUrl not set. Skipping');
           }
           return Promise.resolve('');
         }
@@ -123,23 +122,23 @@ class PaConnectorExportCommand extends AzmgmtCommand {
       .then((swagger: string): Promise<any> => {
         if (swagger && swagger.length > 0) {
           if (this.debug) {
-            cmd.log('Downloaded swagger');
-            cmd.log(swagger);
+            logger.logToStderr('Downloaded swagger');
+            logger.logToStderr(swagger);
           }
           if (this.verbose) {
-            cmd.log('Exporting swagger...');
+            logger.logToStderr('Exporting swagger...');
           }
           fs.writeFileSync(path.join(outputFolder, 'apiDefinition.swagger.json'), swagger, 'utf8');
         }
 
         if (connector.properties.iconUri) {
           if (this.verbose) {
-            cmd.log(`Downloading icon from ${connector.properties.iconUri}...`);
+            logger.logToStderr(`Downloading icon from ${connector.properties.iconUri}...`);
           }
           return request
             .get({
               url: connector.properties.iconUri,
-              encoding: null,
+              responseType: 'arraybuffer',
               headers: {
                 'x-anonymous': true
               }
@@ -147,7 +146,7 @@ class PaConnectorExportCommand extends AzmgmtCommand {
         }
         else {
           if (this.debug) {
-            cmd.log('iconUri not set. Skipping');
+            logger.logToStderr('iconUri not set. Skipping');
           }
           return Promise.resolve();
         }
@@ -155,21 +154,21 @@ class PaConnectorExportCommand extends AzmgmtCommand {
       .then((icon: any): void => {
         if (icon) {
           if (this.verbose) {
-            cmd.log('Exporting icon...');
+            logger.logToStderr('Exporting icon...');
           }
           const iconBuffer: Buffer = Buffer.from(icon, 'utf8');
           fs.writeFileSync(path.join(outputFolder, 'icon.png'), iconBuffer);
         }
         else {
           if (this.debug) {
-            cmd.log('No icon retrieved');
+            logger.logToStderr('No icon retrieved');
           }
         }
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -192,53 +191,18 @@ class PaConnectorExportCommand extends AzmgmtCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.environment) {
-        return 'Required option environment missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.outputFolder &&
+      !fs.existsSync(path.resolve(args.options.outputFolder))) {
+      return `Specified output folder ${args.options.outputFolder} doesn't exist`;
+    }
 
-      if (!args.options.connector) {
-        return 'Required option connector missing';
-      }
+    const outputFolder = path.resolve(args.options.outputFolder || '.', args.options.connector);
+    if (fs.existsSync(outputFolder)) {
+      return `Connector output folder ${outputFolder} already exists`;
+    }
 
-      if (args.options.outputFolder &&
-        !fs.existsSync(path.resolve(args.options.outputFolder))) {
-        return `Specified output folder ${args.options.outputFolder} doesn't exist`;
-      }
-
-      const outputFolder = path.resolve(args.options.outputFolder || '.', args.options.connector);
-      if (fs.existsSync(outputFolder)) {
-        return `Connector output folder ${outputFolder} already exists`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.CONNECTOR_EXPORT).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-
-    If no output folder has been specified, the ${chalk.blue(this.getCommandName())} command
-    will create a folder named after the connector in the current folder.
-    If the output folder has been specified, the folder named after
-    the connector will be created in that folder.
-  
-  Examples:
-  
-    Export the specified custom connector
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --connector shared_connector-201-5f20a1f2d8d6777a75-5fa602f410652f4dfa
-
-    Export the specified custom connector to the specific directory
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --connector shared_connector-201-5f20a1f2d8d6777a75-5fa602f410652f4dfa --outputFolder connector
-`);
+    return true;
   }
 }
 

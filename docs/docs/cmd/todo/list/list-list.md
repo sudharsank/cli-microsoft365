@@ -5,18 +5,12 @@ Returns a list of Microsoft To Do task lists
 ## Usage
 
 ```sh
-todo list list [options]
+m365 todo list list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See http://jmespath.org/ for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -28,5 +22,5 @@ Option|Description
 Get the list of Microsoft To Do task lists
 
 ```sh
-todo list list
+m365 todo list list
 ```

@@ -1,19 +1,18 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import { CommandOption, CommandValidate } from '../../../../Command';
-import { v4 } from 'uuid';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import GlobalOptions from '../../../../GlobalOptions';
-import {
-  ClientSideWebpart,
-  ClientSidePageComponent
-} from './clientsidepages';
-import { StandardWebPart, StandardWebPartUtils } from '../../StandardWebPartTypes';
+import * as chalk from 'chalk';
 import { isNumber } from 'util';
+import { v4 } from 'uuid';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { StandardWebPart, StandardWebPartUtils } from '../../StandardWebPartTypes';
 import { Control } from './canvasContent';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import {
+  ClientSidePageComponent, ClientSideWebpart
+} from './clientsidepages';
 
 interface CommandArgs {
   options: Options;
@@ -52,7 +51,7 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let canvasContent: Control[];
 
     let pageFullName: string = args.options.pageName;
@@ -61,7 +60,7 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
     }
 
     if (this.verbose) {
-      cmd.log(`Retrieving page information...`);
+      logger.logToStderr(`Retrieving page information...`);
     }
 
     const requestOptions: any = {
@@ -69,7 +68,7 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -86,27 +85,27 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((): Promise<ClientSideWebpart> => {
         if (this.verbose) {
-          cmd.log(
+          logger.logToStderr(
             `Retrieving definition for web part ${args.options.webPartId ||
             args.options.standardWebPart}...`
           );
         }
         // Get the WebPart according to arguments
-        return this.getWebPart(cmd, args);
+        return this.getWebPart(logger, args);
       })
       .then((webPart: ClientSideWebpart): Promise<void> => {
         if (this.verbose) {
-          cmd.log(`Setting client-side web part layout and properties...`);
+          logger.logToStderr(`Setting client-side web part layout and properties...`);
         }
 
-        this.setWebPartProperties(webPart, cmd, args);
+        this.setWebPartProperties(webPart, logger, args);
 
         // if no section exists (canvasContent array only has 1 default object), add a default section (1 col)
         if (canvasContent.length === 1) {
@@ -228,24 +227,24 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
             'accept': 'application/json;odata=nometadata',
             'content-type': 'application/json;odata=nometadata'
           },
-          body: {
+          data: {
             CanvasContent1: JSON.stringify(canvasContent)
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
         cb();
       })
-      .catch((err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      .catch((err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
-  private getWebPart(cmd: CommandInstance, args: CommandArgs): Promise<any> {
+  private getWebPart(logger: Logger, args: CommandArgs): Promise<any> {
     return new Promise<any>((resolve: (webPart: any) => void, reject: (error: any) => void): void => {
       const standardWebPart: string | undefined = args.options.standardWebPart;
 
@@ -254,8 +253,8 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
         : args.options.webPartId;
 
       if (this.debug) {
-        cmd.log(`StandardWebPart: ${standardWebPart}`);
-        cmd.log(`WebPartId: ${webPartId}`);
+        logger.logToStderr(`StandardWebPart: ${standardWebPart}`);
+        logger.logToStderr(`WebPartId: ${webPartId}`);
       }
 
       const requestOptions: any = {
@@ -263,7 +262,7 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
         headers: {
           accept: 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -276,13 +275,13 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
           }
 
           if (this.debug) {
-            cmd.log('WebPart definition:');
-            cmd.log(webPartDefinition);
-            cmd.log('');
+            logger.logToStderr('WebPart definition:');
+            logger.logToStderr(webPartDefinition);
+            logger.logToStderr('');
           }
 
           if (this.verbose) {
-            cmd.log(`Creating instance from definition of WebPart ${webPartId}...`);
+            logger.logToStderr(`Creating instance from definition of WebPart ${webPartId}...`);
           }
           const component: ClientSidePageComponent = webPartDefinition[0];
           const id: string = v4();
@@ -308,12 +307,12 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
     });
   }
 
-  private setWebPartProperties(webPart: ClientSideWebpart, cmd: CommandInstance, args: CommandArgs): void {
+  private setWebPartProperties(webPart: ClientSideWebpart, logger: Logger, args: CommandArgs): void {
     if (args.options.webPartProperties) {
       if (this.debug) {
-        cmd.log('WebPart properties: ');
-        cmd.log(args.options.webPartProperties);
-        cmd.log('');
+        logger.logToStderr('WebPart properties: ');
+        logger.logToStderr(args.options.webPartProperties);
+        logger.logToStderr('');
       }
 
       try {
@@ -326,9 +325,9 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
 
     if (args.options.webPartData) {
       if (this.debug) {
-        cmd.log('WebPart data:');
-        cmd.log(args.options.webPartData);
-        cmd.log('');
+        logger.logToStderr('WebPart data:');
+        logger.logToStderr(args.options.webPartData);
+        logger.logToStderr('');
       }
 
       const webPartData = JSON.parse(args.options.webPartData);
@@ -338,12 +337,12 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
   }
 
   /**
- * Provides functionality to extend the given object by doing a shallow copy
- *
- * @param target The object to which properties will be copied
- * @param source The source object from which properties will be copied
- *
- */
+   * Provides functionality to extend the given object by doing a shallow copy
+   *
+   * @param target The object to which properties will be copied
+   * @param source The source object from which properties will be copied
+   *
+   */
   private extend(target: any, source: any): any {
     return Object.getOwnPropertyNames(source)
       .reduce((t: any, v: string) => {
@@ -396,111 +395,56 @@ class SpoPageClientSideWebPartAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.standardWebPart && !args.options.webPartId) {
+      return 'Specify either the standardWebPart or the webPartId option';
+    }
+
+    if (args.options.standardWebPart && args.options.webPartId) {
+      return 'Specify either the standardWebPart or the webPartId option but not both';
+    }
+
+    if (args.options.webPartId && !Utils.isValidGuid(args.options.webPartId)) {
+      return `The webPartId '${args.options.webPartId}' is not a valid GUID`;
+    }
+
+    if (args.options.standardWebPart && !StandardWebPartUtils.isValidStandardWebPartType(args.options.standardWebPart)) {
+      return `${args.options.standardWebPart} is not a valid standard web part type`;
+    }
+
+    if (args.options.webPartProperties && args.options.webPartData) {
+      return 'Specify webPartProperties or webPartData but not both';
+    }
+
+    if (args.options.webPartProperties) {
+      try {
+        JSON.parse(args.options.webPartProperties);
       }
-
-      if (!args.options.pageName) {
-        return 'Required option pageName is missing';
+      catch (e) {
+        return `Specified webPartProperties is not a valid JSON string. Input: ${args.options
+          .webPartProperties}. Error: ${e}`;
       }
+    }
 
-      if (!args.options.standardWebPart && !args.options.webPartId) {
-        return 'Specify either the standardWebPart or the webPartId option';
+    if (args.options.webPartData) {
+      try {
+        JSON.parse(args.options.webPartData);
       }
-
-      if (args.options.standardWebPart && args.options.webPartId) {
-        return 'Specify either the standardWebPart or the webPartId option but not both';
+      catch (e) {
+        return `Specified webPartData is not a valid JSON string. Input: ${args.options
+          .webPartData}. Error: ${e}`;
       }
+    }
 
-      if (args.options.webPartId && !Utils.isValidGuid(args.options.webPartId)) {
-        return `The webPartId '${args.options.webPartId}' is not a valid GUID`;
-      }
+    if (args.options.section && (!isNumber(args.options.section) || args.options.section < 1)) {
+      return 'The value of parameter section must be 1 or higher';
+    }
 
-      if (args.options.standardWebPart && !StandardWebPartUtils.isValidStandardWebPartType(args.options.standardWebPart)) {
-        return `${args.options.standardWebPart} is not a valid standard web part type`;
-      }
+    if (args.options.column && (!isNumber(args.options.column) || args.options.column < 1)) {
+      return 'The value of parameter column must be 1 or higher';
+    }
 
-      if (args.options.webPartProperties && args.options.webPartData) {
-        return 'Specify webPartProperties or webPartData but not both';
-      }
-
-      if (args.options.webPartProperties) {
-        try {
-          JSON.parse(args.options.webPartProperties);
-        }
-        catch (e) {
-          return `Specified webPartProperties is not a valid JSON string. Input: ${args.options
-            .webPartProperties}. Error: ${e}`;
-        }
-      }
-
-      if (args.options.webPartData) {
-        try {
-          JSON.parse(args.options.webPartData);
-        }
-        catch (e) {
-          return `Specified webPartData is not a valid JSON string. Input: ${args.options
-            .webPartData}. Error: ${e}`;
-        }
-      }
-
-      if (args.options.section && (!isNumber(args.options.section) || args.options.section < 1)) {
-        return 'The value of parameter section must be 1 or higher';
-      }
-
-      if (args.options.column && (!isNumber(args.options.column) || args.options.column < 1)) {
-        return 'The value of parameter column must be 1 or higher';
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('pageName')} doesn't refer to an existing modern page,
-    you will get a ${chalk.grey("File doesn't exists")} error.
-
-    To add a standard web part to the page, specify one of the following values:
-    ${chalk.grey("ContentRollup, BingMap, ContentEmbed, DocumentEmbed, Image,")}
-    ${chalk.grey("ImageGallery, LinkPreview, NewsFeed, NewsReel, PowerBIReportEmbed,")}
-    ${chalk.grey("QuickChart, SiteActivity, VideoEmbed, YammerEmbed, Events,")}
-    ${chalk.grey("GroupCalendar, Hero, List, PageTitle, People, QuickLinks,")}
-    ${chalk.grey("CustomMessageRegion, Divider, MicrosoftForms, Spacer")}.
-
-    When specifying the JSON string with web part properties on Windows, you
-    have to escape double quotes in a specific way. Considering the following
-    value for the _webPartProperties_ option: {"Foo":"Bar"},
-    you should specify the value as \`"{""Foo"":""Bar""}"\`. In addition,
-    when using PowerShell, you should use the --% argument.
-
-  Examples:
-
-    Add the standard Bing Map web part to a modern page in the first available location on the page
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/a-team --pageName page.aspx --standardWebPart BingMap
-
-    Add the standard Bing Map web part to a modern page in the third column of the second section
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/a-team --pageName page.aspx --standardWebPart BingMap --section 2 --column 3
-
-    Add a custom web part to the modern page
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/a-team --pageName page.aspx --webPartId 3ede60d3-dc2c-438b-b5bf-cc40bb2351e1
-
-    Using PowerShell, add the standard Bing Map web part with the specific properties to a modern page
-      --% ${this.name} --webUrl https://contoso.sharepoint.com/sites/a-team --pageName page.aspx --standardWebPart BingMap --webPartProperties \`"{""Title"":""Foo location""}"\`
-
-    Using Windows command line, add the standard Bing Map web part with the specific properties to a modern page
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/a-team --pageName page.aspx --standardWebPart BingMap --webPartProperties \`"{""Title"":""Foo location""}"\`
-
-    Add the standard Image web part with the preconfigured image
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/a-team --pageName page.aspx --standardWebPart Image --webPartData '\`{ "dataVersion": "1.8", "serverProcessedContent": {"htmlStrings":{},"searchablePlainTexts":{"captionText":""},"imageSources":{"imageSource":"/sites/team-a/SiteAssets/work-life-balance.png"},"links":{}}, "properties": {"imageSourceType":2,"altText":"a group of people on a beach","overlayText":"Work life balance","fileName":"48146-OFF12_Justice_01.png","siteId":"27664b85-067d-4be9-a7d7-89b2e804d09f","webId":"a7664b85-067d-4be9-a7d7-89b2e804d09f","listId":"37664b85-067d-4be9-a7d7-89b2e804d09f","uniqueId":"67664b85-067d-4be9-a7d7-89b2e804d09f","imgWidth":650,"imgHeight":433,"fixAspectRatio":false,"isOverlayTextEnabled":true}}\`'
-      `
-    );
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

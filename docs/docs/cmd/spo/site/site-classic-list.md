@@ -5,21 +5,18 @@ Lists classic sites of the given type
 ## Usage
 
 ```sh
-spo site classic list [options]
+m365 spo site classic list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-t, --webTemplate [type]`|type of classic sites to list.
-`-f, --filter [filter]`|filter to apply when retrieving sites
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--includeOneDriveSites`|option to include OneDrive sites or not.
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-t, --webTemplate [type]`
+: type of classic sites to list.
+
+`-f, --filter [filter]`
+: filter to apply when retrieving sites
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -37,23 +34,23 @@ Using the `--includeOneDriveSites`option you can specify whether you want to ret
 List all classic sites in the currently connected tenant
 
 ```sh
-spo site classic list
+m365 spo site classic list
 ```
 
 List all classic team sites in the currently connected tenant including OneDrive sites
 
 ```sh
-spo site classic list --includeOneDriveSites
+m365 spo site classic list --includeOneDriveSites
 ```
 
 List all classic team sites in the currently connected tenant
 
 ```sh
-spo site classic list --webTemplate STS#0
+m365 spo site classic list --webTemplate STS#0
 ```
 
 List all classic project sites that contain _project_ in the URL
 
 ```sh
-spo site classic list --webTemplate PROJECTSITE#0 --filter "Url -like 'project'"
+m365 spo site classic list --webTemplate PROJECTSITE#0 --filter "Url -like 'project'"
 ```

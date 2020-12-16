@@ -1,12 +1,12 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -36,10 +36,10 @@ class SpoUserRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeUser = (): void => {
       if (this.verbose) {
-        cmd.log(`Removing user from  subsite ${args.options.webUrl} ...`);
+        logger.logToStderr(`Removing user from  subsite ${args.options.webUrl} ...`);
       }
 
       let requestUrl: string = '';
@@ -57,25 +57,25 @@ class SpoUserRemoveCommand extends SpoCommand {
         headers: {
           accept: 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
         .post(requestOptions)
         .then((): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
-        }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
     }
 
     if (args.options.confirm) {
       removeUser();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -115,41 +115,16 @@ class SpoUserRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required option webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.id && !args.options.loginName) {
+      return 'Required option id or loginName missing, one is required';
+    }
 
-      if (!args.options.id && !args.options.loginName) {
-        return 'Required option id or loginName missing, one is required';
-      }
+    if (args.options.id && args.options.loginName) {
+      return 'Use either id or loginName, but not both';
+    }
 
-      if (args.options.id && args.options.loginName) {
-        return 'Use either id or loginName, but not both';
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks
-
-    Use either 'id' or 'loginName', but not both
-
-  Examples:
-  
-    Removes user with id 10 from web https://contoso.sharepoint.com/sites/HR 
-    without prompting for confirmation
-      ${commands.USER_REMOVE} --webUrl "https://contoso.sharepoint.com/sites/HR" --id 10 --confirm
-
-    Removes user with login name i:0#.f|membership|john.doe@mytenant.onmicrosoft.com 
-    from web https://contoso.sharepoint.com/sites/HR
-      ${commands.USER_REMOVE} --webUrl "https://contoso.sharepoint.com/sites/HR" --loginName "i:0#.f|membership|john.doe@mytenant.onmicrosoft.com"
-  `);
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

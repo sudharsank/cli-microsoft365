@@ -1,16 +1,14 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate,
-  CommandError
+  CommandError, CommandOption
 } from '../../../../Command';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -40,14 +38,14 @@ class SpoServicePrincipalSetCommand extends SpoCommand {
     return [commands.SP_SET];
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const enabled: boolean = args.options.enabled === 'true';
 
     const toggleServicePrincipal: () => void = (): void => {
       let spoAdminUrl: string = '';
 
       this
-        .getSpoAdminUrl(cmd, this.debug)
+        .getSpoAdminUrl(logger, this.debug)
         .then((_spoAdminUrl: string): Promise<ContextInfo> => {
           spoAdminUrl = _spoAdminUrl;
 
@@ -55,7 +53,7 @@ class SpoServicePrincipalSetCommand extends SpoCommand {
         })
         .then((res: ContextInfo): Promise<string> => {
           if (this.verbose) {
-            cmd.log(`${(enabled ? 'Enabling' : 'Disabling')} service principal...`);
+            logger.logToStderr(`${(enabled ? 'Enabling' : 'Disabling')} service principal...`);
           }
 
           const requestOptions: any = {
@@ -63,7 +61,7 @@ class SpoServicePrincipalSetCommand extends SpoCommand {
             headers: {
               'X-RequestDigest': res.FormDigestValue
             },
-            body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="28" ObjectPathId="27" /><SetProperty Id="29" ObjectPathId="27" Name="AccountEnabled"><Parameter Type="Boolean">${enabled}</Parameter></SetProperty><Method Name="Update" Id="30" ObjectPathId="27" /><Query Id="31" ObjectPathId="27"><Query SelectAllProperties="true"><Properties><Property Name="AccountEnabled" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Constructor Id="27" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /></ObjectPaths></Request>`
+            data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="28" ObjectPathId="27" /><SetProperty Id="29" ObjectPathId="27" Name="AccountEnabled"><Parameter Type="Boolean">${enabled}</Parameter></SetProperty><Method Name="Update" Id="30" ObjectPathId="27" /><Query Id="31" ObjectPathId="27"><Query SelectAllProperties="true"><Properties><Property Name="AccountEnabled" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Constructor Id="27" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /></ObjectPaths></Request>`
           };
 
           return request.post(requestOptions);
@@ -79,21 +77,21 @@ class SpoServicePrincipalSetCommand extends SpoCommand {
             const output: any = json[json.length - 1];
             delete output._ObjectType_;
 
-            cmd.log(output);
+            logger.log(output);
 
             if (this.verbose) {
-              cmd.log(vorpal.chalk.green('DONE'));
+              logger.logToStderr(chalk.green('DONE'));
             }
           }
           cb();
-        }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
     }
 
     if (args.options.confirm) {
       toggleServicePrincipal();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -109,20 +107,14 @@ class SpoServicePrincipalSetCommand extends SpoCommand {
     }
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.enabled) {
-        return 'Required option enabled missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const enabled: string = args.options.enabled.toLowerCase();
+    if (enabled !== 'true' &&
+      enabled !== 'false') {
+      return `${args.options.enabled} is not a valid boolean value. Allowed values are true|false`;
+    }
 
-      const enabled: string = args.options.enabled.toLowerCase();
-      if (enabled !== 'true' &&
-        enabled !== 'false') {
-        return `${args.options.enabled} is not a valid boolean value. Allowed values are true|false`;
-      }
-
-      return true;
-    };
+    return true;
   }
 
   public options(): CommandOption[] {
@@ -140,32 +132,6 @@ class SpoServicePrincipalSetCommand extends SpoCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.SERVICEPRINCIPAL_SET).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-        
-  Remarks:
-
-    Using the ${chalk.blue('-e, --enabled')} option you can specify whether the service
-    principal should be enabled or disabled. Use ${chalk.grey('true')} to enable the service
-    principal and ${chalk.grey('false')} to disable it.
-
-  Examples:
-  
-    Enable the service principal. Will prompt for confirmation
-      ${commands.SERVICEPRINCIPAL_SET} --enabled true
-
-    Disable the service principal. Will prompt for confirmation
-      ${commands.SERVICEPRINCIPAL_SET} --enabled false
-
-    Enable the service principal without prompting for confirmation
-      ${commands.SERVICEPRINCIPAL_SET} --enabled true --confirm
-`);
   }
 }
 

@@ -1,14 +1,12 @@
-import commands from '../commands';
-import GlobalOptions from '../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+    CommandOption
 } from '../../../Command';
+import GlobalOptions from '../../../GlobalOptions';
 import request from '../../../request';
 import AzmgmtCommand from '../../base/AzmgmtCommand';
-import * as os from 'os';
-
-const vorpal: Vorpal = require('../../../vorpal-init');
+import commands from '../commands';
 
 interface CommandArgs {
   options: Options;
@@ -29,9 +27,9 @@ class FlowDisableCommand extends AzmgmtCommand {
     return 'Disables specified Microsoft Flow';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Disables Microsoft Flow ${args.options.name}...`);
+      logger.logToStderr(`Disables Microsoft Flow ${args.options.name}...`);
     }
 
     const requestOptions: any = {
@@ -39,7 +37,7 @@ class FlowDisableCommand extends AzmgmtCommand {
       headers: {
         accept: 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -47,11 +45,11 @@ class FlowDisableCommand extends AzmgmtCommand {
       .then((): void => {
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -72,53 +70,6 @@ class FlowDisableCommand extends AzmgmtCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required option name missing';
-      }
-
-      if (!args.options.environment) {
-        return 'Required option environment missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.FLOW_DISABLE).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-  
-    By default, the command will try to disable Microsoft Flows you own.
-    If you want to disable Flow owned by another user, use the ${chalk.blue('asAdmin')}
-    flag.
-
-    If the environment with the name you specified doesn't exist, you will get
-    the ${chalk.grey('Access to the environment \'xyz\' is denied.')} error.
-
-    If the Microsoft Flow with the name you specified doesn't exist, you will
-    get the ${chalk.grey(`The caller with object id \'abc\' does not have permission${os.EOL}` +
-        '    for connection \'xyz\' under Api \'shared_logicflows\'.')} error.
-    If you try to disable a non-existing flow as admin, you will get the
-    ${chalk.grey('Could not find flow \'xyz\'.')} error.
-   
-  Examples:
-  
-    Disables Microsoft Flow owned by the currently signed-in user
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --name 3989cb59-ce1a-4a5c-bb78-257c5c39381d
-
-    Disables Microsoft Flow owned by another user
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --name 3989cb59-ce1a-4a5c-bb78-257c5c39381d --asAdmin
-`);
   }
 }
 

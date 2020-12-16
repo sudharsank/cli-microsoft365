@@ -1,11 +1,11 @@
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandValidate } from '../../../../Command';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -32,7 +32,7 @@ class TeamsUserAppRemoveCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeApp: () => void = (): void => {
       const endpoint: string = `${this.resource}/beta`
 
@@ -41,25 +41,25 @@ class TeamsUserAppRemoveCommand extends GraphCommand {
         headers: {
           'accept': 'application/json;odata.metadata=none'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
         .delete(requestOptions)
         .then((): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
-        }, (res: any): void => this.handleRejectedODataJsonPromise(res, cmd, cb));
+        }, (res: any): void => this.handleRejectedODataJsonPromise(res, logger, cb));
     }
 
     if (args.options.confirm) {
       removeApp();
     }
     else {
-      cmd.prompt(
+      Cli.prompt(
         {
           type: 'confirm',
           name: 'continue',
@@ -98,42 +98,12 @@ class TeamsUserAppRemoveCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.appId) {
-        return 'Required parameter appId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.userId)) {
+      return `${args.options.userId} is not a valid GUID`;
+    }
 
-      if (!args.options.userId) {
-        return 'Required parameter userId missing';
-      }
-
-      if (!Utils.isValidGuid(args.options.userId)) {
-        return `${args.options.userId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently in preview
-    and is subject to change once the API reached general availability.
-
-    The ${chalk.grey(`appId`)} has to be the id of the app instance installed for the user.
-    Do not use the ID from the manifest of the zip app package or the id
-    from the Microsoft Teams App Catalog.
-
-  Examples:
-
-    Uninstall an app for the specified user
-      ${this.name} --appId YzUyN2E0NzAtYTg4Mi00ODFjLTk4MWMtZWU2ZWZhYmE4NWM3IyM0ZDFlYTA0Ny1mMTk2LTQ1MGQtYjJlOS0wZDI4NTViYTA1YTY= --userId 2609af39-7775-4f94-a3dc-0dd67657e900
-`);
+    return true;
   }
 }
 

@@ -1,9 +1,9 @@
-import * as sinon from 'sinon';
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as sinon from 'sinon';
+import { AuthType, Service, CertificateType } from '../Auth';
 import Utils from '../Utils';
 import { FileTokenStorage } from './FileTokenStorage';
-import * as fs from 'fs';
-import { Service, AuthType } from '../Auth';
 
 describe('FileTokenStorage', () => {
   const fileStorage = new FileTokenStorage();
@@ -24,7 +24,7 @@ describe('FileTokenStorage', () => {
         done('Expected fail but passed instead');
       }, (err) => {
         try {
-          assert.equal(err, 'File not found');
+          assert.strictEqual(err, 'File not found');
           done();
         }
         catch (e) {
@@ -36,7 +36,10 @@ describe('FileTokenStorage', () => {
   it('returns connection info from file', (done) => {
     const tokensFile: Service = {
       accessTokens: {},
+      appId: '31359c7f-bd7e-475c-86db-fdb8c937548e',
+      tenant: 'common',
       authType: AuthType.DeviceCode,
+      certificateType: CertificateType.Unknown,
       connected: false,
       logout: () => {}
     };
@@ -46,7 +49,7 @@ describe('FileTokenStorage', () => {
       .get()
       .then((connectionInfo) => {
         try {
-          assert.equal(connectionInfo, JSON.stringify(tokensFile));
+          assert.strictEqual(connectionInfo, JSON.stringify(tokensFile));
           done();
         }
         catch (e) {
@@ -58,18 +61,21 @@ describe('FileTokenStorage', () => {
   it('saves the connection info in the file when the file doesn\'t exist', (done) => {
     const expected: Service = {
       accessTokens: {},
+      appId: '31359c7f-bd7e-475c-86db-fdb8c937548e',
+      tenant: 'common',
       authType: AuthType.DeviceCode,
+      certificateType: CertificateType.Unknown,
       connected: false,
       logout: () => {}
     };
     let actual: string = '';
     sinon.stub(fs, 'existsSync').callsFake(() => false);
-    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token; }).callsArgWith(3, null);
+    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token as string; }).callsArgWith(3, null);
     fileStorage
       .set(JSON.stringify(expected))
       .then(() => {
         try {
-          assert.equal(actual, JSON.stringify(expected));
+          assert.strictEqual(actual, JSON.stringify(expected));
           done();
         }
         catch (e) {
@@ -81,19 +87,22 @@ describe('FileTokenStorage', () => {
   it('saves the connection info in the file when the file is empty', (done) => {
     const expected: Service = {
       accessTokens: {},
+      appId: '31359c7f-bd7e-475c-86db-fdb8c937548e',
+      tenant: 'common',
       authType: AuthType.DeviceCode,
+      certificateType: CertificateType.Unknown,
       connected: false,
       logout: () => {}
     };
     let actual: string = '';
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'readFileSync').callsFake(() => '');
-    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token; }).callsArgWith(3, null);
+    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token as string; }).callsArgWith(3, null);
     fileStorage
       .set(JSON.stringify(expected))
       .then(() => {
         try {
-          assert.equal(actual, JSON.stringify(expected));
+          assert.strictEqual(actual, JSON.stringify(expected));
           done();
         }
         catch (e) {
@@ -105,19 +114,22 @@ describe('FileTokenStorage', () => {
   it('saves the connection info in the file when the file contains an empty JSON object', (done) => {
     const expected: Service = {
       accessTokens: {},
+      appId: '31359c7f-bd7e-475c-86db-fdb8c937548e',
+      tenant: 'common',
       authType: AuthType.DeviceCode,
+      certificateType: CertificateType.Unknown,
       connected: false,
       logout: () => {}
     };
     let actual: string = '';
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'readFileSync').callsFake(() => '{}');
-    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token; }).callsArgWith(3, null);
+    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token as string; }).callsArgWith(3, null);
     fileStorage
       .set(JSON.stringify(expected))
       .then(() => {
         try {
-          assert.equal(actual, JSON.stringify(expected));
+          assert.strictEqual(actual, JSON.stringify(expected));
           done();
         }
         catch (e) {
@@ -129,19 +141,22 @@ describe('FileTokenStorage', () => {
   it('saves the connection info in the file when the file contains no access tokens', (done) => {
     const expected: Service = {
       accessTokens: {},
+      appId: '31359c7f-bd7e-475c-86db-fdb8c937548e',
+      tenant: 'common',
       authType: AuthType.DeviceCode,
+      certificateType: CertificateType.Unknown,
       connected: false,
       logout: () => {}
     };
     let actual: string = '';
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'readFileSync').callsFake(() => '{"accessTokens":{},"authType":0,"connected":false}');
-    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token; }).callsArgWith(3, null);
+    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token as string; }).callsArgWith(3, null);
     fileStorage
       .set(JSON.stringify(expected))
       .then(() => {
         try {
-          assert.equal(actual, JSON.stringify(expected));
+          assert.strictEqual(actual, JSON.stringify(expected));
           done();
         }
         catch (e) {
@@ -153,7 +168,10 @@ describe('FileTokenStorage', () => {
   it('adds the connection info to the file when the file contains access tokens', (done) => {
     const expected: Service = {
       accessTokens: {},
+      appId: '31359c7f-bd7e-475c-86db-fdb8c937548e',
+      tenant: 'common',
       authType: AuthType.DeviceCode,
+      certificateType: CertificateType.Unknown,
       connected: false,
       logout: () => {}
     };
@@ -170,12 +188,12 @@ describe('FileTokenStorage', () => {
       connected: true,
       refreshToken: 'ref'
     }));
-    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token; }).callsArgWith(3, null);
+    sinon.stub(fs, 'writeFile').callsFake((path, token) => { actual = token as string; }).callsArgWith(3, null);
     fileStorage
       .set(JSON.stringify(expected))
       .then(() => {
         try {
-          assert.equal(actual, JSON.stringify(expected));
+          assert.strictEqual(actual, JSON.stringify(expected));
           done();
         }
         catch (e) {
@@ -193,7 +211,7 @@ describe('FileTokenStorage', () => {
         done('Fail expected but passed instead');
       }, (err) => {
         try {
-          assert.equal(err, 'An error has occurred');
+          assert.strictEqual(err, 'An error has occurred');
           done();
         }
         catch (e) {
@@ -288,7 +306,7 @@ describe('FileTokenStorage', () => {
         done('Fail expected but passed instead');
       }, (err) => {
         try {
-          assert.equal(err, 'An error has occurred');
+          assert.strictEqual(err, 'An error has occurred');
           done();
         }
         catch (e) {

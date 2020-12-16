@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN010007_YORC_isDomainIsolated } from './FN010007_YORC_isDomainIsolated';
 
 describe('FN010007_YORC_isDomainIsolated', () => {
@@ -17,7 +17,7 @@ describe('FN010007_YORC_isDomainIsolated', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if isDomainIsolated is already up-to-date', () => {
@@ -30,6 +30,6 @@ describe('FN010007_YORC_isDomainIsolated', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

@@ -1,15 +1,15 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import {
-  CommandOption, CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import { ContextInfo } from '../../spo';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
 import { Auth } from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -44,7 +44,7 @@ class SpoPageSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const resource: string = Auth.getResourceFromUrl(args.options.webUrl);
     let requestDigest: string = '';
     let pageName: string = args.options.name;
@@ -77,15 +77,15 @@ class SpoPageSetCommand extends SpoCommand {
             'IF-MATCH': '*',
             accept: 'application/json;odata=nometadata'
           },
-          body: {
+          data: {
             PageLayoutType: args.options.layoutType
           },
-          json: true
+          responseType: 'json'
         };
 
         if (args.options.layoutType === 'Article') {
-          requestOptions.body.PromotedState = 0;
-          requestOptions.body.BannerImageUrl = {
+          requestOptions.data.PromotedState = 0;
+          requestOptions.data.BannerImageUrl = {
             Description: '/_layouts/15/images/sitepagethumbnail.png',
             Url: `${resource}/_layouts/15/images/sitepagethumbnail.png`
           };
@@ -99,7 +99,7 @@ class SpoPageSetCommand extends SpoCommand {
         }
 
         const requestOptions: any = {
-          json: true
+          responseType: 'json'
         };
 
         switch (args.options.promoteAs) {
@@ -112,7 +112,7 @@ class SpoPageSetCommand extends SpoCommand {
               'content-type': 'application/json;odata=nometadata',
               accept: 'application/json;odata=nometadata'
             };
-            requestOptions.body = {
+            requestOptions.data = {
               WelcomePage: `SitePages/${pageName}`
             };
             break;
@@ -125,7 +125,7 @@ class SpoPageSetCommand extends SpoCommand {
               'content-type': 'application/json;odata=nometadata',
               accept: 'application/json;odata=nometadata'
             };
-            requestOptions.body = {
+            requestOptions.data = {
               PromotedState: 2,
               FirstPublishedDate: new Date().toISOString().replace('Z', '')
             }
@@ -148,7 +148,7 @@ class SpoPageSetCommand extends SpoCommand {
         }
 
         const requestOptions: any = {
-          json: true,
+          responseType: 'json',
           url: `${args.options.webUrl}/_api/SitePages/Pages(${res.Id})/SavePageAsTemplate`,
           headers: {
             'X-RequestDigest': requestDigest,
@@ -172,7 +172,7 @@ class SpoPageSetCommand extends SpoCommand {
         templateListItemId = res.Id;
 
         const requestOptions: any = {
-          json: true,
+          responseType: 'json',
           url: `${args.options.webUrl}/_api/SitePages/Pages(${templateListItemId})/SavePage`,
           headers: {
             'X-RequestDigest': requestDigest,
@@ -181,7 +181,7 @@ class SpoPageSetCommand extends SpoCommand {
             'content-type': 'application/json;odata=nometadata',
             accept: 'application/json;odata=nometadata'
           },
-          body: {
+          data: {
             BannerImageUrl: bannerImageUrl,
             CanvasContent1: canvasContent1,
             LayoutWebpartsContent: layoutWebpartsContent
@@ -195,7 +195,7 @@ class SpoPageSetCommand extends SpoCommand {
         }
 
         const requestOptions: any = {
-          json: true,
+          responseType: 'json',
           url: `${args.options.webUrl}/_api/SitePages/Pages(${templateListItemId})/SavePageAsDraft`,
           headers: {
             'X-RequestDigest': requestDigest,
@@ -204,7 +204,7 @@ class SpoPageSetCommand extends SpoCommand {
             'content-type': 'application/json;odata=nometadata',
             accept: 'application/json;odata=nometadata'
           },
-          body: {
+          data: {
             Title: fileNameWithoutExtension,
             BannerImageUrl: bannerImageUrl,
             CanvasContent1: canvasContent1,
@@ -226,7 +226,7 @@ class SpoPageSetCommand extends SpoCommand {
             'content-type': 'application/json;odata=nometadata',
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
@@ -243,18 +243,18 @@ class SpoPageSetCommand extends SpoCommand {
             'content-type': 'application/json;odata=nometadata',
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -296,85 +296,40 @@ class SpoPageSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required parameter name missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+    if (args.options.layoutType &&
+      args.options.layoutType !== 'Article' &&
+      args.options.layoutType !== 'Home') {
+      return `${args.options.layoutType} is not a valid option for layoutType. Allowed values Article|Home`;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.promoteAs &&
+      args.options.promoteAs !== 'HomePage' &&
+      args.options.promoteAs !== 'NewsPage' &&
+      args.options.promoteAs !== 'Template') {
+      return `${args.options.promoteAs} is not a valid option for promoteAs. Allowed values HomePage|NewsPage|Template`;
+    }
 
-      if (args.options.layoutType &&
-        args.options.layoutType !== 'Article' &&
-        args.options.layoutType !== 'Home') {
-        return `${args.options.layoutType} is not a valid option for layoutType. Allowed values Article|Home`;
-      }
+    if (args.options.promoteAs === 'HomePage' && args.options.layoutType !== 'Home') {
+      return 'You can only promote home pages as site home page';
+    }
 
-      if (args.options.promoteAs &&
-        args.options.promoteAs !== 'HomePage' &&
-        args.options.promoteAs !== 'NewsPage' &&
-        args.options.promoteAs !== 'Template') {
-        return `${args.options.promoteAs} is not a valid option for promoteAs. Allowed values HomePage|NewsPage|Template`;
-      }
+    if (args.options.promoteAs === 'NewsPage' && args.options.layoutType === 'Home') {
+      return 'You can only promote article pages as news article';
+    }
 
-      if (args.options.promoteAs === 'HomePage' && args.options.layoutType !== 'Home') {
-        return 'You can only promote home pages as site home page';
-      }
+    if (typeof args.options.commentsEnabled !== 'undefined' &&
+      args.options.commentsEnabled !== 'true' &&
+      args.options.commentsEnabled !== 'false') {
+      return `${args.options.commentsEnabled} is not a valid value for commentsEnabled. Allowed values true|false`;
+    }
 
-      if (args.options.promoteAs === 'NewsPage' && args.options.layoutType === 'Home') {
-        return 'You can only promote article pages as news article';
-      }
-
-      if (typeof args.options.commentsEnabled !== 'undefined' &&
-        args.options.commentsEnabled !== 'true' &&
-        args.options.commentsEnabled !== 'false') {
-        return `${args.options.commentsEnabled} is not a valid value for commentsEnabled. Allowed values true|false`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If you try to create a page with a name of a page that already exists, you
-    will get a ${chalk.grey('The file doesn\'t exists')} error.
-
-    If you choose to promote the page using the ${chalk.blue('promoteAs')} option
-    or enable page comments, you will see the result only after publishing
-    the page.
-
-  Examples:
-
-    Change the layout of the existing page to Article
-      ${this.name} --name page.aspx --webUrl https://contoso.sharepoint.com/sites/a-team --layoutType Article
-
-    Promote the existing article page as a news article
-      ${this.name} --name page.aspx --webUrl https://contoso.sharepoint.com/sites/a-team --promoteAs NewsPage
-
-    Promote the existing article page as a template
-      ${this.name} --name page.aspx --webUrl https://contoso.sharepoint.com/sites/a-team --promoteAs Template
-
-    Change the page's layout to Home and set it as the site's home page
-      ${this.name} --name page.aspx --webUrl https://contoso.sharepoint.com/sites/a-team --layoutType Home --promoteAs HomePage
-
-    Enable comments on the existing page
-      ${this.name} --name page.aspx --webUrl https://contoso.sharepoint.com/sites/a-team --commentsEnabled true
-
-    Publish existing page
-      ${this.name} --name page.aspx --webUrl https://contoso.sharepoint.com/sites/a-team --publish
-`);
+    return true;
   }
 }
 

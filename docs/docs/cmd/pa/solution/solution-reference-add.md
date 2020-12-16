@@ -5,19 +5,15 @@ Adds a project reference to the solution in the current directory
 ## Usage
 
 ```sh
-pa solution reference add [options]
+m365 pa solution reference add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-p, --path <path>`|The path to the referenced project
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-p, --path <path>`
+: The path to the referenced project
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,7 +26,7 @@ The CDS solution project and the PowerApps component framework project cannot ha
 Adds a reference inside the CDS Solution project in the current directory to the PowerApps component framework project at `./projects/ExampleProject`
 
 ```sh
-pa solution reference add --path ./projects/ExampleProject
+m365 pa solution reference add --path ./projects/ExampleProject
 ```
 
 ## More information

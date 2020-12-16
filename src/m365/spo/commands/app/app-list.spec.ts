@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./app-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./app-list');
 
 describe(commands.APP_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -22,23 +22,23 @@ describe(commands.APP_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get,
       request.post
     ]);
@@ -54,11 +54,15 @@ describe(commands.APP_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.APP_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.APP_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), [`Title`, `ID`, `Deployed`, `AppCatalogVersion`]);
   });
 
   it('retrieves available apps from the tenant app catalog', (done) => {
@@ -92,9 +96,9 @@ describe(commands.APP_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true } }, () => {
+    command.action(logger, { options: { debug: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             ID: 'b2307a39-e878-458b-bc90-03bc578531d6',
             Title: 'online-client-side-solution',
@@ -147,9 +151,9 @@ describe(commands.APP_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, scope: 'sitecollection', appCatalogUrl: 'https://contoso-admin.sharepoint.com' } }, () => {
+    command.action(logger, { options: { debug: true, scope: 'sitecollection', appCatalogUrl: 'https://contoso-admin.sharepoint.com' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             ID: 'b2307a39-e878-458b-bc90-03bc578531d6',
             Title: 'online-client-side-solution',
@@ -214,10 +218,9 @@ describe(commands.APP_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({ options: { debug: true, output: 'json' } }, () => {
+    command.action(logger, { options: { debug: true, output: 'json' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             "AppCatalogVersion": "1.0.0.0",
             "CanUpgrade": false,
@@ -266,9 +269,9 @@ describe(commands.APP_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false } }, () => {
+    command.action(logger, { options: { debug: false } }, () => {
       try {
-        assert.equal(log.length, 0);
+        assert.strictEqual(log.length, 0);
         done();
       }
       catch (e) {
@@ -282,13 +285,13 @@ describe(commands.APP_LIST, () => {
 
   it('handles if tenant appcatalog is null or not exist (debug)', (done) => {
     sinon.stub(request, 'get').resolves(JSON.stringify({ "CorporateCatalogUrl": null }));
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Tenant app catalog is not configured.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Tenant app catalog is not configured.')));
         done();
       }
       catch (e) {
@@ -310,9 +313,9 @@ describe(commands.APP_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, scope: 'sitecollection', appCatalogUrl: 'https://contoso-admin.sharepoint.com' } }, () => {
+    command.action(logger, { options: { debug: false, scope: 'sitecollection', appCatalogUrl: 'https://contoso-admin.sharepoint.com' } }, () => {
       try {
-        assert.equal(log.length, 0);
+        assert.strictEqual(log.length, 0);
         done();
       }
       catch (e) {
@@ -340,7 +343,7 @@ describe(commands.APP_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, verbose: true } }, () => {
+    command.action(logger, { options: { debug: false, verbose: true } }, () => {
       let correctLogStatement = false;
       log.forEach(l => {
         if (!l || typeof l !== 'string') {
@@ -365,7 +368,7 @@ describe(commands.APP_LIST, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsdebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -376,71 +379,37 @@ describe(commands.APP_LIST, () => {
   });
 
   it('fails validation when invalid scope is specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { scope: 'foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { scope: 'foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when no scope is specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: {} });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the scope is specified with \'tenant\'', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { scope: 'tenant' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { scope: 'tenant' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation when appCatalogUrl is not a valid url', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { scope: 'sitecollection', appCatalogUrl: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { scope: 'sitecollection', appCatalogUrl: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('should fail when \'sitecollection\' scope, but no appCatalogUrl specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'solution', filePath: 'abc', scope: 'sitecollection' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'solution', filePath: 'abc', scope: 'sitecollection' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('should fail when \'sitecollection\' scope, but  bad appCatalogUrl format specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'solution', filePath: 'abc', scope: 'sitecollection', appCatalogUrl: 'contoso.sharepoint.com' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'solution', filePath: 'abc', scope: 'sitecollection', appCatalogUrl: 'contoso.sharepoint.com' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the scope is specified with \'sitecollection\' and appCatalogUrl present', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { scope: 'sitecollection', appCatalogUrl: 'https://contoso-admin.sharepoint.com' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.APP_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { scope: 'sitecollection', appCatalogUrl: 'https://contoso-admin.sharepoint.com' } });
+    assert.strictEqual(actual, true);
   });
 });

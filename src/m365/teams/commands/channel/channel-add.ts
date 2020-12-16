@@ -1,22 +1,22 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
-import {
-  CommandOption, CommandValidate
-} from '../../../../Command';
-import GraphCommand from "../../../base/GraphCommand";
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import GraphCommand from "../../../base/GraphCommand";
+import commands from '../../commands';
+import { Team } from '../../Team';
 
 interface CommandArgs {
   options: Options;
 }
 
 interface Options extends GlobalOptions {
-  description?: string;
-  teamId: string;
+  teamId?: string;
+  teamName?: string;
   name: string;
+  description?: string;
 }
 
 class TeamsChannelAddCommand extends GraphCommand {
@@ -31,41 +31,80 @@ class TeamsChannelAddCommand extends GraphCommand {
   public getTelemetryProperties(args: CommandArgs): any {
     const telemetryProps: any = super.getTelemetryProperties(args);
     telemetryProps.description = typeof args.options.description !== 'undefined';
+    telemetryProps.teamId = typeof args.options.teamId !== 'undefined';
+    telemetryProps.teamName = typeof args.options.teamName !== 'undefined';
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const requestOptions: any = {
-      url: `${this.resource}/v1.0/teams/${args.options.teamId}/channels`,
+  private getTeamId(args: CommandArgs): Promise<string> {
+    if (args.options.teamId) {
+      return Promise.resolve(args.options.teamId);
+    }
+
+    const teamRequestOptions: any = {
+      url: `${this.resource}/v1.0/me/joinedTeams?$filter=displayName eq '${encodeURIComponent(args.options.teamName as string)}'`,
       headers: {
-        accept: 'application/json;odata.metadata=none',
-        'content-type': 'application/json;odata=nometadata'
+        accept: 'application/json;odata.metadata=none'
       },
-      body: {
-        displayName: args.options.name,
-        description: args.options.description || null
-      },
-      json: true
+      responseType: 'json'
     };
 
-    request
-      .post(requestOptions)
+    return request
+      .get<{ value: Team[] }>(teamRequestOptions)
+      .then(response => {
+        const teamItem: Team | undefined = response.value[0];
+
+        if (!teamItem) {
+          return Promise.reject(`The specified team does not exist in the Microsoft Teams`);
+        }
+
+        if (response.value.length > 1) {
+          return Promise.reject(`Multiple Microsoft Teams teams with name ${args.options.teamName} found: ${response.value.map(x => x.id)}`);
+        }
+
+        return Promise.resolve(teamItem.id);
+      });
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    this
+      .getTeamId(args)
+      .then((teamId: string): Promise<void> => {
+        const requestOptions: any = {
+          url: `${this.resource}/v1.0/teams/${teamId}/channels`,
+          headers: {
+            accept: 'application/json;odata.metadata=none',
+            'content-type': 'application/json;odata=nometadata'
+          },
+          data: {
+            displayName: args.options.name,
+            description: args.options.description || null
+          },
+          responseType: 'json'
+        };
+
+        return request.post(requestOptions);
+      })
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
     const options: CommandOption[] = [
       {
-        option: '-i, --teamId <teamId>',
-        description: 'The ID of the team to add the channel to'
+        option: '-i, --teamId [teamId]',
+        description: 'The ID of the team to add the channel to. Specify either teamId or teamName but not both'
+      },
+      {
+        option: '--teamName [teamName]',
+        description: 'The display name of the team to add the channel to. Specify either teamId or teamName but not both'
       },
       {
         option: '-n, --name <name>',
@@ -81,37 +120,20 @@ class TeamsChannelAddCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.teamId && args.options.teamName) {
+      return 'Specify either teamId or teamName, but not both.';
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId as string)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
+    if (!args.options.teamId && !args.options.teamName) {
+      return 'Specify teamId or teamName, one is required';
+    }
 
-      if (!args.options.name) {
-        return 'Required parameter name missing';
-      }
+    if (args.options.teamId && !Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      return true;
-    };
-  }
-
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    You can only add a channel to the Microsoft Teams team you are a member of.
-
-  Examples:
-  
-    Add channel to the specified Microsoft Teams team
-      ${this.name} --teamId 6703ac8a-c49b-4fd4-8223-28f0ac3a6402 --name office365cli --description development
-`   );
+    return true;
   }
 }
 

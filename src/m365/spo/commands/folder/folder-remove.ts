@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Cli, Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -37,10 +35,10 @@ class SpoFolderRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeFolder: () => void = (): void => {
       if (this.verbose) {
-        cmd.log(`Removing folder in site at ${args.options.webUrl}...`);
+        logger.logToStderr(`Removing folder in site at ${args.options.webUrl}...`);
       }
 
       const serverRelativeUrl: string = Utils.getServerRelativePath(args.options.webUrl, args.options.folderUrl);
@@ -56,25 +54,25 @@ class SpoFolderRemoveCommand extends SpoCommand {
           'If-Match': '*',
           'accept': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
         .post(requestOptions)
         .then((): void => {
           if (this.verbose) {
-            cmd.log('DONE');
+            logger.logToStderr('DONE');
           }
 
           cb();
-        }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
       removeFolder();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -114,45 +112,8 @@ class SpoFolderRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      if (!args.options.folderUrl) {
-        return 'Required parameter folderUrl missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-  
-    The ${chalk.blue(this.name)} command will remove folder only if it is empty.
-    If the folder contains any files, deleting the folder will fail.
-        
-  Examples:
-
-    Removes a folder with site-relative URL ${chalk.grey('/Shared Documents/My Folder')} located
-    in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FOLDER_REMOVE} --webUrl https://contoso.sharepoint.com/sites/project-x --folderUrl '/Shared Documents/My Folder'
-
-    Moves a folder with site-relative URL ${chalk.grey('/Shared Documents/My Folder')} located in
-    site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-    to the site recycle bin
-      ${commands.FOLDER_REMOVE} --webUrl https://contoso.sharepoint.com/sites/project-x --folderUrl '/Shared Documents/My Folder' --recycle
-    `)
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

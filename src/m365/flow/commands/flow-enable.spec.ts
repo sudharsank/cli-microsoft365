@@ -1,18 +1,18 @@
-import commands from '../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../appInsights';
 import auth from '../../../Auth';
-const command: Command = require('./flow-enable');
-import * as assert from 'assert';
+import { Logger } from '../../../cli';
+import Command, { CommandError } from '../../../Command';
 import request from '../../../request';
 import Utils from '../../../Utils';
+import commands from '../commands';
+const command: Command = require('./flow-enable');
 
 describe(commands.FLOW_ENABLE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.FLOW_ENABLE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -51,11 +51,11 @@ describe(commands.FLOW_ENABLE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FLOW_ENABLE), true);
+    assert.strictEqual(command.name.startsWith(commands.FLOW_ENABLE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('enables the specified flow (debug)', (done) => {
@@ -68,10 +68,10 @@ describe(commands.FLOW_ENABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d', environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
+    command.action(logger, { options: { debug: true, name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d', environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
       try {
-        assert.notEqual(cmdInstanceLogSpy.lastCall.args[0].indexOf('DONE'), -1);
-        assert.equal(postStub.lastCall.args[0].url, 'https://management.azure.com/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/3989cb59-ce1a-4a5c-bb78-257c5c39381d/start?api-version=2016-11-01');
+        assert.notStrictEqual(loggerLogToStderrSpy.lastCall.args[0].indexOf('DONE'), -1);
+        assert.strictEqual(postStub.lastCall.args[0].url, 'https://management.azure.com/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/3989cb59-ce1a-4a5c-bb78-257c5c39381d/start?api-version=2016-11-01');
         done();
       }
       catch (e) {
@@ -90,9 +90,9 @@ describe(commands.FLOW_ENABLE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d', environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', asAdmin: true } }, () => {
+    command.action(logger, { options: { debug: false, name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d', environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', asAdmin: true } }, () => {
       try {
-        assert.equal(postStub.lastCall.args[0].url, 'https://management.azure.com/providers/Microsoft.ProcessSimple/scopes/admin/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/3989cb59-ce1a-4a5c-bb78-257c5c39381d/start?api-version=2016-11-01');
+        assert.strictEqual(postStub.lastCall.args[0].url, 'https://management.azure.com/providers/Microsoft.ProcessSimple/scopes/admin/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/3989cb59-ce1a-4a5c-bb78-257c5c39381d/start?api-version=2016-11-01');
         done();
       }
       catch (e) {
@@ -111,9 +111,9 @@ describe(commands.FLOW_ENABLE, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6', name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6', name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Access to the environment 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' is denied.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Access to the environment 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' is denied.`)));
         done();
       }
       catch (e) {
@@ -132,9 +132,9 @@ describe(commands.FLOW_ENABLE, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6', name: '1c6ee23a-a835-44bc-a4f5-462b658efc12' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6', name: '1c6ee23a-a835-44bc-a4f5-462b658efc12' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`The caller with object id 'da8f7aea-cf43-497f-ad62-c2feae89a194' does not have permission for connection '1c6ee23a-a835-44bc-a4f5-462b658efc12' under Api 'shared_logicflows'.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`The caller with object id 'da8f7aea-cf43-497f-ad62-c2feae89a194' does not have permission for connection '1c6ee23a-a835-44bc-a4f5-462b658efc12' under Api 'shared_logicflows'.`)));
         done();
       }
       catch (e) {
@@ -153,9 +153,9 @@ describe(commands.FLOW_ENABLE, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6', name: '1c6ee23a-a835-44bc-a4f5-462b658efc12', asAdmin: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6', name: '1c6ee23a-a835-44bc-a4f5-462b658efc12', asAdmin: true } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Could not find flow '1c6ee23a-a835-44bc-a4f5-462b658efc12'.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Could not find flow '1c6ee23a-a835-44bc-a4f5-462b658efc12'.`)));
         done();
       }
       catch (e) {
@@ -178,9 +178,9 @@ describe(commands.FLOW_ENABLE, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -189,23 +189,8 @@ describe(commands.FLOW_ENABLE, () => {
     });
   });
 
-  it('fails validation if the name is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { environment: 'abc' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the environment is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'abc' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('passes validation when the name and environment specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', name: 'abc' } });
-    assert.equal(actual, true);
-  });
-
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -216,7 +201,7 @@ describe(commands.FLOW_ENABLE, () => {
   });
 
   it('supports specifying name', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--name') > -1) {
@@ -227,7 +212,7 @@ describe(commands.FLOW_ENABLE, () => {
   });
 
   it('supports specifying environment', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--environment') > -1) {
@@ -235,39 +220,5 @@ describe(commands.FLOW_ENABLE, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FLOW_ENABLE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

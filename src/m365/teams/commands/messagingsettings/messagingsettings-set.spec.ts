@@ -1,18 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./messagingsettings-set');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./messagingsettings-set');
 
 describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,24 +22,24 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.patch
     ]);
   });
@@ -52,27 +53,27 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TEAMS_MESSAGINGSETTINGS_SET), true);
+    assert.strictEqual(command.name.startsWith(commands.TEAMS_MESSAGINGSETTINGS_SET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('validates for a correct input.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
     done();
   });
 
   it('sets the allowUserEditMessages setting to true', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/teams/8231f9f2-701f-4c6e-93ce-ecb563e3c1ee` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           messagingSettings: {
             allowUserEditMessages: true
           }
@@ -83,12 +84,11 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false, teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee', allowUserEditMessages: 'true' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(typeof err, 'undefined');
+        assert.strictEqual(typeof err, 'undefined');
         done();
       }
       catch (e) {
@@ -100,7 +100,7 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
   it('sets the allowUserDeleteMessages setting to false', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/teams/8231f9f2-701f-4c6e-93ce-ecb563e3c1ee` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           messagingSettings: {
             allowUserDeleteMessages: false
           }
@@ -111,12 +111,11 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: true, teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee', allowUserDeleteMessages: 'false' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -128,7 +127,7 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
   it('sets allowOwnerDeleteMessages, allowTeamMentions and allowChannelMentions to true', (done) => {
     sinon.stub(request, 'patch').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/teams/8231f9f2-701f-4c6e-93ce-ecb563e3c1ee` &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           messagingSettings: {
             allowOwnerDeleteMessages: true,
             allowTeamMentions: true,
@@ -141,12 +140,11 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false, teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee', allowOwnerDeleteMessages: 'true', allowTeamMentions: 'true', allowChannelMentions: 'true' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(typeof err, 'undefined');
+        assert.strictEqual(typeof err, 'undefined');
         done();
       }
       catch (e) {
@@ -173,12 +171,11 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false, teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee', allowOwnerDeleteMessages: 'true', allowTeamMentions: 'true', allowChannelMentions: 'true' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(err.message, 'No team found with Group Id 8231f9f2-701f-4c6e-93ce-ecb563e3c1ee');
+        assert.strictEqual(err.message, 'No team found with Group Id 8231f9f2-701f-4c6e-93ce-ecb563e3c1ee');
         done();
       }
       catch (e) {
@@ -187,53 +184,48 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
     });
   });
 
-  it('fails validation if the teamId is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the teamId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { teamId: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { teamId: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the teamId is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if allowUserEditMessages is not a valid boolean', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee',
         allowUserEditMessages: 'invalid'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if allowUserEditMessages is doublicated', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee',
         allowUserEditMessages: ['true', 'false']
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if allowUserEditMessages is false', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee',
         allowUserEditMessages: 'false'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -241,39 +233,5 @@ describe(commands.TEAMS_MESSAGINGSETTINGS_SET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TEAMS_MESSAGINGSETTINGS_SET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

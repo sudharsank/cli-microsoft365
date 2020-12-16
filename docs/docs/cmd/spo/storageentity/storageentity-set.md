@@ -5,23 +5,27 @@ Sets tenant property on the specified SharePoint Online app catalog
 ## Usage
 
 ```sh
-spo storageentity set [options]
+m365 spo storageentity set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --appCatalogUrl <appCatalogUrl>`|URL of the app catalog site
-`-k, --key <key>`|Name of the tenant property to retrieve
-`-v, --value <value>`|Value to set for the property
-`-d, --description [description]`|Description to set for the property (optional)
-`-c, --comment [comment]`|Comment to set for the property (optional)
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --appCatalogUrl <appCatalogUrl>`
+: URL of the app catalog site
+
+`-k, --key <key>`
+: Name of the tenant property to retrieve
+
+`-v, --value <value>`
+: Value to set for the property
+
+`-d, --description [description]`
+: Description to set for the property (optional)
+
+`-c, --comment [comment]`
+: Comment to set for the property (optional)
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -37,7 +41,7 @@ If you specify the URL of a site different than the app catalog, you will get an
 Set _123_ as the value of the _AnalyticsId_ tenant property. Also include a description and a comment for additional clarification of the usage of the property.
 
 ```sh
-spo storageentity set -k AnalyticsId -v 123 -d 'Web analytics ID' -c 'Use on all sites' -u https://contoso.sharepoint.com/sites/appcatalog
+m365 spo storageentity set -k AnalyticsId -v 123 -d 'Web analytics ID' -c 'Use on all sites' -u https://contoso.sharepoint.com/sites/appcatalog
 ```
 
 ## More information

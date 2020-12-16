@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./run-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./run-get');
 
 describe(commands.FLOW_RUN_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.FLOW_RUN_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +51,15 @@ describe(commands.FLOW_RUN_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FLOW_RUN_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.FLOW_RUN_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['name', 'startTime', 'endTime', 'status', 'triggerName']);
   });
 
   it('retrieves information about the specified run (debug)', (done) => {
@@ -112,10 +116,49 @@ describe(commands.FLOW_RUN_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, flow: '396d5ec9-ae2d-4a84-967d-cd7f56cd8f30', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: '08586653536760200319026785874CU62' } }, () => {
+    command.action(logger, { options: { debug: true, flow: '396d5ec9-ae2d-4a84-967d-cd7f56cd8f30', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: '08586653536760200319026785874CU62' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
-          name: '08586653536760200319026785874CU62',
+        assert(loggerLogSpy.calledWith({
+          "name": "08586653536760200319026785874CU62",
+          "id": "/providers/Microsoft.ProcessSimple/environments/Default-48595cc3-adce-4267-8e99-0c838923dbb9/flows/396d5ec9-ae2d-4a84-967d-cd7f56cd8f30/runs/08586653536760200319026785874CU62",
+          "type": "Microsoft.ProcessSimple/environments/flows/runs",
+          "properties": {
+            "startTime": "2018-09-06T17:00:09.9484194Z",
+            "endTime": "2018-09-06T17:00:10.3406851Z",
+            "status": "Succeeded",
+            "correlation": {
+              "clientTrackingId": "08586653536760200320026785874CU62"
+            },
+            "trigger": {
+              "name": "When_a_file_is_created_or_modified_(properties_only)",
+              "inputsLink": {
+                "uri": "https://prod-59.westeurope.logic.azure.com:443/workflows/2d8d4d3c94604eeeadc68464ea5fb361/runs/08586653536760200319026785874CU62/contents/TriggerInputs?api-version=2016-06-01&se=2018-09-07T22%3A00%3A00.0000000Z&sp=%2Fruns%2F08586653536760200319026785874CU62%2Fcontents%2FTriggerInputs%2Fread&sv=1.0&sig=K2gG1YUOzIL2XCAiW0m8UDnbF6ECKmDy5sEsdw8EXC0",
+                "contentVersion": "98GuGIhrxUoG/lKXcXUgaA==",
+                "contentSize": 515,
+                "contentHash": {
+                  "algorithm": "md5",
+                  "value": "98GuGIhrxUoG/lKXcXUgaA=="
+                }
+              },
+              "outputsLink": {
+                "uri": "https://prod-59.westeurope.logic.azure.com:443/workflows/2d8d4d3c94604eeeadc68464ea5fb361/runs/08586653536760200319026785874CU62/contents/TriggerOutputs?api-version=2016-06-01&se=2018-09-07T22%3A00%3A00.0000000Z&sp=%2Fruns%2F08586653536760200319026785874CU62%2Fcontents%2FTriggerOutputs%2Fread&sv=1.0&sig=khJc2zfPe4bHnGU2BnuulbKt2c9FdYF2ZDizn3s8mF8",
+                "contentVersion": "KNpZY3gib8WXg6/bxuIsSA==",
+                "contentSize": 3661,
+                "contentHash": {
+                  "algorithm": "md5",
+                  "value": "KNpZY3gib8WXg6/bxuIsSA=="
+                }
+              },
+              "startTime": "2018-09-06T17:00:09.4562613Z",
+              "endTime": "2018-09-06T17:00:09.7844035Z",
+              "scheduledTime": "2018-09-06T17:00:09.8558878Z",
+              "correlation": {
+                "clientTrackingId": "08586653536760200320026785874CU62"
+              },
+              "code": "OK",
+              "status": "Succeeded"
+            }
+          },
           startTime: '2018-09-06T17:00:09.9484194Z',
           endTime: '2018-09-06T17:00:10.3406851Z',
           status: 'Succeeded',
@@ -183,82 +226,54 @@ describe(commands.FLOW_RUN_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, flow: '396d5ec9-ae2d-4a84-967d-cd7f56cd8f30', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: '08586653536760200319026785874CU62' } }, () => {
+    command.action(logger, { options: { debug: false, flow: '396d5ec9-ae2d-4a84-967d-cd7f56cd8f30', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: '08586653536760200319026785874CU62' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
-          name: '08586653536760200319026785874CU62',
+        assert(loggerLogSpy.calledWith({
+          "name": "08586653536760200319026785874CU62",
+          "id": "/providers/Microsoft.ProcessSimple/environments/Default-48595cc3-adce-4267-8e99-0c838923dbb9/flows/396d5ec9-ae2d-4a84-967d-cd7f56cd8f30/runs/08586653536760200319026785874CU62",
+          "type": "Microsoft.ProcessSimple/environments/flows/runs",
+          "properties": {
+            "startTime": "2018-09-06T17:00:09.9484194Z",
+            "endTime": "2018-09-06T17:00:10.3406851Z",
+            "status": "Succeeded",
+            "correlation": {
+              "clientTrackingId": "08586653536760200320026785874CU62"
+            },
+            "trigger": {
+              "name": "When_a_file_is_created_or_modified_(properties_only)",
+              "inputsLink": {
+                "uri": "https://prod-59.westeurope.logic.azure.com:443/workflows/2d8d4d3c94604eeeadc68464ea5fb361/runs/08586653536760200319026785874CU62/contents/TriggerInputs?api-version=2016-06-01&se=2018-09-07T22%3A00%3A00.0000000Z&sp=%2Fruns%2F08586653536760200319026785874CU62%2Fcontents%2FTriggerInputs%2Fread&sv=1.0&sig=K2gG1YUOzIL2XCAiW0m8UDnbF6ECKmDy5sEsdw8EXC0",
+                "contentVersion": "98GuGIhrxUoG/lKXcXUgaA==",
+                "contentSize": 515,
+                "contentHash": {
+                  "algorithm": "md5",
+                  "value": "98GuGIhrxUoG/lKXcXUgaA=="
+                }
+              },
+              "outputsLink": {
+                "uri": "https://prod-59.westeurope.logic.azure.com:443/workflows/2d8d4d3c94604eeeadc68464ea5fb361/runs/08586653536760200319026785874CU62/contents/TriggerOutputs?api-version=2016-06-01&se=2018-09-07T22%3A00%3A00.0000000Z&sp=%2Fruns%2F08586653536760200319026785874CU62%2Fcontents%2FTriggerOutputs%2Fread&sv=1.0&sig=khJc2zfPe4bHnGU2BnuulbKt2c9FdYF2ZDizn3s8mF8",
+                "contentVersion": "KNpZY3gib8WXg6/bxuIsSA==",
+                "contentSize": 3661,
+                "contentHash": {
+                  "algorithm": "md5",
+                  "value": "KNpZY3gib8WXg6/bxuIsSA=="
+                }
+              },
+              "startTime": "2018-09-06T17:00:09.4562613Z",
+              "endTime": "2018-09-06T17:00:09.7844035Z",
+              "scheduledTime": "2018-09-06T17:00:09.8558878Z",
+              "correlation": {
+                "clientTrackingId": "08586653536760200320026785874CU62"
+              },
+              "code": "OK",
+              "status": "Succeeded"
+            }
+          },
           startTime: '2018-09-06T17:00:09.9484194Z',
           endTime: '2018-09-06T17:00:10.3406851Z',
           status: 'Succeeded',
           triggerName: 'When_a_file_is_created_or_modified_(properties_only)'
         }));
-        done();
-      }
-      catch (e) {
-        done(e);
-      }
-    });
-  });
-
-  it('returns all properties for JSON output', (done) => {
-    const runInfo: any = {
-      "name": "08586653536760200319026785874CU62",
-      "id": "/providers/Microsoft.ProcessSimple/environments/Default-48595cc3-adce-4267-8e99-0c838923dbb9/flows/396d5ec9-ae2d-4a84-967d-cd7f56cd8f30/runs/08586653536760200319026785874CU62",
-      "type": "Microsoft.ProcessSimple/environments/flows/runs",
-      "properties": {
-        "startTime": "2018-09-06T17:00:09.9484194Z",
-        "endTime": "2018-09-06T17:00:10.3406851Z",
-        "status": "Succeeded",
-        "correlation": {
-          "clientTrackingId": "08586653536760200320026785874CU62"
-        },
-        "trigger": {
-          "name": "When_a_file_is_created_or_modified_(properties_only)",
-          "inputsLink": {
-            "uri": "https://prod-59.westeurope.logic.azure.com:443/workflows/2d8d4d3c94604eeeadc68464ea5fb361/runs/08586653536760200319026785874CU62/contents/TriggerInputs?api-version=2016-06-01&se=2018-09-07T22%3A00%3A00.0000000Z&sp=%2Fruns%2F08586653536760200319026785874CU62%2Fcontents%2FTriggerInputs%2Fread&sv=1.0&sig=K2gG1YUOzIL2XCAiW0m8UDnbF6ECKmDy5sEsdw8EXC0",
-            "contentVersion": "98GuGIhrxUoG/lKXcXUgaA==",
-            "contentSize": 515,
-            "contentHash": {
-              "algorithm": "md5",
-              "value": "98GuGIhrxUoG/lKXcXUgaA=="
-            }
-          },
-          "outputsLink": {
-            "uri": "https://prod-59.westeurope.logic.azure.com:443/workflows/2d8d4d3c94604eeeadc68464ea5fb361/runs/08586653536760200319026785874CU62/contents/TriggerOutputs?api-version=2016-06-01&se=2018-09-07T22%3A00%3A00.0000000Z&sp=%2Fruns%2F08586653536760200319026785874CU62%2Fcontents%2FTriggerOutputs%2Fread&sv=1.0&sig=khJc2zfPe4bHnGU2BnuulbKt2c9FdYF2ZDizn3s8mF8",
-            "contentVersion": "KNpZY3gib8WXg6/bxuIsSA==",
-            "contentSize": 3661,
-            "contentHash": {
-              "algorithm": "md5",
-              "value": "KNpZY3gib8WXg6/bxuIsSA=="
-            }
-          },
-          "startTime": "2018-09-06T17:00:09.4562613Z",
-          "endTime": "2018-09-06T17:00:09.7844035Z",
-          "scheduledTime": "2018-09-06T17:00:09.8558878Z",
-          "correlation": {
-            "clientTrackingId": "08586653536760200320026785874CU62"
-          },
-          "code": "OK",
-          "status": "Succeeded"
-        }
-      }
-    };
-
-    sinon.stub(request, 'get').callsFake((opts) => {
-      if ((opts.url as string).indexOf(`providers/Microsoft.ProcessSimple/environments/Default-48595cc3-adce-4267-8e99-0c838923dbb9/flows/396d5ec9-ae2d-4a84-967d-cd7f56cd8f30/runs/08586653536760200319026785874CU62?api-version=2016-11-01`) > -1) {
-        if (opts.headers &&
-          opts.headers.accept &&
-          opts.headers.accept.indexOf('application/json') === 0) {
-          return Promise.resolve(runInfo);
-        }
-      }
-
-      return Promise.reject('Invalid request');
-    });
-
-    cmdInstance.action({ options: { debug: false, flow: '396d5ec9-ae2d-4a84-967d-cd7f56cd8f30', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: '08586653536760200319026785874CU62', output: 'json' } }, () => {
-      try {
-        assert(cmdInstanceLogSpy.calledWith(runInfo));
         done();
       }
       catch (e) {
@@ -316,10 +331,48 @@ describe(commands.FLOW_RUN_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, flow: 'edf73e7e-9928-4cb9-8eb2-fc263f375ada', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: '08586652586741142222645090602CU35' } }, () => {
+    command.action(logger, { options: { debug: false, flow: 'edf73e7e-9928-4cb9-8eb2-fc263f375ada', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: '08586652586741142222645090602CU35' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
-          name: '08586652586741142222645090602CU35',
+        assert(loggerLogSpy.calledWith({
+          "name": "08586652586741142222645090602CU35",
+          "id": "/providers/Microsoft.ProcessSimple/environments/Default-48595cc3-adce-4267-8e99-0c838923dbb9/flows/edf73e7e-9928-4cb9-8eb2-fc263f375ada/runs/08586652586741142222645090602CU35",
+          "type": "Microsoft.ProcessSimple/environments/flows/runs",
+          "properties": {
+            "startTime": "2018-09-07T19:23:31.3640166Z",
+            "status": "Running",
+            "correlation": {
+              "clientTrackingId": "08586652586741142222645090602CU35",
+              "clientKeywords": ["testFlow"]
+            },
+            "trigger": {
+              "name": "manual",
+              "inputsLink": {
+                "uri": "https://prod-09.westeurope.logic.azure.com:443/workflows/8c76aebc46484a29889c426f55a52f55/runs/08586652586741142222645090602CU35/contents/TriggerInputs?api-version=2016-06-01&se=2018-09-07T23%3A00%3A00.0000000Z&sp=%2Fruns%2F08586652586741142222645090602CU35%2Fcontents%2FTriggerInputs%2Fread&sv=1.0&sig=yjCLU5P9pqCoDPHmRFq-oLKGhcFNnGUXH6ojpQz9z6Q",
+                "contentVersion": "1UI/8pYQdWDVSsijF+0l2Q==",
+                "contentSize": 58,
+                "contentHash": {
+                  "algorithm": "md5",
+                  "value": "1UI/8pYQdWDVSsijF+0l2Q=="
+                }
+              },
+              "outputsLink": {
+                "uri": "https://prod-09.westeurope.logic.azure.com:443/workflows/8c76aebc46484a29889c426f55a52f55/runs/08586652586741142222645090602CU35/contents/TriggerOutputs?api-version=2016-06-01&se=2018-09-07T23%3A00%3A00.0000000Z&sp=%2Fruns%2F08586652586741142222645090602CU35%2Fcontents%2FTriggerOutputs%2Fread&sv=1.0&sig=SLd0zBScyF6F6eMTBIROalK32e2t0od2SDETe9X9SMM",
+                "contentVersion": "YgV2ecynizFKxzT8yiNtpA==",
+                "contentSize": 4244,
+                "contentHash": {
+                  "algorithm": "md5",
+                  "value": "YgV2ecynizFKxzT8yiNtpA=="
+                }
+              },
+              "startTime": "2018-09-07T19:23:31.3482269Z",
+              "endTime": "2018-09-07T19:23:31.3482269Z",
+              "correlation": {
+                "clientTrackingId": "08586652586741142222645090602CU35",
+                "clientKeywords": ["testFlow"]
+              },
+              "status": "Succeeded"
+            }
+          },
           startTime: '2018-09-07T19:23:31.3640166Z',
           endTime: '',
           status: 'Running',
@@ -343,9 +396,9 @@ describe(commands.FLOW_RUN_GET, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, flow: '396d5ec9-ae2d-4a84-967d-cd7f56cd8f30', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbbx', name: '08586653536760200319026785874CU62' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, flow: '396d5ec9-ae2d-4a84-967d-cd7f56cd8f30', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbbx', name: '08586653536760200319026785874CU62' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Access to the environment 'Default-48595cc3-adce-4267-8e99-0c838923dbbx' is denied.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Access to the environment 'Default-48595cc3-adce-4267-8e99-0c838923dbbx' is denied.`)));
         done();
       }
       catch (e) {
@@ -364,9 +417,9 @@ describe(commands.FLOW_RUN_GET, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, flow: '1c6ee23a-a835-44bc-a4f5-462b658efc12', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: '08586653536760200319026785874CU62' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, flow: '1c6ee23a-a835-44bc-a4f5-462b658efc12', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: '08586653536760200319026785874CU62' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`The caller with object id 'da8f7aea-cf43-497f-ad62-c2feae89a194' does not have permission for connection '1c6ee23a-a835-44bc-a4f5-462b658efc12' under Api 'shared_logicflows'.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`The caller with object id 'da8f7aea-cf43-497f-ad62-c2feae89a194' does not have permission for connection '1c6ee23a-a835-44bc-a4f5-462b658efc12' under Api 'shared_logicflows'.`)));
         done();
       }
       catch (e) {
@@ -385,9 +438,9 @@ describe(commands.FLOW_RUN_GET, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, flow: '396d5ec9-ae2d-4a84-967d-cd7f56cd8f30', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: 'ABC' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, flow: '396d5ec9-ae2d-4a84-967d-cd7f56cd8f30', environment: 'Default-48595cc3-adce-4267-8e99-0c838923dbb9', name: 'ABC' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`The provided workflow run name is not valid.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`The provided workflow run name is not valid.`)));
         done();
       }
       catch (e) {
@@ -410,9 +463,9 @@ describe(commands.FLOW_RUN_GET, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -421,28 +474,8 @@ describe(commands.FLOW_RUN_GET, () => {
     });
   });
 
-  it('fails validation if the environment is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'abc', flow: 'abc' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the flow is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { environment: 'abc', name: 'abc' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the name is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { environment: 'abc', flow: 'abc' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('passes validation when the environment, flow and name are specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', flow: 'abc', name: 'abc' } });
-    assert.equal(actual, true);
-  });
-
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -453,7 +486,7 @@ describe(commands.FLOW_RUN_GET, () => {
   });
 
   it('supports specifying environment', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--environment') > -1) {
@@ -464,7 +497,7 @@ describe(commands.FLOW_RUN_GET, () => {
   });
 
   it('supports specifying flow', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--flow') > -1) {
@@ -475,7 +508,7 @@ describe(commands.FLOW_RUN_GET, () => {
   });
 
   it('supports specifying name', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--name') > -1) {
@@ -483,39 +516,5 @@ describe(commands.FLOW_RUN_GET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FLOW_RUN_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

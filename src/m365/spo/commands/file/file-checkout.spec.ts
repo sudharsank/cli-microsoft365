@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./file-checkout');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./file-checkout');
 
 describe(commands.FILE_CHECKOUT, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let stubPostResponses: any = (getFileByServerRelativeUrlResp: any = null, getFileByIdResp: any = null) => {
     return sinon.stub(request, 'post').callsFake((opts) => {
       if (getFileByServerRelativeUrlResp) {
@@ -42,23 +42,23 @@ describe(commands.FILE_CHECKOUT, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -72,11 +72,11 @@ describe(commands.FILE_CHECKOUT, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FILE_CHECKOUT), true);
+    assert.strictEqual(command.name.startsWith(commands.FILE_CHECKOUT), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('command correctly handles file get reject request', (done) => {
@@ -89,7 +89,7 @@ describe(commands.FILE_CHECKOUT, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -97,7 +97,7 @@ describe(commands.FILE_CHECKOUT, () => {
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
@@ -115,7 +115,7 @@ describe(commands.FILE_CHECKOUT, () => {
 
     const actionId: string = '0CD891EF-AFCE-4E55-B836-FCE03286CCCF';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         id: actionId,
@@ -123,7 +123,7 @@ describe(commands.FILE_CHECKOUT, () => {
       }
     }, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err.message), JSON.stringify(expectedError));
+        assert.strictEqual(JSON.stringify(err.message), JSON.stringify(expectedError));
         done();
       }
       catch (e) {
@@ -141,7 +141,7 @@ describe(commands.FILE_CHECKOUT, () => {
 
     const actionId: string = '0CD891EF-AFCE-4E55-B836-FCE03286CCCF';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         id: actionId,
@@ -149,7 +149,7 @@ describe(commands.FILE_CHECKOUT, () => {
       }
     }, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err.message), JSON.stringify(expectedError));
+        assert.strictEqual(JSON.stringify(err.message), JSON.stringify(expectedError));
         done();
       }
       catch (e) {
@@ -163,7 +163,7 @@ describe(commands.FILE_CHECKOUT, () => {
 
     const actionId: string = '0CD891EF-AFCE-4E55-B836-FCE03286CCCF';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         id: actionId,
@@ -171,7 +171,7 @@ describe(commands.FILE_CHECKOUT, () => {
       }
     }, () => {
       try {
-        assert.equal(postStub.lastCall.args[0].url, 'https://contoso.sharepoint.com/sites/project-x/_api/web/GetFileById(\'0CD891EF-AFCE-4E55-B836-FCE03286CCCF\')/checkout');
+        assert.strictEqual(postStub.lastCall.args[0].url, 'https://contoso.sharepoint.com/sites/project-x/_api/web/GetFileById(\'0CD891EF-AFCE-4E55-B836-FCE03286CCCF\')/checkout');
         done();
       }
       catch (e) {
@@ -180,13 +180,12 @@ describe(commands.FILE_CHECKOUT, () => {
     });
   });
 
-
   it('should call "DONE" when in verbose', (done) => {
     stubPostResponses();
 
     const actionId: string = '0CD891EF-AFCE-4E55-B836-FCE03286CCCF';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         id: actionId,
@@ -194,7 +193,7 @@ describe(commands.FILE_CHECKOUT, () => {
       }
     }, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0], 'DONE');
+        assert.strictEqual(loggerLogToStderrSpy.lastCall.args[0], 'DONE');
         done();
       }
       catch (e) {
@@ -206,7 +205,7 @@ describe(commands.FILE_CHECKOUT, () => {
   it('should call the correct API url when URL option is passed', (done) => {
     const postStub: sinon.SinonStub = stubPostResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         fileUrl: '/sites/project-x/Documents/Test1.docx',
@@ -214,7 +213,7 @@ describe(commands.FILE_CHECKOUT, () => {
       }
     }, () => {
       try {
-        assert.equal(postStub.lastCall.args[0].url, "https://contoso.sharepoint.com/sites/project-x/_api/web/GetFileByServerRelativeUrl('%2Fsites%2Fproject-x%2FDocuments%2FTest1.docx')/checkout");
+        assert.strictEqual(postStub.lastCall.args[0].url, "https://contoso.sharepoint.com/sites/project-x/_api/web/GetFileByServerRelativeUrl('%2Fsites%2Fproject-x%2FDocuments%2FTest1.docx')/checkout");
         done();
       }
       catch (e) {
@@ -226,7 +225,7 @@ describe(commands.FILE_CHECKOUT, () => {
   it('should call the correct API url when tenant root URL option is passed', (done) => {
     const postStub: sinon.SinonStub = stubPostResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         fileUrl: '/Documents/Test1.docx',
@@ -234,7 +233,7 @@ describe(commands.FILE_CHECKOUT, () => {
       }
     }, () => {
       try {
-        assert.equal(postStub.lastCall.args[0].url, "https://contoso.sharepoint.com/_api/web/GetFileByServerRelativeUrl('%2FDocuments%2FTest1.docx')/checkout");
+        assert.strictEqual(postStub.lastCall.args[0].url, "https://contoso.sharepoint.com/_api/web/GetFileByServerRelativeUrl('%2FDocuments%2FTest1.docx')/checkout");
         done();
       }
       catch (e) {
@@ -244,7 +243,7 @@ describe(commands.FILE_CHECKOUT, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -255,7 +254,7 @@ describe(commands.FILE_CHECKOUT, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -265,72 +264,33 @@ describe(commands.FILE_CHECKOUT, () => {
     assert(containsTypeOption);
   });
 
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the webUrl option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo', id: 'f09c4efe-b8c0-4e89-a166-03418661b89b' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo', id: 'f09c4efe-b8c0-4e89-a166-03418661b89b' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the webUrl option is a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: 'f09c4efe-b8c0-4e89-a166-03418661b89b' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: 'f09c4efe-b8c0-4e89-a166-03418661b89b' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if the id option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: '12345' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: '12345' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the id option is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: 'f09c4efe-b8c0-4e89-a166-03418661b89b' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: 'f09c4efe-b8c0-4e89-a166-03418661b89b' } });
     assert(actual);
   });
 
-  it('fails validation if the id or fileUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.notEqual(actual, true);
+  it('fails validation if the id or url option not specified', () => {
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both id and fileUrl options are specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: 'f09c4efe-b8c0-4e89-a166-03418661b89b', fileUrl: '/sites/project-x/documents' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FILE_CHECKOUT));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: 'f09c4efe-b8c0-4e89-a166-03418661b89b', fileUrl: '/sites/project-x/documents' } });
+    assert.notStrictEqual(actual, true);
   });
 });

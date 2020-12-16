@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN003002_CFG_version } from './FN003002_CFG_version';
 
 describe('FN003002_CFG_version', () => {
@@ -22,7 +22,7 @@ describe('FN003002_CFG_version', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('returns notification if schema is not up-to-date', () => {
@@ -33,7 +33,7 @@ describe('FN003002_CFG_version', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1);
+    assert.strictEqual(findings.length, 1);
   });
 
   it('exits if no config json', () => {
@@ -42,6 +42,6 @@ describe('FN003002_CFG_version', () => {
       configJson: undefined
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

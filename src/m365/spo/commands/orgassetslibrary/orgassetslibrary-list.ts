@@ -1,18 +1,15 @@
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  ContextInfo, ClientSvcResponse, ClientSvcResponseContents
-} from '../../spo';
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import {
-  CommandOption,
-  CommandError
+    CommandError, CommandOption
 } from '../../../../Command';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-import { OrgAssetsResponse, OrgAssets } from './OrgAssets';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
+import { OrgAssets, OrgAssetsResponse } from './OrgAssets';
 
 interface CommandArgs {
   options: Options;
@@ -30,11 +27,11 @@ class SpoOrgNewsSiteListCommand extends SpoCommand {
     return 'List all libraries that are assigned as asset library';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
 
@@ -46,7 +43,7 @@ class SpoOrgNewsSiteListCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Query Id="5" ObjectPathId="3"><Query SelectAllProperties="true"><Properties /></Query></Query><Method Name="GetOrgAssets" Id="6" ObjectPathId="3" /></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Query Id="5" ObjectPathId="3"><Query SelectAllProperties="true"><Properties /></Query></Query><Method Name="GetOrgAssets" Id="6" ObjectPathId="3" /></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -63,7 +60,7 @@ class SpoOrgNewsSiteListCommand extends SpoCommand {
           const orgAssetsResponse: OrgAssetsResponse = json[json.length - 1];
 
           if (orgAssetsResponse === null || orgAssetsResponse.OrgAssetsLibraries === undefined) {
-            cmd.log("No libraries in Organization Assets");
+            logger.log("No libraries in Organization Assets");
           } else {
             const orgAssets: OrgAssets = {
               Url: orgAssetsResponse.Url.DecodedUrl,
@@ -77,39 +74,20 @@ class SpoOrgNewsSiteListCommand extends SpoCommand {
               })
             }
 
-            if (args.options.output === 'json') {
-              cmd.log(JSON.stringify(orgAssets));
-            } else {
-              cmd.log(orgAssets);
-            }
+            logger.log(orgAssets);
 
             if (this.verbose) {
-              cmd.log(vorpal.chalk.green('DONE'));
+              logger.logToStderr(chalk.green('DONE'));
             }
           }
           cb();
         }
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
     const parentOptions: CommandOption[] = super.options();
     return parentOptions;
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.ORGASSETSLIBRARY_LIST).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-
-  Examples:
-
-    List all libraries that are assigned as asset library
-      ${commands.ORGASSETSLIBRARY_LIST}
-  `);
-
   }
 }
 

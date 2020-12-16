@@ -5,21 +5,21 @@ Lists columns in the specific section of a modern page
 ## Usage
 
 ```sh
-spo page column list [options]
+m365 spo page column list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|URL of the site where the page to retrieve is located
-`-n, --name <name>`|Name of the page to list columns of
-`-s, --section <sectionId>`|ID of the section for which to list columns
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: URL of the site where the page to retrieve is located
+
+`-n, --name <name>`
+: Name of the page to list columns of
+
+`-s, --section <sectionId>`
+: ID of the section for which to list columns
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,5 +30,5 @@ If the specified name doesn't refer to an existing modern page, you will get a _
 List columns in the first section of a modern page with name _home.aspx_
 
 ```sh
-spo page column list --webUrl https://contoso.sharepoint.com/sites/team-a --name home.aspx --section 1
+m365 spo page column list --webUrl https://contoso.sharepoint.com/sites/team-a --name home.aspx --section 1
 ```

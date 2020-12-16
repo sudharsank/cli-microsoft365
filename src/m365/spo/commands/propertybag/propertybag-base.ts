@@ -1,10 +1,11 @@
+import { Logger } from '../../../../cli';
+import config from '../../../../config';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import { ClientSvcResponseContents, ClientSvcResponse } from "../../spo";
-import config from '../../../../config';
 import SpoCommand from '../../../base/SpoCommand';
-import { IdentityResponse, ClientSvc } from '../../ClientSvc';
 import { BasePermissions, PermissionKind } from '../../base-permissions';
+import { ClientSvc, IdentityResponse } from '../../ClientSvc';
+import { ClientSvcResponse, ClientSvcResponseContents } from "../../spo";
 
 export interface Property {
   key: string;
@@ -27,7 +28,7 @@ export abstract class SpoPropertyBagBaseCommand extends SpoCommand {
    * Gets property bag for a folder or site rootFolder of a site where return type is "_ObjectType_\":\"SP.Folder\".
    * This method is executed when folder option is specified. PnP PowerShell behaves the same way.
    */
-  protected getFolderPropertyBag(identityResp: IdentityResponse, webUrl: string, folder: string, cmd: CommandInstance): Promise<any> {
+  protected getFolderPropertyBag(identityResp: IdentityResponse, webUrl: string, folder: string, logger: Logger): Promise<any> {
     let serverRelativeUrl: string = folder;
     if (identityResp.serverRelativeUrl !== '/') {
       serverRelativeUrl = `${identityResp.serverRelativeUrl}${serverRelativeUrl}`
@@ -38,7 +39,7 @@ export abstract class SpoPropertyBagBaseCommand extends SpoCommand {
       headers: {
         'X-RequestDigest': this.formDigestValue
       },
-      body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">${serverRelativeUrl}</Parameter></Parameters></Method><Identity Id="5" Name="${identityResp.objectIdentity}" /></ObjectPaths></Request>`
+      data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">${serverRelativeUrl}</Parameter></Parameters></Method><Identity Id="5" Name="${identityResp.objectIdentity}" /></ObjectPaths></Request>`
     };
 
     return new Promise<Object>((resolve: any, reject: any) => {
@@ -46,7 +47,7 @@ export abstract class SpoPropertyBagBaseCommand extends SpoCommand {
         .post<string>(requestOptions)
         .then((res: string) => {
           if (this.debug) {
-            cmd.log('Attempt to get Properties key values');
+            logger.logToStderr('Attempt to get Properties key values');
           }
 
           const json: ClientSvcResponse = JSON.parse(res);
@@ -70,19 +71,19 @@ export abstract class SpoPropertyBagBaseCommand extends SpoCommand {
    * Gets property bag for site or sitecollection where return type is "_ObjectType_\":\"SP.Web\".
    * This method is executed when no folder specified. PnP PowerShell behaves the same way.
    */
-  protected getWebPropertyBag(identityResp: IdentityResponse, webUrl: string, cmd: CommandInstance): Promise<any> {
+  protected getWebPropertyBag(identityResp: IdentityResponse, webUrl: string, logger: Logger): Promise<any> {
     const requestOptions: any = {
       url: `${webUrl}/_vti_bin/client.svc/ProcessQuery`,
       headers: {
         'X-RequestDigest': this.formDigestValue
       },
-      body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Query Id="97" ObjectPathId="5"><Query SelectAllProperties="false"><Properties><Property Name="ServerRelativeUrl" ScalarProperty="true" /><Property Name="AllProperties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Identity Id="5" Name="${identityResp.objectIdentity}" /></ObjectPaths></Request>`
+      data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Query Id="97" ObjectPathId="5"><Query SelectAllProperties="false"><Properties><Property Name="ServerRelativeUrl" ScalarProperty="true" /><Property Name="AllProperties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Identity Id="5" Name="${identityResp.objectIdentity}" /></ObjectPaths></Request>`
     };
 
     return new Promise<Object>((resolve: any, reject: any): void => {
       request.post(requestOptions).then((res: any) => {
         if (this.debug) {
-          cmd.log('Attempt to get AllProperties key values');
+          logger.logToStderr('Attempt to get AllProperties key values');
         }
 
         const json: ClientSvcResponse = JSON.parse(res);
@@ -141,7 +142,7 @@ export abstract class SpoPropertyBagBaseCommand extends SpoCommand {
     return { key: objKey, value: objValue } as Property;
   }
 
-  public static setProperty(name: string, value: string, webUrl: string, formDigest: string, identityResp: IdentityResponse, cmd: CommandInstance, debug: boolean, folder?: string): Promise<any> {
+  public static setProperty(name: string, value: string, webUrl: string, formDigest: string, identityResp: IdentityResponse, logger: Logger, debug: boolean, folder?: string): Promise<any> {
     let objectType: string = 'AllProperties';
     if (folder) {
       objectType = 'Properties';
@@ -152,7 +153,7 @@ export abstract class SpoPropertyBagBaseCommand extends SpoCommand {
       headers: {
         'X-RequestDigest': formDigest
       },
-      body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetFieldValue" Id="206" ObjectPathId="205"><Parameters><Parameter Type="String">${Utils.escapeXml(name)}</Parameter><Parameter Type="String">${Utils.escapeXml(value)}</Parameter></Parameters></Method><Method Name="Update" Id="207" ObjectPathId="198" /></Actions><ObjectPaths><Property Id="205" ParentId="198" Name="${objectType}" /><Identity Id="198" Name="${identityResp.objectIdentity}" /></ObjectPaths></Request>`
+      data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetFieldValue" Id="206" ObjectPathId="205"><Parameters><Parameter Type="String">${Utils.escapeXml(name)}</Parameter><Parameter Type="String">${Utils.escapeXml(value)}</Parameter></Parameters></Method><Method Name="Update" Id="207" ObjectPathId="198" /></Actions><ObjectPaths><Property Id="205" ParentId="198" Name="${objectType}" /><Identity Id="198" Name="${identityResp.objectIdentity}" /></ObjectPaths></Request>`
     };
 
     return new Promise<any>((resolve: any, reject: any): void => {

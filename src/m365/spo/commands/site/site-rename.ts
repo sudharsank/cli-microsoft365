@@ -1,11 +1,11 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-import { CommandOption, CommandValidate, CommandCancel } from '../../../../Command';
-import GlobalOptions from '../../../../GlobalOptions';
+import commands from '../../commands';
 import { FormDigestInfo } from '../../spo';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -27,7 +27,6 @@ interface SiteRenameJob {
 
 class SpoSiteRenameCommand extends SpoCommand {
   private context?: FormDigestInfo;
-  private timeout?: NodeJS.Timer;
   private operationData?: SiteRenameJob;
   private static readonly checkIntervalInMs: number = 5000;
 
@@ -48,12 +47,12 @@ class SpoSiteRenameCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoAdminUrl: string = "";
     let options = args.options;
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<FormDigestInfo> => {
         spoAdminUrl = _spoAdminUrl;
 
@@ -62,7 +61,7 @@ class SpoSiteRenameCommand extends SpoCommand {
       .then((res: FormDigestInfo): Promise<SiteRenameJob> => {
         this.context = res;
         if (this.verbose) {
-          cmd.log(`Scheduling rename job...`);
+          logger.logToStderr(`Scheduling rename job...`);
         }
 
         let optionsBitmask = 0;
@@ -90,15 +89,15 @@ class SpoSiteRenameCommand extends SpoCommand {
             'X-RequestDigest': this.context.FormDigestValue,
             'Content-Type': 'application/json'
           },
-          json: true,
-          body: requestOptions
+          responseType: 'json',
+          data: requestOptions
         };
 
         return request.post(postData);
       })
       .then((res: SiteRenameJob): Promise<void> => {
         if (options.verbose) {
-          cmd.log(res);
+          logger.logToStderr(res);
         }
 
         this.operationData = res;
@@ -124,16 +123,14 @@ class SpoSiteRenameCommand extends SpoCommand {
           );
         });
       }).then((): void => {
-        if (args.options.output === 'json') {
-          cmd.log(this.operationData);
-        }
+        logger.log(this.operationData);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb()
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   protected waitForRenameCompletion(command: SpoSiteRenameCommand, isVerbose: boolean, spoAdminUrl: string, siteUrl: string, resolve: () => void, reject: (error: any) => void, iteration: number): void {
@@ -144,7 +141,7 @@ class SpoSiteRenameCommand extends SpoCommand {
       headers: {
         'X-AttemptNumber': iteration.toString()
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -162,21 +159,13 @@ class SpoSiteRenameCommand extends SpoCommand {
           return;
         }
 
-        command.timeout = setTimeout(() => {
+        setTimeout(() => {
           command.waitForRenameCompletion(command, isVerbose, spoAdminUrl, siteUrl, resolve, reject, iteration);
         }, SpoSiteRenameCommand.checkIntervalInMs);
       })
       .catch((ex: any) => {
         reject(ex);
       });
-  }
-
-  public cancel(): CommandCancel {
-    return (): void => {
-      if (this.timeout) {
-        clearTimeout(this.timeout);
-      }
-    }
   }
 
   public options(): CommandOption[] {
@@ -211,51 +200,16 @@ class SpoSiteRenameCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.newSiteUrl) {
-        return 'A new url must be provided.';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.newSiteUrl) {
+      return 'A new url must be provided.';
+    }
 
-      if (args.options.siteUrl.toLowerCase() === args.options.newSiteUrl.toLowerCase()) {
-        return 'The new URL cannot be the same as the target URL.';
-      }
+    if (args.options.siteUrl.toLowerCase() === args.options.newSiteUrl.toLowerCase()) {
+      return 'The new URL cannot be the same as the target URL.';
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you must have permissions to access
-    the tenant admin site.
-  
-  Remarks:
-
-    Renaming site collections is by default asynchronous and depending on the
-    current state of Microsoft 365, might take up to few minutes. If you're
-    building a script with steps that require the operation to complete fully,
-    you should use the  ${chalk.blue('--wait')} flag. When using this flag, the ${chalk.blue(this.getCommandName())}
-    command  will keep running until it receives confirmation from Microsoft 365 
-    that the site rename operation has completed.
-
-  Examples:
-  
-    Starts the rename of the site collection with name "samplesite" to "renamed"
-    without modifying the title
-      ${commands.SITE_RENAME}  --siteUrl http://contoso.sharepoint.com/samplesite --newSiteUrl http://contoso.sharepoint.com/renamed
-
-    Starts the rename of the site collection with name "samplesite" to "renamed"
-    modifying the title of the site to "New Title"
-      ${commands.SITE_RENAME} --siteUrl http://contoso.sharepoint.com/samplesite --newSiteUrl http://contoso.sharepoint.com/renamed --newSiteTitle "New Title"
-
-    Renames the specified site collection and waits for the operation to
-    complete
-      ${commands.SITE_RENAME} --siteUrl http://contoso.sharepoint.com/samplesite --newSiteUrl http://contoso.sharepoint.com/renamed --newSiteTitle "New Title" --wait
-`);
+    return true;
   }
 }
 

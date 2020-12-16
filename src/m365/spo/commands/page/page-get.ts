@@ -1,16 +1,12 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import {
-  CommandOption, CommandValidate, CommandError
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandError, CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
-import { PageItem } from './PageItem';
-import { ClientSidePage } from './clientsidepages';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-//import { relative } from 'path';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSidePage } from './clientsidepages';
 
 interface CommandArgs {
   options: Options;
@@ -30,9 +26,13 @@ class SpoPageGetCommand extends SpoCommand {
     return 'Gets information about the specific modern page';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['commentsDisabled', 'numSections', 'numControls', 'title', 'layoutType'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving information about the page...`);
+      logger.logToStderr(`Retrieving information about the page...`);
     }
 
     let pageName: string = args.options.name;
@@ -46,12 +46,12 @@ class SpoPageGetCommand extends SpoCommand {
         'content-type': 'application/json;charset=utf-8',
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
-      .get<PageItem>(requestOptions)
-      .then((res: PageItem): void => {
+      .get(requestOptions)
+      .then((res: any): void => {
         if (res.ListItemAllFields.ClientSideApplicationId !== 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec') {
           cb(new CommandError(`Page ${args.options.name} is not a modern page.`));
           return;
@@ -65,7 +65,7 @@ class SpoPageGetCommand extends SpoCommand {
           });
         });
 
-        const page: any = {
+        let page: any = {
           commentsDisabled: res.ListItemAllFields.CommentsDisabled,
           numSections: clientSidePage.sections.length,
           numControls: numControls,
@@ -76,14 +76,15 @@ class SpoPageGetCommand extends SpoCommand {
           page.layoutType = res.ListItemAllFields.PageLayoutType;
         }
 
-        cmd.log(page);
+        page = Object.assign(res, page);
+        logger.log(page);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -102,34 +103,8 @@ class SpoPageGetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required parameter name missing';
-      }
-
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('name')} doesn't refer to an existing modern page, you will get
-    a ${chalk.grey('File doesn\'t exists')} error.
-
-  Examples:
-
-    Get information about the modern page with name ${chalk.grey('home.aspx')}
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a --name home.aspx
-`);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

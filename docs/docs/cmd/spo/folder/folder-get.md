@@ -5,20 +5,18 @@ Gets information about the specified folder
 ## Usage
 
 ```sh
-spo folder get [options]
+m365 spo folder get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|The URL of the site where the folder is located
-`-f, --folderUrl <folderUrl>`|Site-relative URL of the folder
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: The URL of the site where the folder is located
+
+`-f, --folderUrl <folderUrl>`
+: Site-relative URL of the folder
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -29,5 +27,5 @@ If no folder exists at the specified URL, you will get a `Please check the folde
 Get folder properties for folder with site-relative url _'/Shared Documents'_ located in site _https://contoso.sharepoint.com/sites/project-x_
 
 ```sh
-spo folder get --webUrl https://contoso.sharepoint.com/sites/project-x --folderUrl '/Shared Documents'
+m365 spo folder get --webUrl https://contoso.sharepoint.com/sites/project-x --folderUrl '/Shared Documents'
 ```

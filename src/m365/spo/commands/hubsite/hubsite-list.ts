@@ -1,13 +1,13 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import { CommandOption } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { AssociatedSite } from './AssociatedSite';
 import { HubSite } from './HubSite';
 import { QueryListResult } from './QueryListResult';
-import { AssociatedSite } from './AssociatedSite';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -39,12 +39,16 @@ class SpoHubSiteListCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['ID', 'SiteUrl', 'Title'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let hubSites: HubSite[];
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<{ value: HubSite[]; }> => {
         spoAdminUrl = _spoAdminUrl;
 
@@ -53,7 +57,7 @@ class SpoHubSiteListCommand extends SpoCommand {
           headers: {
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
@@ -66,8 +70,8 @@ class SpoHubSiteListCommand extends SpoCommand {
         }
         else {
           if (this.debug) {
-            cmd.log('Retrieving associated sites...');
-            cmd.log('');
+            logger.logToStderr('Retrieving associated sites...');
+            logger.logToStderr('');
           }
         }
 
@@ -76,8 +80,8 @@ class SpoHubSiteListCommand extends SpoCommand {
           headers: {
             accept: 'application/json;odata=nometadata'
           },
-          json: true,
-          body: {
+          responseType: 'json',
+          data: {
             parameters: {
               ViewXml: "<View><Query><Where><And><And><IsNull><FieldRef Name=\"TimeDeleted\"/></IsNull><Neq><FieldRef Name=\"State\"/><Value Type='Integer'>0</Value></Neq></And><Neq><FieldRef Name=\"HubSiteId\"/><Value Type='Text'>{00000000-0000-0000-0000-000000000000}</Value></Neq></And></Where><OrderBy><FieldRef Name='Title' Ascending='true' /></OrderBy></Query><ViewFields><FieldRef Name=\"Title\"/><FieldRef Name=\"SiteUrl\"/><FieldRef Name=\"SiteId\"/><FieldRef Name=\"HubSiteId\"/></ViewFields><RowLimit Paged=\"TRUE\">" + this.batchSize + "</RowLimit></View>",
               DatesInUtc: true
@@ -86,10 +90,10 @@ class SpoHubSiteListCommand extends SpoCommand {
         };
 
         if (this.debug) {
-          cmd.log(`Will retrieve associated sites (including the hub sites) in batches of ${this.batchSize}`);
+          logger.logToStderr(`Will retrieve associated sites (including the hub sites) in batches of ${this.batchSize}`);
         }
 
-        return this.getSites(requestOptions, requestOptions.url, cmd);
+        return this.getSites(requestOptions, requestOptions.url, logger);
       })
       .then((res: AssociatedSite[] | void): void => {
         if (res) {
@@ -99,39 +103,28 @@ class SpoHubSiteListCommand extends SpoCommand {
               // Hub Site ID (as this site is the actual hub site) and of which the
               // Hub Site ID matches the ID of the Hub
               return f.SiteId !== f.HubSiteId
-                && (f.HubSiteId as string).toUpperCase() == `{${h.ID.toUpperCase()}}`;
+                && (f.HubSiteId as string).toUpperCase() === `{${h.ID.toUpperCase()}}`;
             });
             h.AssociatedSites = filteredSites.map(a => {
               return {
                 Title: a.Title,
                 SiteUrl: a.SiteUrl
               }
-            })
+            });
           });
         };
 
-        if (args.options.output === 'json') {
-          cmd.log(hubSites);
-        }
-        else {
-          cmd.log(hubSites.map(h => {
-            return {
-              ID: h.ID,
-              SiteUrl: h.SiteUrl,
-              Title: h.Title
-            };
-          }));
-        }
+        logger.log(hubSites);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
-  private getSites(reqOptions: any, nonPagedUrl: string, cmd: CommandInstance, sites: AssociatedSite[] = [], batchNumber: number = 0): Promise<AssociatedSite[]> {
+  private getSites(reqOptions: any, nonPagedUrl: string, logger: Logger, sites: AssociatedSite[] = [], batchNumber: number = 0): Promise<AssociatedSite[]> {
     return new Promise<AssociatedSite[]>((resolve: (associatedSites: AssociatedSite[]) => void, reject: (error: any) => void): void => {
       request
         .post<QueryListResult>(reqOptions)
@@ -140,18 +133,18 @@ class SpoHubSiteListCommand extends SpoCommand {
           const retrievedSites: AssociatedSite[] = res.Row.length > 0 ? sites.concat(res.Row) : sites;
 
           if (this.debug) {
-            cmd.log(res);
-            cmd.log(`Retrieved ${res.Row.length} sites in batch ${batchNumber}`);
+            logger.logToStderr(res);
+            logger.logToStderr(`Retrieved ${res.Row.length} sites in batch ${batchNumber}`);
           }
 
           if (!!res.NextHref) {
             reqOptions.url = nonPagedUrl + res.NextHref;
             if (this.debug) {
-              cmd.log(`Url for next batch of sites: ${reqOptions.url}`);
+              logger.logToStderr(`Url for next batch of sites: ${reqOptions.url}`);
             }
 
             this
-              .getSites(reqOptions, nonPagedUrl, cmd, retrievedSites, batchNumber)
+              .getSites(reqOptions, nonPagedUrl, logger, retrievedSites, batchNumber)
               .then((associatedSites: AssociatedSite[]): void => {
                 resolve(associatedSites);
               }, (err: any): void => {
@@ -160,7 +153,7 @@ class SpoHubSiteListCommand extends SpoCommand {
           }
           else {
             if (this.debug) {
-              cmd.log(`Retrieved ${retrievedSites.length} sites in total`);
+              logger.logToStderr(`Retrieved ${retrievedSites.length} sites in total`);
             }
 
             resolve(retrievedSites);
@@ -181,36 +174,6 @@ class SpoHubSiteListCommand extends SpoCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on a SharePoint API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-
-    When using the text output type (default), the command lists only the
-    values of the ${chalk.grey('ID')}, ${chalk.grey('SiteUrl')} and ${chalk.grey('Title')} properties of the hub site. When setting
-    the output type to JSON, all available properties are included in
-    the command output.
-
-  Examples:
-  
-    List hub sites in the current tenant
-      ${this.name}
-
-    List hub sites, including their associated sites, in the current tenant. Associated site info is only shown in JSON output.
-      ${this.name} --includeAssociatedSites --output json
-
-  More information:
-
-    SharePoint hub sites new in Microsoft 365
-      https://techcommunity.microsoft.com/t5/SharePoint-Blog/SharePoint-hub-sites-new-in-Office-365/ba-p/109547
-`);
   }
 }
 

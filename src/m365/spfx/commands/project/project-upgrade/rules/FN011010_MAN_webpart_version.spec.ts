@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN011010_MAN_webpart_version } from './FN011010_MAN_webpart_version';
 
 describe('FN011010_MAN_webpart_version', () => {
@@ -17,7 +17,7 @@ describe('FN011010_MAN_webpart_version', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if version already set to *', () => {
@@ -31,6 +31,6 @@ describe('FN011010_MAN_webpart_version', () => {
       }]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

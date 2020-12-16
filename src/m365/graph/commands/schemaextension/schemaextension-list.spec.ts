@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate} from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./schemaextension-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./schemaextension-list');
 
 describe(commands.SCHEMAEXTENSION_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,24 +21,24 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -53,11 +53,11 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
 
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SCHEMAEXTENSION_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.SCHEMAEXTENSION_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
   it('lists schema extensions', (done) => {
     sinon.stub(request, 'get').callsFake((opts) => {
@@ -91,14 +91,13 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([{
+        assert(loggerLogSpy.calledWith([{
                   "id": "adatumisv_exo2",
                   "description": "sample desccription",
                   "targetTypes": [
@@ -179,14 +178,13 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.lastCall.args[0][1].id === 'adatumisv_exo3');
+        assert(loggerLogSpy.lastCall.args[0][1].id === 'adatumisv_exo3');
         done();
       }
       catch (e) {
@@ -234,15 +232,14 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         owner:'07d21ad2-c8f9-4316-a14a-347db702bd3c'
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
               {
                   "id": "adatumisv_courses",
                   "description": "Extension description",
@@ -316,15 +313,14 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         pageNumber:1
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
               {
                   "id": "adatumisv_courses",
                   "description": "Extension description",
@@ -398,8 +394,7 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         pageNumber:1,
@@ -407,7 +402,7 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
               {
                   "id": "adatumisv_courses",
                   "description": "Extension description",
@@ -476,14 +471,13 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
               {
                   "id": "adatumisv_exo2",
                   "description": "sample desccription",
@@ -513,40 +507,40 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
     });
   });
   it('passes validation if the owner is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { owner: '68be84bf-a585-4776-80b3-30aa5207aa22' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { owner: '68be84bf-a585-4776-80b3-30aa5207aa22' } });
+    assert.strictEqual(actual, true);
   });
   it('fails validation if the owner is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { owner: '123' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { owner: '123' } });
+    assert.notStrictEqual(actual, true);
   });
   it('fails validation if the status is not a valid status', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { status: 'test' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { status: 'test' } });
+    assert.notStrictEqual(actual, true);
   });
   it('passes validation if the status is a valid status', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { status: 'InDevelopment' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { status: 'InDevelopment' } });
+    assert.strictEqual(actual, true);
   });
   it('fails validation if the pageNumber is not positive number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { pageNumber: '-1' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { pageNumber: '-1' } });
+    assert.notStrictEqual(actual, true);
   });
   it('passes validation if the pageNumber is a positive number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { pageNumber: '2' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { pageNumber: '2' } });
+    assert.strictEqual(actual, true);
   });
   it('fails validation if the pageSize is not positive number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { pageSize: '-1' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { pageSize: '-1' } });
+    assert.notStrictEqual(actual, true);
   });
   it('passes validation if the pageSize is a positive number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { pageSize: '2' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { pageSize: '2' } });
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -554,39 +548,5 @@ describe(commands.SCHEMAEXTENSION_LIST, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SCHEMAEXTENSION_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

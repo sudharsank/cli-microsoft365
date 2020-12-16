@@ -1,14 +1,14 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import GraphCommand from '../../../base/GraphCommand';
-import Utils from '../../../../Utils';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
+import GraphCommand from '../../../base/GraphCommand';
 import { Channel } from '../../Channel';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -36,13 +36,13 @@ class TeamsChannelSetCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const requestOptions: any = {
       url: `${this.resource}/v1.0/teams/${encodeURIComponent(args.options.teamId)}/channels?$filter=displayName eq '${encodeURIComponent(args.options.channelName)}'`,
       headers: {
         accept: 'application/json;odata.metadata=none'
       },
-      json: true
+      responseType: 'json'
     }
 
     request
@@ -55,25 +55,25 @@ class TeamsChannelSetCommand extends GraphCommand {
         }
 
         const channelId: string = res.value[0].id;
-        const body: any = this.mapRequestBody(args.options);
+        const data: any = this.mapRequestBody(args.options);
         const requestOptions: any = {
           url: `${this.resource}/v1.0/teams/${encodeURIComponent(args.options.teamId)}/channels/${channelId}`,
           headers: {
             'accept': 'application/json;odata.metadata=none'
           },
-          json: true,
-          body: body
+          responseType: 'json',
+          data: data
         };
 
         return request.patch(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -100,26 +100,16 @@ class TeamsChannelSetCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
+    if (args.options.channelName.toLowerCase() === "general") {
+      return 'General channel cannot be updated';
+    }
 
-      if (!args.options.channelName) {
-        return 'Required parameter channelName missing';
-      }
-
-      if (args.options.channelName.toLowerCase() === "general") {
-        return 'General channel cannot be updated';
-      }
-
-      return true;
-    };
+    return true;
   }
 
   private mapRequestBody(options: Options): any {
@@ -134,20 +124,6 @@ class TeamsChannelSetCommand extends GraphCommand {
     }
 
     return requestBody;
-  }
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-
-    Set new description and display name for the specified channel in the given
-    Microsoft Teams team
-      ${this.name} --teamId "00000000-0000-0000-0000-000000000000" --channelName Reviews --newChannelName Projects --description "Channel for new projects"
-
-    Set new display name for the specified channel in the given Microsoft Teams
-    team
-      ${this.name} --teamId "00000000-0000-0000-0000-000000000000" --channelName Reviews --newChannelName Projects
-`);
   }
 }
 

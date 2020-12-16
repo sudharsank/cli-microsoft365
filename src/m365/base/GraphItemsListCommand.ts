@@ -1,5 +1,6 @@
-import GraphCommand from "./GraphCommand";
+import { Logger } from "../../cli";
 import request from '../../request';
+import GraphCommand from "./GraphCommand";
 import { GraphResponse } from './GraphResponse';
 
 export abstract class GraphItemsListCommand<T> extends GraphCommand {
@@ -10,14 +11,14 @@ export abstract class GraphItemsListCommand<T> extends GraphCommand {
     this.items = [];
   }
 
-  protected getAllItems(url: string, cmd: CommandInstance, firstRun: boolean): Promise<void> {
+  protected getAllItems(url: string, logger: Logger, firstRun: boolean): Promise<void> {
     return new Promise<void>((resolve: () => void, reject: (error: any) => void): void => {
       const requestOptions: any = {
         url: url,
         headers: {
           accept: 'application/json;odata.metadata=none'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -31,7 +32,7 @@ export abstract class GraphItemsListCommand<T> extends GraphCommand {
 
           if (res['@odata.nextLink']) {
             this
-              .getAllItems(res['@odata.nextLink'] as string, cmd, false)
+              .getAllItems(res['@odata.nextLink'] as string, logger, false)
               .then((): void => {
                 resolve();
               }, (err: any): void => {

@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN001020_DEP_types_knockout } from './FN001020_DEP_types_knockout';
 
 describe('FN001020_DEP_types_knockout', () => {
@@ -27,6 +27,6 @@ describe('FN001020_DEP_types_knockout', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1);
+    assert.strictEqual(findings.length, 1);
   });
 });

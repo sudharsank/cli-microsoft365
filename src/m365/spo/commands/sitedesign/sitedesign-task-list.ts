@@ -1,13 +1,12 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import GlobalOptions from '../../../../GlobalOptions';
-import { SiteDesignTask } from './SiteDesignTask';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -26,36 +25,29 @@ class SpoSiteDesignTaskListCommand extends SpoCommand {
     return 'Lists site designs scheduled for execution on the specified site';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['ID', 'SiteDesignID', 'LogonName'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const requestOptions: any = {
       url: `${args.options.webUrl}/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignTasks`,
       headers: {
         accept: 'application/json;odata=nometadata',
       },
-      json: true
+      responseType: 'json'
     };
 
-    request.post<{ value: SiteDesignTask[] }>(requestOptions)
-      .then((res: { value: SiteDesignTask[] }): void => {
-        if (args.options.output === 'json') {
-          cmd.log(res.value);
-        }
-        else {
-          cmd.log(res.value.map(d => {
-            return {
-              ID: d.ID,
-              SiteDesignID: d.SiteDesignID,
-              LogonName: d.LogonName
-            };
-          }));
-        }
+    request.post<{ value: any[] }>(requestOptions)
+      .then((res: { value: any[] }): void => {
+        logger.log(res.value);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -70,34 +62,8 @@ class SpoSiteDesignTaskListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    List site designs scheduled for execution on the specified site
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-`);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

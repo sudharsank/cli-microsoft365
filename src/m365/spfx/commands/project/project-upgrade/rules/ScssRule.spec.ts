@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { ScssRule } from './ScssRule';
 
 class MockScssRule extends ScssRule {
@@ -36,10 +36,10 @@ describe('ScssRule', () => {
   })
 
   it('rule has empty file', () => {
-    assert.equal('', rule.file);
+    assert.strictEqual('', rule.file);
   });
 
   it('returns resolution type of scss', () => {
-    assert.equal('scss', rule.resolutionType);
+    assert.strictEqual('scss', rule.resolutionType);
   });
 });

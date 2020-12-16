@@ -1,16 +1,13 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate,
-  CommandError
+  CommandError, CommandOption
 } from '../../../../Command';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -35,17 +32,17 @@ class SpoCdnOriginListCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const cdnTypeString: string = args.options.type || 'Public';
     const cdnType: number = cdnTypeString === 'Private' ? 1 : 0;
     let spoAdminUrl: string = '';
     let tenantId: string = '';
 
     this
-      .getTenantId(cmd, this.debug)
+      .getTenantId(logger, this.debug)
       .then((_tenantId: string): Promise<string> => {
         tenantId = _tenantId;
-        return this.getSpoAdminUrl(cmd, this.debug);
+        return this.getSpoAdminUrl(logger, this.debug);
       })
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
@@ -53,7 +50,7 @@ class SpoCdnOriginListCommand extends SpoCommand {
       })
       .then((res: ContextInfo): Promise<string> => {
         if (this.verbose) {
-          cmd.log(`Retrieving configured origins for ${(cdnType === 1 ? 'Private' : 'Public')} CDN...`);
+          logger.logToStderr(`Retrieving configured origins for ${(cdnType === 1 ? 'Private' : 'Public')} CDN...`);
         }
 
         const requestOptions: any = {
@@ -61,7 +58,7 @@ class SpoCdnOriginListCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnOrigins" Id="22" ObjectPathId="18"><Parameters><Parameter Type="Enum">${cdnType}</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="18" Name="${tenantId}" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="GetTenantCdnOrigins" Id="22" ObjectPathId="18"><Parameters><Parameter Type="Enum">${cdnType}</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="18" Name="${tenantId}" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -74,10 +71,10 @@ class SpoCdnOriginListCommand extends SpoCommand {
         }
         else {
           const result: string[] = json[json.length - 1];
-          cmd.log(result);
+          logger.log(result);
           cb();
         }
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -91,45 +88,15 @@ class SpoCdnOriginListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (args.options.type) {
-        if (args.options.type !== 'Public' &&
-          args.options.type !== 'Private') {
-          return `${args.options.type} is not a valid CDN type. Allowed values are Public|Private`;
-        }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.type) {
+      if (args.options.type !== 'Public' &&
+        args.options.type !== 'Private') {
+        return `${args.options.type} is not a valid CDN type. Allowed values are Public|Private`;
       }
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.CDN_ORIGIN_LIST).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-        
-  Remarks:
-
-    Using the ${chalk.blue('-t, --type')} option you can choose whether you want
-    to manage the settings of the Public (default) or Private CDN. If you don't
-    use the option, the command will use the Public CDN.
-
-  Examples:
-  
-    Show the list of origins configured for the Public CDN
-      ${commands.CDN_ORIGIN_LIST}
-
-    Show the list of origins configured for the Private CDN
-      ${commands.CDN_ORIGIN_LIST} --type Private
-
-  More information:
-
-    General availability of Microsoft 365 CDN
-      https://dev.office.com/blogs/general-availability-of-office-365-cdn
-`);
+    return true;
   }
 }
 

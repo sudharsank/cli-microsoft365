@@ -1,13 +1,11 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+    CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import AzmgmtCommand from '../../../base/AzmgmtCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -26,9 +24,9 @@ class FlowEnvironmentGetCommand extends AzmgmtCommand {
     return 'Gets information about the specified Microsoft Flow environment';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving information about Microsoft Flow environment ${args.options.name}...`);
+      logger.logToStderr(`Retrieving information about Microsoft Flow environment ${args.options.name}...`);
     }
 
     const requestOptions: any = {
@@ -36,16 +34,16 @@ class FlowEnvironmentGetCommand extends AzmgmtCommand {
       headers: {
         accept: 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get(requestOptions)
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -58,37 +56,6 @@ class FlowEnvironmentGetCommand extends AzmgmtCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required option name missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.FLOW_ENVIRONMENT_GET).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-  
-    If the environment with the name you specified doesn't exist, you will get
-    the ${chalk.grey('Access to the environment \'xyz\' is denied.')} error.
-   
-  Examples:
-  
-    Get information about the Microsoft Flow environment named
-    ${chalk.grey('Default-d87a7535-dd31-4437-bfe1-95340acd55c5')}
-      ${this.getCommandName()} --name Default-d87a7535-dd31-4437-bfe1-95340acd55c5
-`);
   }
 }
 

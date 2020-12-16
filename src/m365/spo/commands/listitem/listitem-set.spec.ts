@@ -1,18 +1,17 @@
-import commands from '../../commands';
-import Command from '../../../../Command';
-import { CommandValidate, CommandOption, CommandTypes } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./listitem-set');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandTypes } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./listitem-set');
 
 describe(commands.LISTITEM_SET, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
+  let logger: Logger;
 
   const expectedTitle = `List Item 1`;
 
@@ -24,7 +23,7 @@ describe(commands.LISTITEM_SET, () => {
 
   let postFakes = (opts: any) => {
     if ((opts.url as string).indexOf('ValidateUpdateListItem') > -1) {
-      const bodyString = JSON.stringify(opts.body);
+      const bodyString = JSON.stringify(opts.data);
       const ctMatch = bodyString.match(/\"?FieldName\"?:\s*\"?ContentType\"?,\s*\"?FieldValue\"?:\s*\"?(\w*)\"?/i);
       actualContentType = ctMatch ? ctMatch[1] : "";
       if (bodyString.indexOf("fail updating me") > -1) return Promise.resolve({ value: [{ ErrorMessage: 'failed updating' }] })
@@ -33,7 +32,7 @@ describe(commands.LISTITEM_SET, () => {
 
     if ((opts.url as string).indexOf('_vti_bin/client.svc/ProcessQuery') > -1) {
       // requestObjectIdentity mock
-      if (opts.body.indexOf('Name="Current"') > -1) {
+      if (opts.data.indexOf('Name="Current"') > -1) {
 
         if ((opts.url as string).indexOf('rejectme.com') > -1) {
 
@@ -66,9 +65,9 @@ describe(commands.LISTITEM_SET, () => {
         )
 
       }
-      if (opts.body.indexOf('SystemUpdate') > -1) {
+      if (opts.data.indexOf('SystemUpdate') > -1) {
 
-        if (opts.body.indexOf('systemUpdate error') > -1) {
+        if (opts.data.indexOf('systemUpdate error') > -1) {
           return Promise.resolve(
             'ErrorMessage": "systemUpdate error"}'
           )
@@ -89,7 +88,7 @@ describe(commands.LISTITEM_SET, () => {
       return Promise.resolve({ value: [{ Id: { StringValue: expectedContentType }, Name: "Item" }] });
     }
     if ((opts.url as string).indexOf('/items(') > -1) {
-      actualId = opts.url.match(/\/items\((\d+)\)/i)[1];
+      actualId = parseInt(opts.url.match(/\/items\((\d+)\)/i)[1]);
       return Promise.resolve(
         {
           "Attachments": false,
@@ -120,14 +119,15 @@ describe(commands.LISTITEM_SET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -135,7 +135,6 @@ describe(commands.LISTITEM_SET, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       request.get
     ]);
@@ -150,15 +149,15 @@ describe(commands.LISTITEM_SET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.LISTITEM_SET), true);
+    assert.strictEqual(command.name.startsWith(commands.LISTITEM_SET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -169,7 +168,7 @@ describe(commands.LISTITEM_SET, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -180,42 +179,37 @@ describe(commands.LISTITEM_SET, () => {
   });
 
   it('configures command types', () => {
-    assert.notEqual(typeof command.types(), 'undefined', 'command types undefined');
-    assert.notEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
+    assert.notStrictEqual(typeof command.types(), 'undefined', 'command types undefined');
+    assert.notStrictEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
   });
 
   it('fails validation if listTitle and listId option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if listTitle and listId are specified together', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Demo List', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { title: 'Demo List' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Demo List', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the webUrl option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo', listTitle: 'Demo List' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo', listTitle: 'Demo List' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the webUrl option is a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Demo List' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Demo List' } });
     assert(actual);
   });
 
   it('fails validation if the listId option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: 'foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: 'foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the listId option is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
     assert(actual);
   });
 
@@ -233,9 +227,9 @@ describe(commands.LISTITEM_SET, () => {
       Title: "fail updating me"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(actualId, 0);
+        assert.strictEqual(actualId, 0);
         done();
       }
       catch (e) {
@@ -259,9 +253,9 @@ describe(commands.LISTITEM_SET, () => {
       Title: expectedTitle
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(actualId, expectedId);
+        assert.strictEqual(actualId, expectedId);
         done();
       }
       catch (e) {
@@ -283,7 +277,7 @@ describe(commands.LISTITEM_SET, () => {
       Title: expectedTitle
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(expectedContentType == actualContentType);
         done();
@@ -308,7 +302,7 @@ describe(commands.LISTITEM_SET, () => {
       Title: expectedTitle
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(expectedContentType == actualContentType);
         done();
@@ -333,7 +327,7 @@ describe(commands.LISTITEM_SET, () => {
       Title: expectedTitle
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(expectedContentType == actualContentType);
         done();
@@ -361,9 +355,9 @@ describe(commands.LISTITEM_SET, () => {
       systemUpdate: true
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(actualId, expectedId);
+        assert.strictEqual(actualId, expectedId);
         done();
       }
       catch (e) {
@@ -387,7 +381,7 @@ describe(commands.LISTITEM_SET, () => {
       systemUpdate: true
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(actualId !== expectedId);
         done();
@@ -413,7 +407,7 @@ describe(commands.LISTITEM_SET, () => {
       systemUpdate: true
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(actualId !== expectedId);
         done();
@@ -441,7 +435,7 @@ describe(commands.LISTITEM_SET, () => {
       systemUpdate: true
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(actualId !== expectedId);
         done();
@@ -452,7 +446,7 @@ describe(commands.LISTITEM_SET, () => {
     });
   });
 
-  it('should ignore global options when creating request body', (done) => {
+  it('should ignore global options when creating request data', (done) => {
     sinon.stub(request, 'get').callsFake(getFakes);
     const postStubs = sinon.stub(request, 'post').callsFake(postFakes);
 
@@ -469,48 +463,14 @@ describe(commands.LISTITEM_SET, () => {
       systemUpdate: false
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.deepEqual(postStubs.firstCall.args[0].body, { formValues: [{ FieldName: 'Title', FieldValue: 'List Item 1' }] });
+        assert.deepEqual(postStubs.firstCall.args[0].data, { formValues: [{ FieldName: 'Title', FieldValue: 'List Item 1' }] });
         done();
       }
       catch (e) {
         done(e);
       }
     });
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.LISTITEM_SET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

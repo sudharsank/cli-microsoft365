@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { Logger } from "../../cli";
 import { PcfInitVariables } from "./commands/pcf/pcf-init/pcf-init-variables";
 import { SolutionInitVariables } from "./commands/solution/solution-init/solution-init-variables";
 
@@ -9,23 +10,23 @@ import { SolutionInitVariables } from "./commands/solution/solution-init/solutio
  * Class: bolt.cli.TemplateInstantiator
  */
 export default class TemplateInstantiator {
-  public static instantiate(cmd: CommandInstance, sourcePath: string, destinationPath: string, recursive: boolean, variables: PcfInitVariables | SolutionInitVariables, verbose: boolean) {
-    TemplateInstantiator.mkdirSyncIfNotExists(cmd, destinationPath, verbose);
+  public static instantiate(logger: Logger, sourcePath: string, destinationPath: string, recursive: boolean, variables: PcfInitVariables | SolutionInitVariables, verbose: boolean) {
+    TemplateInstantiator.mkdirSyncIfNotExists(logger, destinationPath, verbose);
 
     this.getFiles(sourcePath, recursive).forEach(file => {
       const filePath = path.relative(sourcePath, path.dirname(file));
       const destinationFilePath = path.join(destinationPath, filePath);
 
-      TemplateInstantiator.mkdirSyncIfNotExists(cmd, destinationFilePath, verbose);
+      TemplateInstantiator.mkdirSyncIfNotExists(logger, destinationFilePath, verbose);
 
       this.instantiateTemplate(file, destinationFilePath, variables);
     });
   }
 
-  public static mkdirSyncIfNotExists(cmd: CommandInstance, destinationPath: string, verbose: boolean) {
+  public static mkdirSyncIfNotExists(logger: Logger, destinationPath: string, verbose: boolean) {
     if (!fs.existsSync(destinationPath)) {
       if (verbose) {
-        cmd.log(`Create directory: ${destinationPath}`);
+        logger.logToStderr(`Create directory: ${destinationPath}`);
       }
       fs.mkdirSync(destinationPath);
     }

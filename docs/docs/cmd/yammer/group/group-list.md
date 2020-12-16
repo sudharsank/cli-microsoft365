@@ -5,19 +5,18 @@ Returns the list of groups in a Yammer network or the groups for a specific user
 ## Usage
 
 ```sh
-yammer group list [options]
+m365 yammer group list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--userId [userId]`|Returns the groups for a specific user
-`--limit [limit]`|Limits the groups returned
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--userId [userId]`
+: Returns the groups for a specific user
+
+`--limit [limit]`
+: Limits the groups returned
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -29,23 +28,23 @@ Option|Description
 Returns all Yammer network groups
 
 ```sh
-yammer group list
+m365 yammer group list
 ```
 
 Returns all Yammer network groups for the user with the ID `5611239081`
 
 ```sh
-yammer group list --userId 5611239081
+m365 yammer group list --userId 5611239081
 ```
 
 Returns the first 10 Yammer network groups
 
 ```sh
-yammer group list --limit 10
+m365 yammer group list --limit 10
 ```
 
 Returns the first 10 Yammer network groups for the user with the ID `5611239081`
 
 ```sh
-yammer group list --userId 5611239081 --limit 10
+m365 yammer group list --userId 5611239081 --limit 10
 ```

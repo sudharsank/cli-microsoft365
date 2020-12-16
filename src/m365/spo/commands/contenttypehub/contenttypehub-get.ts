@@ -1,14 +1,13 @@
+import { Logger } from '../../../../cli';
+import {
+    CommandError
+} from '../../../../Command';
 import config from '../../../../config';
-import commands from '../../commands';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandError
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';  
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -26,18 +25,18 @@ class SpoContentTypeHubGetCommand extends SpoCommand {
     return 'Returns the URL of the SharePoint Content Type Hub of the Tenant';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoUrl: string = '';
 
     this
-      .getSpoUrl(cmd,this.debug)
+      .getSpoUrl(logger,this.debug)
       .then((_spoUrl: string): Promise<ContextInfo> => {
         spoUrl = _spoUrl;
         return this.getRequestDigest(spoUrl);
       })
       .then((res: ContextInfo): Promise<string> => {
         if (this.verbose) {
-          cmd.log(`Retrieving Content Type Hub URL`);
+          logger.logToStderr(`Retrieving Content Type Hub URL`);
         }
 
         const requestOptions: any = {
@@ -45,7 +44,7 @@ class SpoContentTypeHubGetCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009" AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}">
+          data: `<Request xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009" AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}">
   <Actions>
     <ObjectPath Id="2" ObjectPathId="1" />
     <ObjectIdentityQuery Id="3" ObjectPathId="1" />
@@ -78,20 +77,10 @@ class SpoContentTypeHubGetCommand extends SpoCommand {
           const result: any = {
             ContentTypePublishingHub: json[json.length - 1]["ContentTypePublishingHub"]
           } 
-          cmd.log(result);
+          logger.log(result);
           cb();
         }
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Retrieve the Content Type Hub URL
-      ${commands.CONTENTTYPEHUB_GET}
-    `);
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 }
 

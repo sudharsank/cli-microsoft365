@@ -1,16 +1,14 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import request from '../../../../request';
-import config from '../../../../config';
-import commands from '../../commands';
-import Utils from '../../../../Utils';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandError,
-  CommandValidate
+  CommandError, CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import config from '../../../../config';
 import GlobalOptions from '../../../../GlobalOptions';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 export interface CommandArgs {
   options: Options;
@@ -99,6 +97,7 @@ export interface Options extends GlobalOptions {
   ExcludedFileExtensionsForSyncClient: string[];
   AllowedDomainListForSyncClient: string[];
   DisabledWebPartIds: string[];
+  DisableCustomAppAuthentication: boolean;
 }
 
 class SpoTenantSettingsSetCommand extends SpoCommand {
@@ -193,6 +192,7 @@ class SpoTenantSettingsSetCommand extends SpoCommand {
     telemetryProps.ExcludedFileExtensionsForSyncClient = (!(!args.options.ExcludedFileExtensionsForSyncClient)).toString();
     telemetryProps.DisabledWebPartIds = (!(!args.options.DisabledWebPartIds)).toString();
     telemetryProps.AllowedDomainListForSyncClient = (!(!args.options.AllowedDomainListForSyncClient)).toString();
+    telemetryProps.DisableCustomAppAuthentication = (!(!args.options.DisableCustomAppAuthentication)).toString();
     return telemetryProps;
   }
 
@@ -211,16 +211,16 @@ class SpoTenantSettingsSetCommand extends SpoCommand {
   private getSpecialCharactersState(): string[] { return ['NoPreference', 'Allowed', 'Disallowed']; }
   private getSPOLimitedAccessFileType(): string[] { return ['OfficeOnlineFilesOnly', 'WebPreviewableFiles', 'OtherFiles']; }
 
-  public commandAction(cmd: CommandInstance, args: any, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: any, cb: (err?: any) => void): void {
     let formDigestValue = '';
     let spoAdminUrl: string = '';
     let tenantId: string = '';
 
     this
-      .getTenantId(cmd, this.debug)
+      .getTenantId(logger, this.debug)
       .then((_tenantId: string): Promise<string> => {
         tenantId = _tenantId;
-        return this.getSpoAdminUrl(cmd, this.debug);
+        return this.getSpoAdminUrl(logger, this.debug);
       })
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
@@ -269,7 +269,7 @@ class SpoTenantSettingsSetCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': formDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions>${propsXml}</Actions><ObjectPaths><Identity Id="7" Name="${tenantId}" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions>${propsXml}</Actions><ObjectPaths><Identity Id="7" Name="${tenantId}" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -283,11 +283,11 @@ class SpoTenantSettingsSetCommand extends SpoCommand {
         }
 
         if (this.verbose) {
-          cmd.log('DONE');
+          logger.logToStderr('DONE');
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -678,6 +678,11 @@ class SpoTenantSettingsSetCommand extends SpoCommand {
       {
         option: '--DisabledWebPartIds [DisabledWebPartIds]',
         description: 'Sets disabled web part Ids. Array of GUIDs split by comma (\',\'). Example:c9b1909e-901a-0000-2cdb-e91c3f46320a,c9b1909e-901a-0000-2cdb-e91c3f463201'
+      },
+      {
+        option: '--DisableCustomAppAuthentication [DisableCustomAppAuthentication]',
+        description: 'Configure if ACS-based app-only auth should be disabled or not.  Allowed values true|false',
+        autocomplete: ['true', 'false']
       }
     ];
 
@@ -685,35 +690,33 @@ class SpoTenantSettingsSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      const opts: any = args.options;
-      let hasAtLeastOneOption: boolean = false;
+  public validate(args: CommandArgs): boolean | string {
+    const opts: any = args.options;
+    let hasAtLeastOneOption: boolean = false;
 
-      for (let propertyKey of Object.keys(opts)) {
-        if (this.isExcludedOption(propertyKey)) {
-          continue;
-        }
-
-        hasAtLeastOneOption = true;
-        const propertyValue = opts[propertyKey];
-        const commandOptions: CommandOption[] = this.options();
-
-        for (let item of commandOptions) {
-          if (item.option.indexOf(propertyKey) > -1 &&
-            item.autocomplete &&
-            item.autocomplete.indexOf(propertyValue.toString()) === -1) {
-            return `${propertyKey} option has invalid value of ${propertyValue}. Allowed values are ${JSON.stringify(item.autocomplete)}`;
-          }
-        }
+    for (let propertyKey of Object.keys(opts)) {
+      if (this.isExcludedOption(propertyKey)) {
+        continue;
       }
 
-      if (!hasAtLeastOneOption) {
-        return `You must specify at least one option`;
-      }
+      hasAtLeastOneOption = true;
+      const propertyValue = opts[propertyKey];
+      const commandOptions: CommandOption[] = this.options();
 
-      return true;
-    };
+      for (let item of commandOptions) {
+        if (item.option.indexOf(propertyKey) > -1 &&
+          item.autocomplete &&
+          item.autocomplete.indexOf(propertyValue.toString()) === -1) {
+          return `${propertyKey} option has invalid value of ${propertyValue}. Allowed values are ${JSON.stringify(item.autocomplete)}`;
+        }
+      }
+    }
+
+    if (!hasAtLeastOneOption) {
+      return `You must specify at least one option`;
+    }
+
+    return true;
   }
 
   public isExcludedOption(optionKey: string): boolean {
@@ -721,7 +724,7 @@ class SpoTenantSettingsSetCommand extends SpoCommand {
     // prop keys since they are nullable
     // so we have to maintain that array bellow once new global option
     // is added to the GlobalOptions interface
-    return ['output', 'debug', 'verbose'].indexOf(optionKey) > -1;
+    return ['output', 'o', 'debug', 'verbose', '_', 'query'].indexOf(optionKey) > -1;
   }
 
   public mapEnumToInt(key: string, value: string): number {
@@ -751,23 +754,6 @@ class SpoTenantSettingsSetCommand extends SpoCommand {
       default:
         return -1;
     }
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-    
-  Examples:
-  
-    Sets single tenant global setting
-      ${commands.TENANT_SETTINGS_SET} --UserVoiceForFeedbackEnabled true
-
-    Sets multiple tenant global settings at once
-      ${commands.TENANT_SETTINGS_SET} --UserVoiceForFeedbackEnabled true --HideSyncButtonOnODB true --DisabledWebPartIds c9b1909e-901a-0000-2cdb-e91c3f46320a,c9b1909e-901a-0000-2cdb-e91c3f463201
-  ` );
   }
 }
 

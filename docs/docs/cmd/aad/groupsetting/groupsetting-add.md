@@ -5,19 +5,15 @@ Creates a group setting
 ## Usage
 
 ```sh
-aad groupsetting add [options]
+m365 aad groupsetting add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --templateId <templateId>`|The ID of the group setting template to use to create the group setting
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --templateId <templateId>`
+: The ID of the group setting template to use to create the group setting
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -36,5 +32,5 @@ If you try to add a group setting using a template, for which a setting already 
 Configure classification for modern SharePoint sites
 
 ```sh
-aad groupsetting add --templateId 62375ab9-6b52-47ed-826b-58e47e0e304b --UsageGuidelinesUrl https://contoso.sharepoint.com/sites/compliance --ClassificationList 'HBI, MBI, LBI, GDPR' --DefaultClassification MBI
+m365 aad groupsetting add --templateId 62375ab9-6b52-47ed-826b-58e47e0e304b --UsageGuidelinesUrl https://contoso.sharepoint.com/sites/compliance --ClassificationList 'HBI, MBI, LBI, GDPR' --DefaultClassification MBI
 ```

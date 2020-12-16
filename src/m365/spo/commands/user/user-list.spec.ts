@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./user-list');
-import * as assert from 'assert';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import auth from '../../../../Auth';
+import commands from '../../commands';
+const command: Command = require('./user-list');
 
 describe(commands.USER_LIST, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.USER_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +51,15 @@ describe(commands.USER_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.USER_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.USER_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['Id', 'Title', 'LoginName']);
   });
 
   it('retrieves lists of site users with output option json', (done) => {
@@ -97,7 +101,7 @@ describe(commands.USER_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         output: 'json',
         debug: true,
@@ -105,7 +109,7 @@ describe(commands.USER_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           value: [{
             Id: 6,
             IsHiddenInUI: false,
@@ -143,7 +147,7 @@ describe(commands.USER_LIST, () => {
     });
   });
 
-  it('retrieves lists of site users without output option', (done) => {
+  it('retrieves lists of site users', (done) => {
     sinon.stub(request, 'get').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_api/web/siteusers') > -1) {
         return Promise.resolve(
@@ -166,25 +170,27 @@ describe(commands.USER_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com'
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(
-          [{
-            Id: 6,
-            Title: "John Doe",
-            LoginName: "i:0#.f|membership|john.doe@mytenant.onmicrosoft.com"
+        assert(loggerLogSpy.calledWith({
+          value: [{
+            "Id": 6,
+            "Title": "John Doe",
+            "Email": "john.deo@mytenant.onmicrosoft.com",
+            "LoginName": "i:0#.f|membership|john.doe@mytenant.onmicrosoft.com"
           },
           {
-            Id: 7,
-            Title: "FName Lname",
-            LoginName: "i:0#.f|membership|abc@mytenant.onmicrosoft.com"
+            "Id": 7,
+            "Title": "FName Lname",
+            "Email": "abc@mytenant.onmicrosoft.com",
+            "LoginName": "i:0#.f|membership|abc@mytenant.onmicrosoft.com"
           }]
-        ));
+        }));
         done();
       }
       catch (e) {
@@ -194,7 +200,7 @@ describe(commands.USER_LIST, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -204,53 +210,14 @@ describe(commands.USER_LIST, () => {
     assert(containsTypeOption);
   });
 
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
 
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the url is valid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.USER_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.strictEqual(actual, true);
   });
 }); 

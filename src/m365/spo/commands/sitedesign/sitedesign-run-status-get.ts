@@ -1,14 +1,13 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
 import GlobalOptions from '../../../../GlobalOptions';
-import { SiteScriptActionStatus } from './SiteScriptActionStatus';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -28,8 +27,12 @@ class SpoSiteDesignRunStatusGetCommand extends SpoCommand {
     return 'Gets information about the site scripts executed for the specified site design';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const body: any = {
+  public defaultProperties(): string[] | undefined {
+    return ['ActionTitle', 'SiteScriptTitle', 'OutcomeText'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const data: any = {
       runId: args.options.runId
     };
 
@@ -39,31 +42,20 @@ class SpoSiteDesignRunStatusGetCommand extends SpoCommand {
         accept: 'application/json;odata=nometadata',
         'content-type': 'application/json;odata=nometadata'
       },
-      body: body,
-      json: true
+      data: data,
+      responseType: 'json'
     };
 
-    request.post<{ value: SiteScriptActionStatus[] }>(requestOptions)
-      .then((res: { value: SiteScriptActionStatus[] }): void => {
-        if (args.options.output === 'json') {
-          cmd.log(res.value);
-        }
-        else {
-          cmd.log(res.value.map(s => {
-            return {
-              ActionTitle: s.ActionTitle,
-              SiteScriptTitle: s.SiteScriptTitle,
-              OutcomeText: s.OutcomeText
-            };
-          }));
-        }
+    request.post<{ value: any[] }>(requestOptions)
+      .then((res: { value: any[] }): void => {
+        logger.log(res.value);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -82,48 +74,17 @@ class SpoSiteDesignRunStatusGetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (!Utils.isValidGuid(args.options.runId)) {
+      return `${args.options.runId} is not a valid GUID`;
+    }
 
-      if (!args.options.runId) {
-        return 'Required parameter runId missing';
-      }
-
-      if (!Utils.isValidGuid(args.options.runId)) {
-        return `${args.options.runId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-      
-    For text output mode, displays the name of the action, site script and the
-    outcome of the action. For JSON output mode, displays all available
-    information.
-
-  Examples:
-  
-    List information about site scripts executed for the specified site design
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a --runId b4411557-308b-4545-a3c4-55297d5cd8c8
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-`);
+    return true;
   }
 }
 

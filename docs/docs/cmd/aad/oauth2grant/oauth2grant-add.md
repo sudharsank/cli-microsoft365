@@ -5,21 +5,21 @@ Grant the specified service principal OAuth2 permissions to the specified resour
 ## Usage
 
 ```sh
-aad oauth2grant add [options]
+m365 aad oauth2grant add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --clientId <clientId>`|`objectId` of the service principal for which permissions should be granted
-`-r, --resourceId <resourceId>`|`objectId` of the AAD application to which permissions should be granted
-`-s, --scope <scope>`|Permissions to grant
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --clientId <clientId>`
+: `objectId` of the service principal for which permissions should be granted
+
+`-r, --resourceId <resourceId>`
+: `objectId` of the AAD application to which permissions should be granted
+
+`-s, --scope <scope>`
+: Permissions to grant
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -36,13 +36,13 @@ When granting OAuth2 permissions, the values of the `clientId` and `resourceId` 
 Grant the service principal _d03a0062-1aa6-43e1-8f49-d73e969c5812_ the _Calendars.Read_ OAuth2 permissions to the _c2af2474-2c95-423a-b0e5-e4895f22f9e9_ resource.
 
 ```sh
-aad oauth2grant add --clientId d03a0062-1aa6-43e1-8f49-d73e969c5812 --resourceId c2af2474-2c95-423a-b0e5-e4895f22f9e9 --scope Calendars.Read
+m365 aad oauth2grant add --clientId d03a0062-1aa6-43e1-8f49-d73e969c5812 --resourceId c2af2474-2c95-423a-b0e5-e4895f22f9e9 --scope Calendars.Read
 ```
 
 Grant the service principal _d03a0062-1aa6-43e1-8f49-d73e969c5812_ the _Calendars.Read_ and _Mail.Read_ OAuth2 permissions to the _c2af2474-2c95-423a-b0e5-e4895f22f9e9_ resource.
 
 ```sh
-aad oauth2grant add --clientId d03a0062-1aa6-43e1-8f49-d73e969c5812 --resourceId c2af2474-2c95-423a-b0e5-e4895f22f9e9 --scope "Calendars.Read Mail.Read"
+m365 aad oauth2grant add --clientId d03a0062-1aa6-43e1-8f49-d73e969c5812 --resourceId c2af2474-2c95-423a-b0e5-e4895f22f9e9 --scope "Calendars.Read Mail.Read"
 ```
 
 ## More information

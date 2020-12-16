@@ -1,18 +1,14 @@
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  ContextInfo, ClientSvcResponse, ClientSvcResponseContents
-} from '../../spo';
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import {
-  CommandValidate,
-  CommandOption,
-  CommandError
+  CommandError, CommandOption
 } from '../../../../Command';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -32,12 +28,12 @@ class SpoOrgAssetsLibraryRemoveCommand extends SpoCommand {
     return 'Removes a library that was designated as a central location for organization assets across the tenant.';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoAdminUrl: string = '';
 
     const removeLibrary: () => void = (): void => {
       this
-        .getSpoAdminUrl(cmd, this.debug)
+        .getSpoAdminUrl(logger, this.debug)
         .then((_spoAdminUrl: string): Promise<ContextInfo> => {
           spoAdminUrl = _spoAdminUrl;
 
@@ -49,7 +45,7 @@ class SpoOrgAssetsLibraryRemoveCommand extends SpoCommand {
             headers: {
               'X-RequestDigest': res.FormDigestValue
             },
-            body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="9" ObjectPathId="8" /><Method Name="RemoveFromOrgAssets" Id="10" ObjectPathId="8"><Parameters><Parameter Type="String">${args.options.libraryUrl}</Parameter><Parameter Type="Guid">{00000000-0000-0000-0000-000000000000}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="8" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
+            data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="9" ObjectPathId="8" /><Method Name="RemoveFromOrgAssets" Id="10" ObjectPathId="8"><Parameters><Parameter Type="String">${args.options.libraryUrl}</Parameter><Parameter Type="Guid">{00000000-0000-0000-0000-000000000000}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="8" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
           };
 
           return request.post(requestOptions);
@@ -62,23 +58,21 @@ class SpoOrgAssetsLibraryRemoveCommand extends SpoCommand {
             return;
           }
           else {
-            if (args.options.output === 'json') {
-              cmd.log(json[json.length - 1]);
-            }
+            logger.log(json[json.length - 1]);
 
             if (this.verbose) {
-              cmd.log(vorpal.chalk.green('DONE'));
+              logger.logToStderr(chalk.green('DONE'));
             }
           }
           cb();
-        }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
       removeLibrary();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -92,16 +86,6 @@ class SpoOrgAssetsLibraryRemoveCommand extends SpoCommand {
         }
       });
     }
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.libraryUrl) {
-        return 'Required parameter libraryUrl missing';
-      }
-
-      return true
-    };
   }
 
   public options(): CommandOption[] {
@@ -118,20 +102,6 @@ class SpoOrgAssetsLibraryRemoveCommand extends SpoCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.ORGASSETSLIBRARY_REMOVE).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-
-  Examples:
-
-    Removes organization assets library without confirmation
-      ${commands.ORGASSETSLIBRARY_REMOVE} --libraryUrl "/sites/branding/assets" --confirm
-  `);
   }
 }
 

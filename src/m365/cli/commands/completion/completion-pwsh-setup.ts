@@ -1,17 +1,15 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import {
-  CommandOption,
-  CommandValidate,
-  CommandError
-} from '../../../../Command';
+import * as chalk from 'chalk';
 import * as fs from 'fs';
-import * as path from 'path';
 import * as os from 'os';
-import AnonymousCommand from '../../../base/AnonymousCommand';
+import * as path from 'path';
 import { autocomplete } from '../../../../autocomplete';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { Logger } from '../../../../cli';
+import {
+    CommandError, CommandOption
+} from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import AnonymousCommand from '../../../base/AnonymousCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -30,20 +28,20 @@ class CliCompletionPwshSetupCommand extends AnonymousCommand {
     return 'Sets up command completion for PowerShell';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     if (this.debug) {
-      cmd.log('Generating command completion...');
+      logger.logToStderr('Generating command completion...');
     }
 
-    autocomplete.generateShCompletion(vorpal);
+    autocomplete.generateShCompletion();
 
     if (this.debug) {
-      cmd.log(`Ensuring that the specified profile path ${args.options.profile} exists...`);
+      logger.logToStderr(`Ensuring that the specified profile path ${args.options.profile} exists...`);
     }
 
     if (fs.existsSync(args.options.profile)) {
       if (this.debug) {
-        cmd.log('Profile file already exists');
+        logger.logToStderr('Profile file already exists');
       }
     }
     else {
@@ -51,13 +49,13 @@ class CliCompletionPwshSetupCommand extends AnonymousCommand {
       const dirname: string = path.dirname(args.options.profile);
       if (fs.existsSync(dirname)) {
         if (this.debug) {
-          cmd.log(`Profile path ${dirname} already exists`);
+          logger.logToStderr(`Profile path ${dirname} already exists`);
         }
       }
       else {
         try {
           if (this.debug) {
-            cmd.log(`Profile path ${dirname} doesn't exist. Creating...`);
+            logger.logToStderr(`Profile path ${dirname} doesn't exist. Creating...`);
           }
 
           fs.mkdirSync(dirname, { recursive: true });
@@ -69,7 +67,7 @@ class CliCompletionPwshSetupCommand extends AnonymousCommand {
       }
 
       if (this.debug) {
-        cmd.log(`Creating profile file ${args.options.profile}...`);
+        logger.logToStderr(`Creating profile file ${args.options.profile}...`);
       }
 
       try {
@@ -82,7 +80,7 @@ class CliCompletionPwshSetupCommand extends AnonymousCommand {
     }
 
     if (this.verbose) {
-      cmd.log(`Adding CLI for Microsoft 365 command completion to PowerShell profile...`);
+      logger.logToStderr(`Adding CLI for Microsoft 365 command completion to PowerShell profile...`);
     }
 
     const completionScriptPath: string = path.resolve(__dirname, '..', '..', '..', '..', '..', 'scripts', 'Register-CLIM365Completion.ps1');
@@ -90,7 +88,7 @@ class CliCompletionPwshSetupCommand extends AnonymousCommand {
       fs.appendFileSync(args.options.profile, os.EOL + completionScriptPath, 'utf8');
 
       if (this.verbose) {
-        cmd.log(vorpal.chalk.green('DONE'));
+        logger.logToStderr(chalk.green('DONE'));
       }
       cb();
     }
@@ -109,42 +107,6 @@ class CliCompletionPwshSetupCommand extends AnonymousCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.profile) {
-        return 'Required option profile missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.COMPLETION_PWSH_SETUP).helpInformation());
-    log(
-      `  Remarks:
-  
-    This commands sets up command completion for the CLI for Microsoft 365 in
-    PowerShell by registering a custom PowerShell argument completer
-    in the specified profile. Because CLI for Microsoft 365 is not a native PowerShell
-    module, it requires a custom completer to provide completion.
-    
-    If the specified profile path doesn't exist, the CLI will try to create it.
-   
-  Examples:
-  
-    Set up command completion for PowerShell using the profile from the ${chalk.grey('profile')}
-    variable
-      ${this.getCommandName()} --profile $profile
-
-  More information:
-
-    Command completion
-      https://pnp.github.io/cli-microsoft365/concepts/completion/
-`);
   }
 }
 

@@ -1,11 +1,11 @@
-import Utils from '../../../../Utils';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandValidate } from '../../../../Command';
-import GraphCommand from '../../../base/GraphCommand';
 import request from '../../../../request';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import Utils from '../../../../Utils';
+import GraphCommand from '../../../base/GraphCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -43,18 +43,18 @@ class TeamsFunSettingsSetCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const body: any = {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const data: any = {
       funSettings: {}
     };
     TeamsFunSettingsSetCommand.booleanProps.forEach(p => {
       if (typeof (args.options as any)[p] !== 'undefined') {
-        body.funSettings[p] = (args.options as any)[p] === 'true';
+        data.funSettings[p] = (args.options as any)[p] === 'true';
       }
     });
 
     if (args.options.giphyContentRating) {
-      body.funSettings.giphyContentRating = args.options.giphyContentRating;
+      data.funSettings.giphyContentRating = args.options.giphyContentRating;
     }
 
     const requestOptions: any = {
@@ -62,19 +62,19 @@ class TeamsFunSettingsSetCommand extends GraphCommand {
       headers: {
         accept: 'application/json;odata.metadata=none'
       },
-      body: body,
-      json: true
+      data: data,
+      responseType: 'json'
     };
 
     request
       .patch(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   };
 
   public options(): CommandOption[] {
@@ -105,60 +105,34 @@ class TeamsFunSettingsSetCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
+
+    let isValid: boolean = true;
+    let value, property: string = '';
+    TeamsFunSettingsSetCommand.booleanProps.every(p => {
+      property = p;
+      value = (args.options as any)[p];
+      isValid = typeof value === 'undefined' ||
+        value === 'true' ||
+        value === 'false';
+      return isValid;
+    });
+
+    if (!isValid) {
+      return `Value ${value} for option ${property} is not a valid boolean`;
+    }
+
+    if (args.options.giphyContentRating) {
+      const giphyContentRating = args.options.giphyContentRating.toLowerCase();
+      if (giphyContentRating !== 'strict' && giphyContentRating !== 'moderate') {
+        return `giphyContentRating value ${value} is not valid.  Please specify Strict or Moderate.`
       }
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      let isValid: boolean = true;
-      let value, property: string = '';
-      TeamsFunSettingsSetCommand.booleanProps.every(p => {
-        property = p;
-        value = (args.options as any)[p];
-        isValid = typeof value === 'undefined' ||
-          value === 'true' ||
-          value === 'false';
-        return isValid;
-      });
-
-      if (!isValid) {
-        return `Value ${value} for option ${property} is not a valid boolean`;
-      }
-
-      if (args.options.giphyContentRating) {
-        const giphyContentRating = args.options.giphyContentRating.toLowerCase();
-        if (giphyContentRating !== 'strict' && giphyContentRating !== 'moderate') {
-          return `giphyContentRating value ${value} is not valid.  Please specify Strict or Moderate.`
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-
-    Allow giphy usage within a given Microsoft Teams team, setting the content
-    rating for giphy to Moderate
-      ${this.name} --teamId 83cece1e-938d-44a1-8b86-918cf6151957 --allowGiphy true --giphyContentRating Moderate
-    
-    Disable usage of giphy within the given Microsoft Teams team
-      ${this.name} --teamId 83cece1e-938d-44a1-8b86-918cf6151957 --allowGiphy false
-
-    Allow usage of stickers and memes within a given Microsoft Teams team
-      ${this.name} --teamId 83cece1e-938d-44a1-8b86-918cf6151957 --allowStickersAndMemes true
-
-    Disable usage custom memes within a given Microsoft Teams team
-      ${this.name} --teamId 83cece1e-938d-44a1-8b86-918cf6151957 --allowCustomMemes false
-`);
+    return true;
   }
 }
 

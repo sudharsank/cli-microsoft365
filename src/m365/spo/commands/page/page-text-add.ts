@@ -1,18 +1,18 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import { CommandOption, CommandValidate } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import * as chalk from 'chalk';
+import { isNumber } from 'util';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 import {
   ClientSidePage,
   ClientSideText
 } from './clientsidepages';
-import { ContextInfo } from '../../spo';
-import { isNumber } from 'util';
 import { Page } from './Page';
-import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -44,7 +44,7 @@ class SpoPageTextAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let requestDigest: string = '';
 
     let pageName: string = args.options.pageName;
@@ -53,7 +53,7 @@ class SpoPageTextAddCommand extends SpoCommand {
     }
 
     if (this.verbose) {
-      cmd.log(`Retrieving request digest...`);
+      logger.logToStderr(`Retrieving request digest...`);
     }
 
     this
@@ -63,10 +63,10 @@ class SpoPageTextAddCommand extends SpoCommand {
         requestDigest = res.FormDigestValue;
 
         if (this.verbose) {
-          cmd.log(`Retrieving modern page ${pageName}...`);
+          logger.logToStderr(`Retrieving modern page ${pageName}...`);
         }
         // Get Client Side Page
-        return Page.getPage(pageName, args.options.webUrl, cmd, this.debug, this.verbose);
+        return Page.getPage(pageName, args.options.webUrl, logger, this.debug, this.verbose);
       })
       .then((page: ClientSidePage): Promise<void> => {
         const section: number = (args.options.section || 1) - 1;
@@ -92,20 +92,20 @@ class SpoPageTextAddCommand extends SpoCommand {
         }
 
         // Save the Client Side Page with updated information
-        return this.saveClientSidePage(page, cmd, args, pageName, requestDigest);
+        return this.saveClientSidePage(page, logger, args, pageName, requestDigest);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
         cb();
       })
-      .catch((err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      .catch((err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   private saveClientSidePage(
     clientSidePage: ClientSidePage,
-    cmd: CommandInstance,
+    logger: Logger,
     args: CommandArgs,
     pageName: string,
     requestDigest: string
@@ -113,9 +113,9 @@ class SpoPageTextAddCommand extends SpoCommand {
     const updatedContent: string = clientSidePage.toHtml();
 
     if (this.debug) {
-      cmd.log('Updated canvas content: ');
-      cmd.log(updatedContent);
-      cmd.log('');
+      logger.logToStderr('Updated canvas content: ');
+      logger.logToStderr(updatedContent);
+      logger.logToStderr('');
     }
 
     const requestOptions: any = {
@@ -128,10 +128,10 @@ class SpoPageTextAddCommand extends SpoCommand {
         'IF-MATCH': '*',
         accept: 'application/json;odata=nometadata'
       },
-      body: {
+      data: {
         CanvasContent1: updatedContent
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.post(requestOptions);
@@ -169,53 +169,16 @@ class SpoPageTextAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.section && (!isNumber(args.options.section) || args.options.section < 1)) {
+      return 'The value of parameter section must be 1 or higher';
+    }
 
-      if (!args.options.pageName) {
-        return 'Required option pageName is missing';
-      }
+    if (args.options.column && (!isNumber(args.options.column) || args.options.column < 1)) {
+      return 'The value of parameter column must be 1 or higher';
+    }
 
-      if (!args.options.text) {
-        return 'Required option text is missing';
-      }
-
-      if (args.options.section && (!isNumber(args.options.section) || args.options.section < 1)) {
-        return 'The value of parameter section must be 1 or higher';
-      }
-
-      if (args.options.column && (!isNumber(args.options.column) || args.options.column < 1)) {
-        return 'The value of parameter column must be 1 or higher';
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('pageName')} doesn't refer to an existing modern page,
-    you will get a ${chalk.grey("File doesn't exists")} error.
-
-  Examples:
-
-    Add text to a modern page in the first available location on the page
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/a-team --pageName page.aspx --text 'Hello world'
-
-    Add text to a modern page in the third column of the second section
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/a-team --pageName page.aspx --text 'Hello world' --section 2 --column 3
-
-    Add text at the beginning of the default column on a modern page
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/a-team --pageName page.aspx --text 'Hello world' --order 1
-      `
-    );
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

@@ -1,12 +1,12 @@
 
-import Utils from '../../../../Utils';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandValidate } from '../../../../Command';
-import GraphCommand from '../../../base/GraphCommand';
 import request from '../../../../request';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import Utils from '../../../../Utils';
+import GraphCommand from '../../../base/GraphCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -38,20 +38,20 @@ class TeamsCloneCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const body: any = {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const data: any = {
       displayName: args.options.displayName,
       mailNickname: this.generateMailNickname(args.options.displayName),
       partsToClone: args.options.partsToClone,
     }
     if (args.options.description) {
-      body.description = args.options.description;
+      data.description = args.options.description;
     }
     if (args.options.classification) {
-      body.classification = args.options.classification;
+      data.classification = args.options.classification;
     }
     if (args.options.visibility) {
-      body.visibility = args.options.visibility
+      data.visibility = args.options.visibility
     }
 
     const requestOptions: any = {
@@ -60,19 +60,19 @@ class TeamsCloneCommand extends GraphCommand {
         "content-type": "application/json",
         accept: 'application/json;odata.metadata=none'
       },
-      json: true,
-      body: body
+      responseType: 'json',
+      data: data
     };
 
     request
       .post(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -109,72 +109,33 @@ class TeamsCloneCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
+    const partsToClone: string[] = args.options.partsToClone.replace(/\s/g, '').split(',');
+    for (let partToClone of partsToClone) {
+      const part: string = partToClone.toLowerCase();
+      if (part !== 'apps' &&
+        part !== 'channels' &&
+        part !== 'members' &&
+        part !== 'settings' &&
+        part !== 'tabs') {
+        return `${part} is not a valid partsToClone. Allowed values are apps|channels|members|settings|tabs`;
       }
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
+    if (args.options.visibility) {
+      const visibility: string = args.options.visibility.toLowerCase();
+
+      if (visibility !== 'private' &&
+        visibility !== 'public') {
+        return `${args.options.visibility} is not a valid visibility type. Allowed values are Private|Public`;
       }
+    }
 
-      if (!args.options.displayName) {
-        return 'Required option displayName missing';
-      }
-
-      if (!args.options.partsToClone) {
-        return 'Required option partsToClone missing';
-      }
-
-      const partsToClone: string[] = args.options.partsToClone.replace(/\s/g, '').split(',');
-      for (let partToClone of partsToClone) {
-        const part: string = partToClone.toLowerCase();
-        if (part !== 'apps' &&
-          part !== 'channels' &&
-          part !== 'members' &&
-          part !== 'settings' &&
-          part !== 'tabs') {
-          return `${part} is not a valid partsToClone. Allowed values are apps|channels|members|settings|tabs`;
-        }
-      }
-
-      if (args.options.visibility) {
-        const visibility: string = args.options.visibility.toLowerCase();
-
-        if (visibility !== 'private' &&
-          visibility !== 'public') {
-          return `${args.options.visibility} is not a valid visibility type. Allowed values are Private|Public`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-          
-    Using this command, global admins and Microsoft Teams service admins can
-    access teams that they are not a member of.
-
-    When tabs are cloned, they are put into an unconfigured state. The first
-    time you open them, you'll go through the configuration screen.
-    If the person opening the tab does not have permission to configure apps,
-    they will see a message explaining that the tab hasn't been configured.
-
-  Examples:
-    
-    Creates a clone of a Microsoft Teams team with mandatory parameters
-      ${commands.TEAMS_TEAM_CLONE} --teamId 15d7a78e-fd77-4599-97a5-dbb6372846c5 --displayName "Library Assist" --partsToClone "apps,tabs,settings,channels,members" 
-    
-    Creates a clone of a Microsoft Teams team with mandatory and optional
-    parameters
-      ${commands.TEAMS_TEAM_CLONE} --teamId 15d7a78e-fd77-4599-97a5-dbb6372846c5 --displayName "Library Assist" --partsToClone "apps,tabs,settings,channels,members" --description "Self help community for library" --classification "Library" --visibility "public" 
-    `);
+    return true;
   }
 
   /**
@@ -182,7 +143,7 @@ class TeamsCloneCommand extends GraphCommand {
    * However the mailNickname is still required by the payload so to deliver better user experience
    * the CLI generates mailNickname for the user 
    * so the user does not have to specify something that will be ignored.
-   * For more see: https://docs.microsoft.com/en-us/graph/api/team-clone?view=graph-rest-1.0#request-body
+   * For more see: https://docs.microsoft.com/en-us/graph/api/team-clone?view=graph-rest-1.0#request-data
    * This method has to be removed once the graph team fixes the issue and then the actual value
    * of the mailNickname would have to be specified by the CLI user.
    * @param displayName teams display name

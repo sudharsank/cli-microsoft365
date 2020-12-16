@@ -1,17 +1,15 @@
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import config from '../../../../config';
-import commands from '../../commands';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
+import SpoCommand from '../../../base/SpoCommand';
 import { ClientSvc, IdentityResponse } from '../../ClientSvc';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -33,8 +31,8 @@ class SpoFolderRenameCommand extends SpoCommand {
     return 'Renames a folder';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const clientSvc: ClientSvc = new ClientSvc(cmd, this.debug);
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const clientSvc: ClientSvc = new ClientSvc(logger, this.debug);
     let formDigestValue: string = '';
 
     this
@@ -49,7 +47,7 @@ class SpoFolderRenameCommand extends SpoCommand {
       })
       .then((folderObjectIdentity: IdentityResponse): Promise<void> => {
         if (this.verbose) {
-          cmd.log(`Renaming folder ${args.options.folderUrl} to ${args.options.name}`);
+          logger.logToStderr(`Renaming folder ${args.options.folderUrl} to ${args.options.name}`);
         }
 
         const serverRelativeUrl: string = Utils.getServerRelativePath(args.options.webUrl, args.options.folderUrl);
@@ -61,7 +59,7 @@ class SpoFolderRenameCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': formDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="MoveTo" Id="32" ObjectPathId="26"><Parameters><Parameter Type="String">${renamedServerRelativeUrl}</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="26" Name="${folderObjectIdentity.objectIdentity}" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="MoveTo" Id="32" ObjectPathId="26"><Parameters><Parameter Type="String">${renamedServerRelativeUrl}</Parameter></Parameters></Method></Actions><ObjectPaths><Identity Id="26" Name="${folderObjectIdentity.objectIdentity}" /></ObjectPaths></Request>`
         };
 
         return new Promise<void>((resolve: any, reject: any): void => {
@@ -78,11 +76,11 @@ class SpoFolderRenameCommand extends SpoCommand {
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log('DONE');
+          logger.logToStderr('DONE');
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -105,39 +103,8 @@ class SpoFolderRenameCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      if (!args.options.folderUrl) {
-        return 'Required parameter folderUrl missing';
-      }
-
-      if (!args.options.name) {
-        return 'Required parameter name missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Renames a folder with site-relative URL ${chalk.grey('/Shared Documents/My Folder 1')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FOLDER_RENAME} --webUrl https://contoso.sharepoint.com/sites/project-x --folderUrl '/Shared Documents/My Folder 1' --name 'My Folder 2'
-    `);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

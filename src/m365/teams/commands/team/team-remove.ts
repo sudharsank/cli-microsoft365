@@ -1,13 +1,13 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import Utils from '../../../../Utils';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -33,32 +33,32 @@ class TeamsRemoveCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeTeam: () => void = (): void => {
       const requestOptions: any = {
         url: `${this.resource}/v1.0/groups/${encodeURIComponent(args.options.teamId)}`,
         headers: {
           accept: 'application/json;odata.metadata=none'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
         .delete(requestOptions)
         .then((): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
-        }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
       removeTeam();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -90,42 +90,12 @@ class TeamsRemoveCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    When deleted, Microsoft 365 groups are moved to a temporary container and
-    can be restored within 30 days. After that time, they are permanently
-    deleted. This applies only to Microsoft 365 groups.
-
-  Examples:
-  
-    Removes the specified team 
-      ${this.name} --teamId '00000000-0000-0000-0000-000000000000'
-
-    Removes the specified team without confirmation
-      ${this.name} --teamId '00000000-0000-0000-0000-000000000000' --confirm
-
-  More information:
-
-    directory resource type (deleted items)
-      https://docs.microsoft.com/en-us/graph/api/resources/directory?view=graph-rest-1.0
-  `);
+    return true;
   }
 }
 

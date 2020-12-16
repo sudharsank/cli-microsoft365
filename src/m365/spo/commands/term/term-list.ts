@@ -1,18 +1,16 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
   CommandError,
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 import { TermCollection } from './TermCollection';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -43,18 +41,22 @@ class SpoTermListCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['Id', 'Name'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
         return this.getRequestDigest(spoAdminUrl);
       })
       .then((res: ContextInfo): Promise<string> => {
         if (this.verbose) {
-          cmd.log(`Retrieving taxonomy term sets...`);
+          logger.logToStderr(`Retrieving taxonomy term sets...`);
         }
 
         const termGroupQuery: string = args.options.termGroupId ? `<Method Id="77" ParentId="75" Name="GetById"><Parameters><Parameter Type="Guid">{${args.options.termGroupId}}</Parameter></Parameters></Method>` : `<Method Id="77" ParentId="75" Name="GetByName"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.termGroupName)}</Parameter></Parameters></Method>`;
@@ -65,7 +67,7 @@ class SpoTermListCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="70" ObjectPathId="69" /><ObjectIdentityQuery Id="71" ObjectPathId="69" /><ObjectPath Id="73" ObjectPathId="72" /><ObjectIdentityQuery Id="74" ObjectPathId="72" /><ObjectPath Id="76" ObjectPathId="75" /><ObjectPath Id="78" ObjectPathId="77" /><ObjectIdentityQuery Id="79" ObjectPathId="77" /><ObjectPath Id="81" ObjectPathId="80" /><ObjectPath Id="83" ObjectPathId="82" /><ObjectIdentityQuery Id="84" ObjectPathId="82" /><ObjectPath Id="86" ObjectPathId="85" /><Query Id="87" ObjectPathId="85"><Query SelectAllProperties="false"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></ChildItemQuery></Query></Actions><ObjectPaths><StaticMethod Id="69" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="72" ParentId="69" Name="GetDefaultSiteCollectionTermStore" /><Property Id="75" ParentId="72" Name="Groups" />${termGroupQuery}<Property Id="80" ParentId="77" Name="TermSets" />${termSetQuery}<Property Id="85" ParentId="82" Name="Terms" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="70" ObjectPathId="69" /><ObjectIdentityQuery Id="71" ObjectPathId="69" /><ObjectPath Id="73" ObjectPathId="72" /><ObjectIdentityQuery Id="74" ObjectPathId="72" /><ObjectPath Id="76" ObjectPathId="75" /><ObjectPath Id="78" ObjectPathId="77" /><ObjectIdentityQuery Id="79" ObjectPathId="77" /><ObjectPath Id="81" ObjectPathId="80" /><ObjectPath Id="83" ObjectPathId="82" /><ObjectIdentityQuery Id="84" ObjectPathId="82" /><ObjectPath Id="86" ObjectPathId="85" /><Query Id="87" ObjectPathId="85"><Query SelectAllProperties="false"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></ChildItemQuery></Query></Actions><ObjectPaths><StaticMethod Id="69" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="72" ParentId="69" Name="GetDefaultSiteCollectionTermStore" /><Property Id="75" ParentId="72" Name="Groups" />${termGroupQuery}<Property Id="80" ParentId="77" Name="TermSets" />${termSetQuery}<Property Id="85" ParentId="82" Name="Terms" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -80,25 +82,15 @@ class SpoTermListCommand extends SpoCommand {
 
         const result: TermCollection = json[json.length - 1];
         if (result._Child_Items_ && result._Child_Items_.length > 0) {
-          if (args.options.output === 'json') {
-            cmd.log(result._Child_Items_.map(t => {
+            result._Child_Items_.forEach(t => {
               t.CreatedDate = new Date(Number(t.CreatedDate.replace('/Date(', '').replace(')/', ''))).toISOString();
               t.Id = t.Id.replace('/Guid(', '').replace(')/', '');
               t.LastModifiedDate = new Date(Number(t.LastModifiedDate.replace('/Date(', '').replace(')/', ''))).toISOString();
-              return t;
-            }));
-          }
-          else {
-            cmd.log(result._Child_Items_.map(t => {
-              return {
-                Id: t.Id.replace('/Guid(', '').replace(')/', ''),
-                Name: t.Name
-              };
-            }));
-          }
+            });
+            logger.log(result._Child_Items_);
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -125,55 +117,36 @@ class SpoTermListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.termGroupId && !args.options.termGroupName) {
-        return 'Specify either termGroupId or termGroupName';
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.termGroupId && !args.options.termGroupName) {
+      return 'Specify either termGroupId or termGroupName';
+    }
+
+    if (args.options.termGroupId && args.options.termGroupName) {
+      return 'Specify either termGroupId or termGroupName but not both';
+    }
+
+    if (args.options.termGroupId) {
+      if (!Utils.isValidGuid(args.options.termGroupId)) {
+        return `${args.options.termGroupId} is not a valid GUID`;
       }
+    }
 
-      if (args.options.termGroupId && args.options.termGroupName) {
-        return 'Specify either termGroupId or termGroupName but not both';
+    if (!args.options.termSetId && !args.options.termSetName) {
+      return 'Specify either termSetId or termSetName';
+    }
+
+    if (args.options.termSetId && args.options.termSetName) {
+      return 'Specify either termSetId or termSetName but not both';
+    }
+
+    if (args.options.termSetId) {
+      if (!Utils.isValidGuid(args.options.termSetId)) {
+        return `${args.options.termSetId} is not a valid GUID`;
       }
+    }
 
-      if (args.options.termGroupId) {
-        if (!Utils.isValidGuid(args.options.termGroupId)) {
-          return `${args.options.termGroupId} is not a valid GUID`;
-        }
-      }
-
-      if (!args.options.termSetId && !args.options.termSetName) {
-        return 'Specify either termSetId or termSetName';
-      }
-
-      if (args.options.termSetId && args.options.termSetName) {
-        return 'Specify either termSetId or termSetName but not both';
-      }
-
-      if (args.options.termSetId) {
-        if (!Utils.isValidGuid(args.options.termSetId)) {
-          return `${args.options.termSetId} is not a valid GUID`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.TERM_LIST).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-    
-  Examples:
-  
-    List taxonomy terms from the term group and term set with the given name
-      ${commands.TERM_LIST} --termGroupName PnPTermSets --termSetName PnP-Organizations
-
-    List taxonomy terms from the term group and term set with the given ID
-      ${commands.TERM_LIST} --termGroupId 0e8f395e-ff58-4d45-9ff7-e331ab728beb --termSetId 0e8f395e-ff58-4d45-9ff7-e331ab728bec
-`);
+    return true;
   }
 }
 

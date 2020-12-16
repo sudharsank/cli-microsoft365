@@ -1,20 +1,21 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./propertybag-remove');
-import * as assert from 'assert';
+import { Cli, Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
+import config from '../../../../config';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import config from '../../../../config';
 import { IdentityResponse } from '../../ClientSvc';
+import commands from '../../commands';
+const command: Command = require('./propertybag-remove');
 
 describe(commands.PROPERTYBAG_REMOVE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let promptOptions: any;
   const stubAllPostRequests = (
     requestObjectIdentityResp: any = null,
@@ -23,7 +24,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
   ): sinon.SinonStub => {
     return sinon.stub(request, 'post').callsFake((opts) => {
       // fake requestObjectIdentity
-      if (opts.body.indexOf('3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a') > -1) {
+      if (opts.data.indexOf('3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a') > -1) {
         if (requestObjectIdentityResp) {
           return requestObjectIdentityResp;
         } else {
@@ -41,7 +42,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       }
 
       // fake requestFolderObjectIdentity
-      if (opts.body.indexOf('GetFolderByServerRelativeUrl') > -1) {
+      if (opts.data.indexOf('GetFolderByServerRelativeUrl') > -1) {
         if (folderObjectIdentityResp) {
           return folderObjectIdentityResp;
         } else {
@@ -62,7 +63,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       }
 
       // fake deleteion success for site and folder
-      if (opts.body.indexOf('SetFieldValue') > -1) {
+      if (opts.data.indexOf('SetFieldValue') > -1) {
         if (removePropertyResp) {
           return removePropertyResp;
         } else {
@@ -91,30 +92,32 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
         log.push(msg);
       },
-      prompt: (options: any, cb: (result: { continue: boolean }) => void) => {
-        promptOptions = options;
-        cb({ continue: false });
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
+        log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
+      promptOptions = options;
+      cb({ continue: false });
+    });
     promptOptions = undefined;
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
-      (command as any).removeProperty
+      (command as any).removeProperty,
+      Cli.prompt
     ]);
   });
 
@@ -127,17 +130,17 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.PROPERTYBAG_REMOVE), true);
+    assert.strictEqual(command.name.startsWith(commands.PROPERTYBAG_REMOVE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('should remove property without prompting with confirmation argument', (done) => {
     stubAllPostRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: false,
         webUrl: 'https://contoso.sharepoint.com',
@@ -146,7 +149,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -158,7 +161,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
   it('should property be removed successfully (verbose) without prompting with confirmation argument', (done) => {
     stubAllPostRequests();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -167,7 +170,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(sinon.match('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(sinon.match('DONE')));
         done();
       }
       catch (e) {
@@ -177,7 +180,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
   });
 
   it('should prompt before removing property when confirmation argument not passed', (done) => {
-    cmdInstance.action({
+    command.action(logger, {
       options:
         {
           webUrl: 'https://contoso.sharepoint.com',
@@ -203,10 +206,11 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
   it('should abort property remove when prompt not confirmed', (done) => {
     const postCallsSpy: sinon.SinonStub = stubAllPostRequests();
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         key: 'key1'
@@ -226,10 +230,11 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
     const postCallsSpy: sinon.SinonStub = stubAllPostRequests();
     const removePropertySpy = sinon.spy((command as any), 'removeProperty');
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         key: 'key1',
@@ -261,7 +266,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       serverRelativeUrl: "\u002fsites\u002fabc"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(removePropertySpy.calledWith(objIdentity, options));
         assert(removePropertySpy.calledOnce === true);
@@ -298,7 +303,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       serverRelativeUrl: "/"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(removePropertySpy.calledWith(objIdentity, options));
         assert(removePropertySpy.calledOnce === true);
@@ -324,7 +329,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       serverRelativeUrl: "/sites/abc/Shared Documents"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(removePropertySpy.calledWith(objIdentity, options));
         assert(removePropertySpy.calledOnce === true);
@@ -336,7 +341,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
     });
   });
 
-  it('should send correct remove request body when folder is not specified', (done) => {
+  it('should send correct remove request data when folder is not specified', (done) => {
     const requestStub: sinon.SinonStub  = stubAllPostRequests();
     const options: Object = {
       webUrl: 'https://contoso.sharepoint.com',
@@ -348,10 +353,10 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       serverRelativeUrl: "\u002fsites\u002fabc"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         const bodyPayload = `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetFieldValue" Id="206" ObjectPathId="205"><Parameters><Parameter Type="String">${(options as any).key}</Parameter><Parameter Type="Null" /></Parameters></Method><Method Name="Update" Id="207" ObjectPathId="198" /></Actions><ObjectPaths><Property Id="205" ParentId="198" Name="AllProperties" /><Identity Id="198" Name="${objIdentity.objectIdentity}" /></ObjectPaths></Request>`
-        assert(requestStub.calledWith(sinon.match({body:bodyPayload})));
+        assert(requestStub.calledWith(sinon.match({data:bodyPayload})));
         done();
       }
       catch (e) {
@@ -360,7 +365,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
     });
   });
 
-  it('should send correct remove request body when folder is specified', (done) => {
+  it('should send correct remove request data when folder is specified', (done) => {
     const requestStub: sinon.SinonStub  = stubAllPostRequests();
     const options: Object = {
       webUrl: 'https://contoso.sharepoint.com',
@@ -373,10 +378,10 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       serverRelativeUrl: "/"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         const bodyPayload = `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetFieldValue" Id="206" ObjectPathId="205"><Parameters><Parameter Type="String">${(options as any).key}</Parameter><Parameter Type="Null" /></Parameters></Method><Method Name="Update" Id="207" ObjectPathId="198" /></Actions><ObjectPaths><Property Id="205" ParentId="198" Name="Properties" /><Identity Id="198" Name="${objIdentity.objectIdentity}" /></ObjectPaths></Request>`
-        assert(requestStub.calledWith(sinon.match({body:bodyPayload})));
+        assert(requestStub.calledWith(sinon.match({data:bodyPayload})));
         done();
       }
       catch (e) {
@@ -394,9 +399,9 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       confirm: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity error')));
         done();
       }
       catch (e) {
@@ -415,9 +420,9 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       confirm: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity ClientSvc error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity ClientSvc error')));
         done();
       }
       catch (e) {
@@ -436,9 +441,9 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       debug: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
         done();
       }
       catch (e) {
@@ -457,9 +462,9 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       confirm: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('requestFolderObjectIdentity error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('requestFolderObjectIdentity error')));
         done();
       }
       catch (e) {
@@ -478,9 +483,9 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       confirm: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
         done();
       }
       catch (e) {
@@ -498,9 +503,9 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       confirm: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. Folder _ObjectIdentity_ not found')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. Folder _ObjectIdentity_ not found')));
         done();
       }
       catch (e) {
@@ -519,10 +524,10 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       confirm: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
         assert(removePropertySpy.calledOnce === true);
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('removeProperty promise error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('removeProperty promise error')));
         done();
       }
       catch (e) {
@@ -541,9 +546,9 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       confirm: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('removeProperty error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('removeProperty error')));
         done();
       }
       catch (e) {
@@ -562,9 +567,9 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
       confirm: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
         done();
       }
       catch (e) {
@@ -574,7 +579,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsVerboseOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -585,7 +590,7 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
   });
 
   it('supports specifying folder', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsScopeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('[folder]') > -1) {
@@ -597,50 +602,45 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
 
   it('doesn\'t fail if the parent doesn\'t define options', () => {
     sinon.stub(Command.prototype, 'options').callsFake(() => { return []; });
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     Utils.restore(Command.prototype.options);
     assert(options.length > 0);
   });
 
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.equal(actual, "Missing required option url");
-  });
-
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           webUrl: 'foo',
           key: 'key1'
         }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the key option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           webUrl: 'https://contoso.sharepoint.com'
         }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the url option specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           webUrl: 'https://contoso.sharepoint.com',
           key: 'key1'
         }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the url and folder options specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           webUrl: 'https://contoso.sharepoint.com',
@@ -648,11 +648,11 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
           folder: '/'
         }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('doesn\'t fail validation if the optional folder option not specified', () => {
-    const actual = (command.validate() as CommandValidate)(
+    const actual = command.validate(
       {
         options:
           {
@@ -660,40 +660,6 @@ describe(commands.PROPERTYBAG_REMOVE, () => {
             key: 'key1'
           }
       });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.PROPERTYBAG_REMOVE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.strictEqual(actual, true);
   });
 });

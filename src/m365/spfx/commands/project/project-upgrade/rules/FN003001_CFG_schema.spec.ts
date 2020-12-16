@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN003001_CFG_schema } from './FN003001_CFG_schema';
 
 describe('FN003001_CFG_schema', () => {
@@ -17,7 +17,7 @@ describe('FN003001_CFG_schema', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if schema is already up-to-date', () => {
@@ -30,6 +30,6 @@ describe('FN003001_CFG_schema', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

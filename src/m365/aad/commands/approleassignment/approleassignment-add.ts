@@ -1,16 +1,15 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import * as os from 'os';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import AadCommand from '../../../base/AadCommand';
 import Utils from '../../../../Utils';
+import GraphCommand from '../../../base/GraphCommand';
+import commands from '../../commands';
 import { ServicePrincipal } from './ServicePrincipal';
-import * as os from 'os';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface AppRole {
   objectId: string;
@@ -30,7 +29,7 @@ interface Options extends GlobalOptions {
   scope: string;
 }
 
-class AadAppRoleAssignmentAddCommand extends AadCommand {
+class AadAppRoleAssignmentAddCommand extends GraphCommand {
   public get name(): string {
     return commands.APPROLEASSIGNMENT_ADD;
   }
@@ -47,25 +46,25 @@ class AadAppRoleAssignmentAddCommand extends AadCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let objectId: string = '';
     let queryFilter: string = '';
     if (args.options.appId) {
       queryFilter = `$filter=appId eq '${encodeURIComponent(args.options.appId)}'`;
     }
     else if (args.options.objectId) {
-      queryFilter = `$filter=objectId eq '${encodeURIComponent(args.options.objectId)}'`;
+      queryFilter = `$filter=id eq '${encodeURIComponent(args.options.objectId)}'`;
     }
     else {
       queryFilter = `$filter=displayName eq '${encodeURIComponent(args.options.displayName as string)}'`;
     }
 
     const getServicePrinciplesRequestOptions: any = {
-      url: `${this.resource}/myorganization/servicePrincipals?api-version=1.6&${queryFilter}`,
+      url: `${this.resource}/v1.0/servicePrincipals?${queryFilter}`,
       headers: {
-        accept: 'application/json;odata=nometadata;streaming=false'
+        accept: 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -75,36 +74,36 @@ class AadAppRoleAssignmentAddCommand extends AadCommand {
           return Promise.reject('More than one service principal found. Please use the appId or objectId option to make sure the right service principal is specified.');
         }
 
-        objectId = servicePrincipalResult.value[0].objectId;
+        objectId = servicePrincipalResult.value[0].id;
 
         let resource: string = encodeURIComponent(args.options.resource);
 
         // try resolve aliases that the user might enter since these are seen in the Azure portal
         switch (args.options.resource.toLocaleLowerCase()) {
           case 'sharepoint':
-            resource = 'Microsoft 365 SharePoint Online';
+            resource = 'Office 365 SharePoint Online';
             break;
           case 'intune':
             resource = 'Microsoft Intune API';
             break;
           case 'exchange':
-            resource = 'Microsoft 365 Exchange Online';
+            resource = 'Office 365 Exchange Online';
             break;
         }
 
         // will perform resource name, appId or objectId search
-        let filter: string = `$filter=publisherName eq '${resource}' or (displayName eq '${resource}' or startswith(displayName,'${resource}'))`;
+        let filter: string = `$filter=(displayName eq '${resource}' or startswith(displayName,'${resource}'))`;
 
         if (Utils.isValidGuid(resource)) {
-          filter += ` or appId eq '${resource}' or objectId eq '${resource}'`;
+          filter += ` or appId eq '${resource}' or id eq '${resource}'`;
         }
 
         const requestOptions: any = {
-          url: `${this.resource}/myorganization/servicePrincipals?api-version=1.6&${filter}`,
+          url: `${this.resource}/v1.0/servicePrincipals?${filter}`,
           headers: {
-            'accept': 'application/json;odata=nometadata;streaming=false'
+            'accept': 'application/json'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
@@ -117,7 +116,7 @@ class AadAppRoleAssignmentAddCommand extends AadCommand {
         for (const servicePrincipal of res.value) {
           for (const role of servicePrincipal.appRoles) {
             appRolesFound.push({
-              resourceId: servicePrincipal.objectId,
+              resourceId: servicePrincipal.id,
               objectId: role.id,
               value: role.value
             });
@@ -159,34 +158,33 @@ class AadAppRoleAssignmentAddCommand extends AadCommand {
       })
       .then((rolesAddedResponse: any) => {
         if (args.options.output && args.options.output.toLowerCase() === 'json') {
-          cmd.log(rolesAddedResponse);
+          logger.log(rolesAddedResponse);
         }
         else {
-          cmd.log(rolesAddedResponse.map((result: any) => ({
-            objectId: result.objectId,
+          logger.log(rolesAddedResponse.map((result: any) => ({
+            objectId: result.id,
             principalDisplayName: result.principalDisplayName,
             resourceDisplayName: result.resourceDisplayName
           })));
         }
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   private addRoleToServicePrincipal(objectId: string, appRole: AppRole): Promise<any> {
     const requestOptions: any = {
-      url: `${this.resource}/myorganization/servicePrincipals/${objectId}/appRoleAssignments?api-version=1.6`,
+      url: `${this.resource}/v1.0/servicePrincipals/${objectId}/appRoleAssignments`,
       headers: {
-        'accept': 'application/json;odata=nometadata;streaming=false',
         'Content-Type': 'application/json'
       },
-      json: true,
-      body: {
-        id: appRole.objectId,
+      responseType: 'json',
+      data: {
+        appRoleId: appRole.objectId,
         principalId: objectId,
         resourceId: appRole.resourceId
       }
@@ -224,74 +222,24 @@ class AadAppRoleAssignmentAddCommand extends AadCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      let optionsSpecified: number = 0;
-      optionsSpecified += args.options.appId ? 1 : 0;
-      optionsSpecified += args.options.displayName ? 1 : 0;
-      optionsSpecified += args.options.objectId ? 1 : 0;
-      if (optionsSpecified !== 1) {
-        return 'Specify either appId, objectId or displayName';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    let optionsSpecified: number = 0;
+    optionsSpecified += args.options.appId ? 1 : 0;
+    optionsSpecified += args.options.displayName ? 1 : 0;
+    optionsSpecified += args.options.objectId ? 1 : 0;
+    if (optionsSpecified !== 1) {
+      return 'Specify either appId, objectId or displayName';
+    }
 
-      if (!args.options.resource) {
-        return 'Required option resource missing';
-      }
+    if (args.options.appId && !Utils.isValidGuid(args.options.appId)) {
+      return `${args.options.appId} is not a valid GUID`;
+    }
 
-      if (!args.options.scope) {
-        return 'Required option scope missing';
-      }
+    if (args.options.objectId && !Utils.isValidGuid(args.options.objectId)) {
+      return `${args.options.objectId} is not a valid GUID`;
+    }
 
-      if (args.options.appId && !Utils.isValidGuid(args.options.appId)) {
-        return `${args.options.appId} is not a valid GUID`;
-      }
-
-      if (args.options.objectId && !Utils.isValidGuid(args.options.objectId)) {
-        return `${args.options.objectId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.APPROLEASSIGNMENT_ADD).helpInformation());
-    log(
-      `  Remarks:
-
-    This command requires tenant administrator permissions.
-    
-    Specify either the ${chalk.grey('appId')}, ${chalk.grey('objectId')} or ${chalk.grey('displayName')}. If you specify
-    more than one option value, the command will fail with an error.
-
-    Autocomplete values for the ${chalk.grey('resource')} option do not mean allowed values. 
-    The autocomplete will just suggest some known names, but that doesn't
-    restrict you to use name of your own custom application or other
-    application within your tenant.
-
-    This command can also be used to assign permissions to system- or
-    user-assigned managed identity.
-   
-  Examples:
-  
-    Adds SharePoint ${chalk.grey('Sites.Read.All')} application permissions to Azure AD
-    application with app id ${chalk.grey('57907bf8-73fa-43a6-89a5-1f603e29e451')}
-      ${commands.APPROLEASSIGNMENT_ADD} --appId "57907bf8-73fa-43a6-89a5-1f603e29e451" --resource "SharePoint" --scope "Sites.Read.All"
-
-    Adds multiple Microsoft Graph application permissions to an Azure AD
-    application with name ${chalk.grey('MyAppName')}
-      ${commands.APPROLEASSIGNMENT_ADD} --displayName "MyAppName" --resource "Microsoft Graph" --scope "Mail.Read,Mail.Send"
-
-    Adds Microsoft Graph ${chalk.grey('Mail.Read')} application permissions to a system-managed
-    identity app with objectId ${chalk.grey('57907bf8-73fa-43a6-89a5-1f603e29e451')}
-      ${commands.APPROLEASSIGNMENT_ADD} --objectId "57907bf8-73fa-43a6-89a5-1f603e29e451" --resource "Microsoft Graph" --scope "Mail.Read"
-
-  More information:
-  
-    Microsoft Graph permissions reference: 
-      https://docs.microsoft.com/en-us/graph/permissions-reference
-`);
+    return true;
   }
 }
 

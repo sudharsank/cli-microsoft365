@@ -5,25 +5,19 @@ Gets information about the Home Site
 ## Usage
 
 ```sh
-spo homesite get [options]
+m365 spo homesite get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+--8<-- "docs/cmd/_global.md"
 
 ## Examples
 
 Get information about the Home Site
 
 ```sh
-spo homesite get
+m365 spo homesite get
 ```
 
 ## More information

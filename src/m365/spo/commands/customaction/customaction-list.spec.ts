@@ -1,18 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./customaction-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./customaction-list');
 
 describe(commands.CUSTOMACTION_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +22,24 @@ describe(commands.CUSTOMACTION_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +53,15 @@ describe(commands.CUSTOMACTION_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.CUSTOMACTION_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.CUSTOMACTION_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['Name', 'Location', 'Scope', 'Id']);
   });
 
   it('getCustomActions called once when scope is Web', (done) => {
@@ -74,7 +80,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       scope: 'Web'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
         assert(getRequestSpy.calledOnce);
@@ -111,7 +117,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       scope: 'Site'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(getRequestSpy.calledOnce);
         assert(getCustomActionsSpy.calledWith({
@@ -147,9 +153,9 @@ describe(commands.CUSTOMACTION_LIST, () => {
       output: 'json'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([{"ClientSideComponentId":"b41916e7-e69d-467f-b37f-ff8ecf8f99f2","ClientSideComponentProperties":"{\"testMessage\":\"Test message\"}","CommandUIExtension":null,"Description":null,"Group":null,"Id":"8b86123a-3194-49cf-b167-c044b613a48a","ImageUrl":null,"Location":"ClientSideExtension.ApplicationCustomizer","Name":"YourName","RegistrationId":null,"RegistrationType":0,"Rights":{"High":"0","Low":"0"},"Scope":3,"ScriptBlock":null,"ScriptSrc":null,"Sequence":0,"Title":"YourAppCustomizer","Url":null,"VersionOfUserCustomAction":"16.0.1.0"},{"ClientSideComponentId":"b41916e7-e69d-467f-b37f-ff8ecf8f99f2","ClientSideComponentProperties":"{\"testMessage\":\"Test message\"}","CommandUIExtension":null,"Description":null,"Group":null,"Id":"9115bb61-d9f1-4ed4-b7b7-e5d1834e60f5","ImageUrl":null,"Location":"ClientSideExtension.ApplicationCustomizer","Name":"YourName","RegistrationId":null,"RegistrationType":0,"Rights":{"High":"0","Low":"0"},"Scope":3,"ScriptBlock":null,"ScriptSrc":null,"Sequence":0,"Title":"YourAppCustomizer","Url":null,"VersionOfUserCustomAction":"16.0.1.0"}]));
+        assert(loggerLogSpy.calledWith([{"ClientSideComponentId":"b41916e7-e69d-467f-b37f-ff8ecf8f99f2","ClientSideComponentProperties":"{\"testMessage\":\"Test message\"}","CommandUIExtension":null,"Description":null,"Group":null,"Id":"8b86123a-3194-49cf-b167-c044b613a48a","ImageUrl":null,"Location":"ClientSideExtension.ApplicationCustomizer","Name":"YourName","RegistrationId":null,"RegistrationType":0,"Rights":{"High":"0","Low":"0"},"Scope":3,"ScriptBlock":null,"ScriptSrc":null,"Sequence":0,"Title":"YourAppCustomizer","Url":null,"VersionOfUserCustomAction":"16.0.1.0"},{"ClientSideComponentId":"b41916e7-e69d-467f-b37f-ff8ecf8f99f2","ClientSideComponentProperties":"{\"testMessage\":\"Test message\"}","CommandUIExtension":null,"Description":null,"Group":null,"Id":"9115bb61-d9f1-4ed4-b7b7-e5d1834e60f5","ImageUrl":null,"Location":"ClientSideExtension.ApplicationCustomizer","Name":"YourName","RegistrationId":null,"RegistrationType":0,"Rights":{"High":"0","Low":"0"},"Scope":3,"ScriptBlock":null,"ScriptSrc":null,"Sequence":0,"Title":"YourAppCustomizer","Url":null,"VersionOfUserCustomAction":"16.0.1.0"}]));
         done();
       }
       catch (e) {
@@ -176,7 +182,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
 
     const getCustomActionsSpy = sinon.spy((command as any), 'getCustomActions');
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         url: 'https://contoso.sharepoint.com'
@@ -212,7 +218,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       scope: "All"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(searchAllScopesSpy.calledWith(sinon.match(
           {
@@ -243,7 +249,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         verbose: false,
@@ -252,7 +258,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -274,7 +280,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         verbose: true,
@@ -283,7 +289,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(`Custom actions not found`));
+        assert(loggerLogToStderrSpy.calledWith(`Custom actions not found`));
         done();
       }
       catch (e) {
@@ -302,7 +308,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         url: 'https://contoso.sharepoint.com',
@@ -310,7 +316,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
@@ -333,7 +339,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         verbose: true,
@@ -342,7 +348,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
@@ -352,7 +358,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsVerboseOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -363,7 +369,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
   });
 
   it('supports specifying scope', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsScopeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('[scope]') > -1) {
@@ -375,14 +381,9 @@ describe(commands.CUSTOMACTION_LIST, () => {
 
   it('doesn\'t fail if the parent doesn\'t define options', () => {
     sinon.stub(Command.prototype, 'options').callsFake(() => { return []; });
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     Utils.restore(Command.prototype.options);
     assert(options.length > 0);
-  });
-
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.equal(actual, "Missing required option url");
   });
 
   it('retrieves all available user custom actions', (done) => {
@@ -415,9 +416,9 @@ describe(commands.CUSTOMACTION_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { url: 'https://contoso.sharepoint.com/sites/abc' } }, () => {
+    command.action(logger, { options: { url: 'https://contoso.sharepoint.com/sites/abc' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             Name: 'customaction2',
             Location: 'Microsoft.SharePoint.StandardMenu',
@@ -469,7 +470,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ 
+    command.action(logger, { 
       options: { 
         url: 'https://contoso.sharepoint.com/sites/abc',
         debug: true 
@@ -486,7 +487,7 @@ describe(commands.CUSTOMACTION_LIST, () => {
       })
       try {
         assert(correctLogStatement);
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             Name: 'customaction2',
             Location: 'Microsoft.SharePoint.StandardMenu',
@@ -509,34 +510,34 @@ describe(commands.CUSTOMACTION_LIST, () => {
   });
 
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           url: 'foo'
         }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the url options specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           url: "https://contoso.sharepoint.com"
         }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the url and scope options specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           url: "https://contoso.sharepoint.com",
           scope: "Site"
         }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('humanize scope shows correct value when scope odata is 2', () => {
@@ -555,102 +556,68 @@ describe(commands.CUSTOMACTION_LIST, () => {
   });
 
   it('accepts scope to be All', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           url: "https://contoso.sharepoint.com",
           scope: 'All'
         }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('accepts scope to be Site', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           url: "https://contoso.sharepoint.com",
           scope: 'Site'
         }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('accepts scope to be Web', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           url: "https://contoso.sharepoint.com",
           scope: 'Web'
         }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('rejects invalid string scope', () => {
     const scope = 'foo';
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         url: "https://contoso.sharepoint.com",
         scope: scope
       }
     });
-    assert.equal(actual, `${scope} is not a valid custom action scope. Allowed values are Site|Web|All`);
+    assert.strictEqual(actual, `${scope} is not a valid custom action scope. Allowed values are Site|Web|All`);
   });
 
   it('rejects invalid scope value specified as number', () => {
     const scope = 123;
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         url: "https://contoso.sharepoint.com",
         scope: scope
       }
     });
-    assert.equal(actual, `${scope} is not a valid custom action scope. Allowed values are Site|Web|All`);
+    assert.strictEqual(actual, `${scope} is not a valid custom action scope. Allowed values are Site|Web|All`);
   });
 
   it('doesn\'t fail validation if the optional scope option not specified', () => {
-    const actual = (command.validate() as CommandValidate)(
+    const actual = command.validate(
       {
         options:
           {
             url: "https://contoso.sharepoint.com"
           }
       });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.CUSTOMACTION_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.strictEqual(actual, true);
   });
 });

@@ -5,19 +5,15 @@ Updates the particular group setting
 ## Usage
 
 ```sh
-aad groupsetting set [options]
+m365 aad groupsetting set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id <id>`|The ID of the group setting to update
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id <id>`
+: The ID of the group setting to update
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -34,5 +30,5 @@ If the specified id doesn't reference a valid group setting, you will get a _Res
 Configure classification for modern SharePoint sites
 
 ```sh
-aad groupsetting set --id c391b57d-5783-4c53-9236-cefb5c6ef323 --UsageGuidelinesUrl https://contoso.sharepoint.com/sites/compliance --ClassificationList 'HBI, MBI, LBI, GDPR' --DefaultClassification MBI
+m365 aad groupsetting set --id c391b57d-5783-4c53-9236-cefb5c6ef323 --UsageGuidelinesUrl https://contoso.sharepoint.com/sites/compliance --ClassificationList 'HBI, MBI, LBI, GDPR' --DefaultClassification MBI
 ```

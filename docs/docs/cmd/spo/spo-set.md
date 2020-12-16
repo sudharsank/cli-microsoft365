@@ -5,19 +5,15 @@ Sets the URL of the root SharePoint site collection for use in SPO commands
 ## Usage
 
 ```sh
-spo set [options]
+m365 spo set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|The URL of the root SharePoint site collection to use in SPO commands
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: The URL of the root SharePoint site collection to use in SPO commands
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -28,5 +24,5 @@ CLI for Microsoft 365 automatically discovers the URL of the root SharePoint sit
 Set SPO URL to the specified URL
 
 ```sh
-spo set --url https://contoso.sharepoint.com
+m365 spo set --url https://contoso.sharepoint.com
 ```

@@ -14,10 +14,12 @@ nav:
     - login: 'cmd/login.md'
     - logout: 'cmd/logout.md'
     - status: 'cmd/status.md'
+    - version: 'cmd/version.md'
     - Azure Active Directory Graph (aad):
       - approleassignment:
         - approleassignment add: 'cmd/aad/approleassignment/approleassignment-add.md'
         - approleassignment list: 'cmd/aad/approleassignment/approleassignment-list.md'
+        - approleassignment remove: 'cmd/aad/approleassignment/approleassignment-remove.md'
       - groupsetting:
         - groupsetting add: 'cmd/aad/groupsetting/groupsetting-add.md'
         - groupsetting get: 'cmd/aad/groupsetting/groupsetting-get.md'
@@ -83,6 +85,7 @@ nav:
         - environment get: 'cmd/flow/environment/environment-get.md'
         - environment list: 'cmd/flow/environment/environment-list.md'
       - run:
+        - run cancel: 'cmd/flow/run/run-cancel.md'
         - run get: 'cmd/flow/run/run-get.md'
         - run list: 'cmd/flow/run/run-list.md'
     - Microsoft Graph (graph):
@@ -106,6 +109,9 @@ nav:
     - Outlook (outlook):
       - mail:
         - mail send: 'cmd/outlook/mail/mail-send.md'
+      - message:
+        - message list: 'cmd/outlook/message/message-list.md'
+        - message move: 'cmd/outlook/message/message-move.md'
       - report:
         - report mailactivitycounts: 'cmd/outlook/report/report-mailactivitycounts.md'
         - report mailactivityusercounts: 'cmd/outlook/report/report-mailactivityusercounts.md'
@@ -119,6 +125,8 @@ nav:
         - report mailboxusagequotastatusmailboxcounts: 'cmd/outlook/report/report-mailboxusagequotastatusmailboxcounts.md'
         - report mailboxusagestorage: 'cmd/outlook/report/report-mailboxusagestorage.md'
     - PowerApps (pa):
+      - app:
+        - app list: 'cmd/pa/app/app-list.md'
       - connector:
         - connector export: 'cmd/pa/connector/connector-export.md'
         - connector list: 'cmd/pa/connector/connector-list.md'
@@ -201,6 +209,7 @@ nav:
         - file list: 'cmd/spo/file/file-list.md'
         - file move: 'cmd/spo/file/file-move.md'
         - file remove: 'cmd/spo/file/file-remove.md'
+        - file sharinginfo get: 'cmd/spo/file/file-sharinginfo-get.md'
       - folder:
         - folder add: 'cmd/spo/folder/folder-add.md'
         - folder copy: 'cmd/spo/folder/folder-copy.md'
@@ -233,6 +242,8 @@ nav:
         - hubsite theme sync: 'cmd/spo/hubsite/hubsite-theme-sync.md'
         - hubsite unregister: 'cmd/spo/hubsite/hubsite-unregister.md'
       - knowledgehub:
+        - knowledgehub get: 'cmd/spo/knowledgehub/knowledgehub-get.md'
+        - knowledgehub remove: 'cmd/spo/knowledgehub/knowledgehub-remove.md'
         - knowledgehub set: 'cmd/spo/knowledgehub/knowledgehub-set.md'
       - list:
         - list add: 'cmd/spo/list/list-add.md'
@@ -243,6 +254,7 @@ nav:
         - list contenttype add: 'cmd/spo/list/list-contenttype-add.md'
         - list contenttype list: 'cmd/spo/list/list-contenttype-list.md'
         - list contenttype remove: 'cmd/spo/list/list-contenttype-remove.md'
+        - list contenttype default set: 'cmd/spo/list/list-contenttype-default-set.md'
         - list label get: 'cmd/spo/list/list-label-get.md'
         - list label set: 'cmd/spo/list/list-label-set.md'
         - list sitescript get: 'cmd/spo/list/list-sitescript-get.md'
@@ -291,6 +303,7 @@ nav:
         - page column list: 'cmd/spo/page/page-column-list.md'
         - page control get: 'cmd/spo/page/page-control-get.md'
         - page control list: 'cmd/spo/page/page-control-list.md'
+        - page control set: 'cmd/spo/page/page-control-set.md'
         - page header set: 'cmd/spo/page/page-header-set.md'
         - page section add: 'cmd/spo/page/page-section-add.md'
         - page section get: 'cmd/spo/page/page-section-get.md'
@@ -365,6 +378,8 @@ nav:
         - tenant appcatalog add: 'cmd/spo/tenant/tenant-appcatalog-add.md'
         - tenant appcatalogurl get: 'cmd/spo/tenant/tenant-appcatalogurl-get.md'
         - tenant recyclebinitem list: 'cmd/spo/tenant/tenant-recyclebinitem-list.md'
+        - tenant recyclebinitem remove: 'cmd/spo/tenant/tenant-recyclebinitem-remove.md'
+        - tenant recyclebinitem restore: 'cmd/spo/tenant/tenant-recyclebinitem-restore.md'
         - tenant settings list: 'cmd/spo/tenant/tenant-settings-list.md'
         - tenant settings set: 'cmd/spo/tenant/tenant-settings-set.md'
       - term:
@@ -411,6 +426,8 @@ nav:
         - channel list: 'cmd/teams/channel/channel-list.md'
         - channel remove: 'cmd/teams/channel/channel-remove.md'
         - channel set: 'cmd/teams/channel/channel-set.md'
+      - conversationmember:
+        - conversationmember list: 'cmd/teams/conversationmember/conversationmember-list.md'
       - funsettings:
         - funsettings list: 'cmd/teams/funsettings/funsettings-list.md'
         - funsettings set: 'cmd/teams/funsettings/funsettings-set.md'
@@ -436,6 +453,7 @@ nav:
         - report useractivityuserdetail: 'cmd/teams/report/report-useractivityuserdetail.md'
       - tab:
         - tab add: 'cmd/teams/tab/tab-add.md'
+        - tab get: 'cmd/teams/tab/tab-get.md'
         - tab list: 'cmd/teams/tab/tab-list.md'
         - tab remove: 'cmd/teams/tab/tab-remove.md'
       - team:
@@ -452,6 +470,7 @@ nav:
         - user remove: 'cmd/aad/o365group/o365group-user-remove.md'
         - user set: 'cmd/aad/o365group/o365group-user-set.md'
         - user app add: 'cmd/teams/user/user-app-add.md'
+        - user app list: 'cmd/teams/user/user-app-list.md'
         - user app remove: 'cmd/teams/user/user-app-remove.md'
     - Microsoft 365 (tenant):
       - id:
@@ -460,6 +479,10 @@ nav:
         - report activeusercounts: 'cmd/tenant/report/report-activeusercounts.md'
         - report activeuserdetail: 'cmd/tenant/report/report-activeuserdetail.md'
         - report servicesusercounts: 'cmd/tenant/report/report-servicesusercounts.md'
+      - service:
+        - service list: 'cmd/tenant/service/service-list.md'
+        - service message list: 'cmd/tenant/service/service-message-list.md'
+        - service report historicalservicestatus: 'cmd/tenant/service/service-report-historicalservicestatus.md'
       - status:
         - status list: 'cmd/tenant/status/status-list.md'
     - To Do (todo):
@@ -468,7 +491,13 @@ nav:
         - list list: 'cmd/todo/list/list-list.md'
         - list remove: 'cmd/todo/list/list-remove.md'
         - list set: 'cmd/todo/list/list-set.md'
+      - task:
+        - task add: 'cmd/todo/task/task-add.md'
+        - task list: 'cmd/todo/task/task-list.md'
+        - task remove: 'cmd/todo/task/task-remove.md'
+        - task set: 'cmd/todo/task/task-set.md'
     - Yammer (yammer):
+      - search: 'cmd/yammer/yammer-search.md'
       - group:
         - group list: 'cmd/yammer/group/group-list.md'
         - group user add: 'cmd/yammer/group/group-user-add.md'
@@ -490,7 +519,7 @@ nav:
         - report deviceusageuserdetail: 'cmd/yammer/report/report-deviceusageuserdetail.md'
         - report groupsactivitycounts: 'cmd/yammer/report/report-groupsactivitycounts.md'
         - report groupsactivitydetail: 'cmd/yammer/report/report-groupsactivitydetail.md'
-        - report groupsactivitygroupcounts: 'cmd/yammer/report/report-groupsactivitygroupcounts.md'
+        - report groupsactivitygroupcounts: 'cmd/yammer/report/report-groupsactivitygroupcounts.md'        
       - user:
         - user get: 'cmd/yammer/user/user-get.md'
         - user list: 'cmd/yammer/user/user-list.md'
@@ -506,6 +535,7 @@ nav:
   - Sample Scripts:
     - 'Introduction': 'sample-scripts/index.md'
     - Azure Active Directory:
+      - 'Analyze User Profile Photos using Azure Computer Vision API' : 'sample-scripts/aad/analyze-user-profile-photos.md'
       - 'Bulk add/remove users to Microsoft Teams and Microsoft 365 Groups' : 'sample-scripts/aad/manage-group-users.md'
       - 'Delete all Microsoft 365 groups' : 'sample-scripts/aad/delete-m365-groups.md'
       - 'Scan for Microsoft 365 Groups created with user''s first or last name' : 'sample-scripts/aad/flag-groups-with-user-names.md'
@@ -527,11 +557,14 @@ nav:
       - 'Insert pictures in a SharePoint Document Library into a Word document': 'sample-scripts/spo/insert-sp-library-pictures-into-word.md'
       - 'Lists active SharePoint site collection application catalogs': 'sample-scripts/spo/list-site-app-catalogs.md'
       - 'Lists all tenant-wide extensions': 'sample-scripts/spo/list-tenant-wide-extensions.md'
+      - 'Remove orphaned redirect sites': 'sample-scripts/spo/remove-orphaned-redirect-sites.md'
       - 'Sync SharePoint document library documents with Azure storage container': 'sample-scripts/spo/sync-splib-into-az-storage-container.md'
     - Microsoft Teams:
+      - 'Deploy a Microsoft Teams personal app and add it to users': 'sample-scripts/teams/install-personal-app.md'
       - 'Deploy Microsoft Teams app from Azure DevOps': 'sample-scripts/teams/deploy-teams-app.md'
       - 'Govern orphaned Microsoft Teams': 'sample-scripts/teams/govern-orphan-teams.md'
       - 'List app usage in Microsoft Teams': 'sample-scripts/teams/list-teams-app-usage.md'
+      - 'Remove a Microsoft Teams personal app': 'sample-scripts/teams/remove-personal-app.md'
       - 'Remove Wiki tab in a Microsoft Teams channel': 'sample-scripts/teams/remove-wikitab-teams.md'
   - About:
     - 'Why this CLI': 'about/why-cli.md'
@@ -557,6 +590,8 @@ markdown_extensions:
   - toc:
       permalink: true
   - pymdownx.superfences
+  - pymdownx.snippets
+  - def_list
 extra:
   social:
     - type: 'twitter'

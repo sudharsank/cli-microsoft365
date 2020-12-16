@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./field-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./field-add');
 
 describe(commands.FIELD_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -22,23 +22,23 @@ describe(commands.FIELD_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -53,17 +53,17 @@ describe(commands.FIELD_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FIELD_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.FIELD_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('creates site column using XML with the default options', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/fields/CreateFieldAsXml`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           parameters: {
             SchemaXml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>',
             Options: 0
@@ -114,9 +114,9 @@ describe(commands.FIELD_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "AutoIndexed": false,
           "CanBeDeleted": true,
           "ClientSideComponentId": "00000000-0000-0000-0000-000000000000",
@@ -167,7 +167,7 @@ describe(commands.FIELD_ADD, () => {
   it('creates list column using XML with the DefaultValue option (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/lists/getByTitle('Events')/fields/CreateFieldAsXml`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           parameters: {
             SchemaXml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>',
             Options: 0
@@ -218,9 +218,9 @@ describe(commands.FIELD_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, webUrl: 'https://contoso.sharepoint.com/sites/sales', listTitle: 'Events', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'DefaultValue' } }, () => {
+    command.action(logger, { options: { debug: true, webUrl: 'https://contoso.sharepoint.com/sites/sales', listTitle: 'Events', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'DefaultValue' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "AutoIndexed": false,
           "CanBeDeleted": true,
           "ClientSideComponentId": "00000000-0000-0000-0000-000000000000",
@@ -271,7 +271,7 @@ describe(commands.FIELD_ADD, () => {
   it('creates site column using XML with the AddToAllContentTypes, AddFieldToDefaultView, AddFieldCheckDisplayName options', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/fields/CreateFieldAsXml`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           parameters: {
             SchemaXml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>',
             Options: 52
@@ -322,9 +322,9 @@ describe(commands.FIELD_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'AddToAllContentTypes, AddFieldToDefaultView, AddFieldCheckDisplayName' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'AddToAllContentTypes, AddFieldToDefaultView, AddFieldCheckDisplayName' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "AutoIndexed": false,
           "CanBeDeleted": true,
           "ClientSideComponentId": "00000000-0000-0000-0000-000000000000",
@@ -375,7 +375,7 @@ describe(commands.FIELD_ADD, () => {
   it('creates site column using XML with the AddToDefaultContentType, AddFieldInternalNameHint options', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/fields/CreateFieldAsXml`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           parameters: {
             SchemaXml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>',
             Options: 9
@@ -426,9 +426,9 @@ describe(commands.FIELD_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'AddToDefaultContentType, AddFieldInternalNameHint' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'AddToDefaultContentType, AddFieldInternalNameHint' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "AutoIndexed": false,
           "CanBeDeleted": true,
           "ClientSideComponentId": "00000000-0000-0000-0000-000000000000",
@@ -479,7 +479,7 @@ describe(commands.FIELD_ADD, () => {
   it('creates site column using XML with the AddToNoContentType option', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/fields/CreateFieldAsXml`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           parameters: {
             SchemaXml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>',
             Options: 2
@@ -530,9 +530,9 @@ describe(commands.FIELD_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'AddToNoContentType' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'AddToNoContentType' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "AutoIndexed": false,
           "CanBeDeleted": true,
           "ClientSideComponentId": "00000000-0000-0000-0000-000000000000",
@@ -585,9 +585,9 @@ describe(commands.FIELD_ADD, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'AddToNoContentType' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field Type="DateTime" DisplayName="Start date-time" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="DateTime" Group="PnP Columns" FriendlyDisplayFormat="Disabled" ID="{5ee2dd25-d941-455a-9bdb-7f2c54aed11b}" SourceID="{4f118c69-66e0-497c-96ff-d7855ce0713d}" StaticName="PnPAlertStartDateTime" Name="PnPAlertStartDateTime"><Default>[today]</Default></Field>', options: 'AddToNoContentType' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -597,7 +597,7 @@ describe(commands.FIELD_ADD, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -607,107 +607,63 @@ describe(commands.FIELD_ADD, () => {
     assert(containsOption);
   });
 
-  it('fails validation if site URL is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { xml: '<Field />' } });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the specified site URL is not a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'site.com', xml: '<Field />' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the field XML is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'site.com', xml: '<Field />' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the specified options is invalid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when all required parameters are valid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when option is set to DefaultValue', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'DefaultValue' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'DefaultValue' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when option is set to AddToDefaultContentType', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddToDefaultContentType' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddToDefaultContentType' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when option is set to AddToNoContentType', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddToNoContentType' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddToNoContentType' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when option is set to AddToAllContentTypes', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddToAllContentTypes' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddToAllContentTypes' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when option is set to AddFieldInternalNameHint', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldInternalNameHint' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldInternalNameHint' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when option is set to AddFieldToDefaultView', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldToDefaultView' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldToDefaultView' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when option is set to AddFieldCheckDisplayName', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldCheckDisplayName' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldCheckDisplayName' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when option is set to AddFieldCheckDisplayName and AddFieldToDefaultView', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldCheckDisplayName,AddFieldToDefaultView' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldCheckDisplayName,AddFieldToDefaultView' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when option is set to AddFieldCheckDisplayName and AddFieldToDefaultView (with space)', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldCheckDisplayName, AddFieldToDefaultView' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FIELD_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com/sites/sales', xml: '<Field />', options: 'AddFieldCheckDisplayName, AddFieldToDefaultView' } });
+    assert.strictEqual(actual, true);
   });
 });

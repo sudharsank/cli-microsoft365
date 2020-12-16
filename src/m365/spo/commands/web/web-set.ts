@@ -1,12 +1,12 @@
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -23,7 +23,6 @@ interface Options extends GlobalOptions {
   webUrl: string;
   footerEnabled?: string;
   searchScope?: string;
-  welcomePage?: string;
 }
 
 class SpoWebSetCommand extends SpoCommand {
@@ -49,12 +48,11 @@ class SpoWebSetCommand extends SpoCommand {
     telemetryProps.quickLaunchEnabled = typeof args.options.quickLaunchEnabled !== 'undefined';
     telemetryProps.footerEnabled = typeof args.options.footerEnabled !== 'undefined';
     telemetryProps.searchScope = args.options.searchScope !== 'undefined';
-    telemetryProps.welcomePage = args.options.welcomePage !== 'undefined';
     this.trackUnknownOptions(telemetryProps, args.options);
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const payload: any = {};
 
     this.addUnknownOptionsToPayload(payload, args.options);
@@ -94,46 +92,23 @@ class SpoWebSetCommand extends SpoCommand {
         'content-type': 'application/json;odata=nometadata',
         accept: 'application/json;odata=nometadata'
       },
-      json: true,
-      body: payload
+      responseType: 'json',
+      data: payload
     };
 
     if (this.verbose) {
-      cmd.log(`Updating properties of subsite ${args.options.webUrl}...`);
+      logger.logToStderr(`Updating properties of subsite ${args.options.webUrl}...`);
     }
 
     request
       .patch(requestOptions)
-      .then((): Promise<void> => {
-        if (typeof args.options.welcomePage === 'undefined') {
-          return Promise.resolve();
-        }
-
-        if (this.verbose) {
-          cmd.log(`Updating Welcome page for the site ${args.options.webUrl}`);
-        }
-
-        const requestOptions: any = {
-          url: `${args.options.webUrl}/_api/web/rootfolder`,
-          headers: {
-            'Content-Type': 'application/json;odata=nometadata',
-            accept: 'application/json;odata=nometadata',
-            'IF-MATCH': '*',
-            'X-HTTP-Method': 'PATCH'
-          },
-          body: { WelcomePage: args.options.welcomePage },
-          json: true
-        };
-
-        return request.patch(requestOptions)
-      })
       .then((): void => {
         if (this.debug) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public allowUnknownOptions(): boolean | undefined {
@@ -186,10 +161,6 @@ class SpoWebSetCommand extends SpoCommand {
         option: '--searchScope [searchScope]',
         description: 'Search scope to set in the site. Allowed values DefaultScope|Tenant|Hub|Site',
         autocomplete: SpoWebSetCommand.searchScopeOptions
-      },
-      {
-        option: '--welcomePage [welcomePage]',
-        description: 'Site-relative URL of the welcome page for the site'
       }
     ];
 
@@ -197,107 +168,56 @@ class SpoWebSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required option webUrl missing';
-      }
-      else {
-        const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-        if (isValidSharePointUrl !== true) {
-          return isValidSharePointUrl;
-        }
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      if (typeof args.options.quickLaunchEnabled !== 'undefined') {
-        if (args.options.quickLaunchEnabled !== 'true' &&
-          args.options.quickLaunchEnabled !== 'false') {
-          return `${args.options.quickLaunchEnabled} is not a valid boolean value`;
-        }
+    if (typeof args.options.quickLaunchEnabled !== 'undefined') {
+      if (args.options.quickLaunchEnabled !== 'true' &&
+        args.options.quickLaunchEnabled !== 'false') {
+        return `${args.options.quickLaunchEnabled} is not a valid boolean value`;
       }
+    }
 
-      if (typeof args.options.headerEmphasis !== 'undefined') {
-        if (isNaN(args.options.headerEmphasis)) {
-          return `${args.options.headerEmphasis} is not a number`;
-        }
-
-        if ([0, 1, 2, 3].indexOf(args.options.headerEmphasis) < 0) {
-          return `${args.options.headerEmphasis} is not a valid value for headerEmphasis. Allowed values are 0|1|2|3`;
-        }
+    if (typeof args.options.headerEmphasis !== 'undefined') {
+      if (isNaN(args.options.headerEmphasis)) {
+        return `${args.options.headerEmphasis} is not a number`;
       }
 
-      if (typeof args.options.headerLayout !== 'undefined') {
-        if (['standard', 'compact'].indexOf(args.options.headerLayout) < 0) {
-          return `${args.options.headerLayout} is not a valid value for headerLayout. Allowed values are standard|compact`;
-        }
+      if ([0, 1, 2, 3].indexOf(args.options.headerEmphasis) < 0) {
+        return `${args.options.headerEmphasis} is not a valid value for headerEmphasis. Allowed values are 0|1|2|3`;
       }
+    }
 
-      if (typeof args.options.megaMenuEnabled !== 'undefined') {
-        if (['true', 'false'].indexOf(args.options.megaMenuEnabled) < 0) {
-          return `${args.options.megaMenuEnabled} is not a valid boolean value`;
-        }
+    if (typeof args.options.headerLayout !== 'undefined') {
+      if (['standard', 'compact'].indexOf(args.options.headerLayout) < 0) {
+        return `${args.options.headerLayout} is not a valid value for headerLayout. Allowed values are standard|compact`;
       }
+    }
 
-      if (typeof args.options.footerEnabled !== 'undefined') {
-        if (args.options.footerEnabled !== 'true' &&
-          args.options.footerEnabled !== 'false') {
-          return `${args.options.footerEnabled} is not a valid boolean value`;
-        }
+    if (typeof args.options.megaMenuEnabled !== 'undefined') {
+      if (['true', 'false'].indexOf(args.options.megaMenuEnabled) < 0) {
+        return `${args.options.megaMenuEnabled} is not a valid boolean value`;
       }
+    }
 
-      if (typeof args.options.searchScope !== 'undefined') {
-        const searchScope = args.options.searchScope.toString().toLowerCase();
-        if (SpoWebSetCommand.searchScopeOptions.indexOf(searchScope) < 0) {
-          return `${args.options.searchScope} is not a valid value for searchScope. Allowed values are DefaultScope|Tenant|Hub|Site`;
-        }
+    if (typeof args.options.footerEnabled !== 'undefined') {
+      if (args.options.footerEnabled !== 'true' &&
+        args.options.footerEnabled !== 'false') {
+        return `${args.options.footerEnabled} is not a valid boolean value`;
       }
+    }
 
-      return this.validateUnknownOptions(args.options, 'web', 'set');
-    };
-  }
+    if (typeof args.options.searchScope !== 'undefined') {
+      const searchScope = args.options.searchScope.toString().toLowerCase();
+      if (SpoWebSetCommand.searchScopeOptions.indexOf(searchScope) < 0) {
+        return `${args.options.searchScope} is not a valid value for searchScope. Allowed values are DefaultScope|Tenant|Hub|Site`;
+      }
+    }
 
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    Next to updating web properties corresponding to the options of this
-    command, you can update the value of any other web property using its
-    CSOM name, eg. ${chalk.grey('--AllowAutomaticASPXPageIndexing')}. At this
-    moment, the CLI supports properties of types Boolean, String and Int32.
-
-  Examples:
-
-    Update subsite title
-      ${commands.WEB_SET} --webUrl https://contoso.sharepoint.com/sites/team-a --title Team-a
-
-    Hide quick launch on the subsite
-      ${commands.WEB_SET} --webUrl https://contoso.sharepoint.com/sites/team-a --quickLaunchEnabled false
-
-    Set site header layout to compact
-      ${commands.WEB_SET} --webUrl https://contoso.sharepoint.com/sites/team-a --headerLayout compact
-
-    Set site header color to primary theme background color
-      ${commands.WEB_SET} --webUrl https://contoso.sharepoint.com/sites/team-a --headerEmphasis 0
-
-    Enable megamenu in the site
-      ${commands.WEB_SET} --webUrl https://contoso.sharepoint.com/sites/team-a --megaMenuEnabled true
-    
-    Hide footer in the site
-      ${commands.WEB_SET} --webUrl https://contoso.sharepoint.com/sites/team-a --footerEnabled false
-
-    Set search scope to tenant scope
-      ${commands.WEB_SET} --webUrl https://contoso.sharepoint.com/sites/team-a --searchScope tenant
-  
-    Set welcome page for the web
-      ${commands.WEB_SET} --webUrl https://contoso.sharepoint.com/sites/team-a --welcomePage "SitePages/new-home.aspx"
-
-  More information:
-    
-    Web properties
-      https://docs.microsoft.com/en-us/previous-versions/office/sharepoint-server/ee545886(v=office.15)
-  ` );
+    return this.validateUnknownOptions(args.options, 'web', 'set');
   }
 }
 

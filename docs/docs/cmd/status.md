@@ -5,18 +5,12 @@ Shows Microsoft 365 login status
 ## Usage
 
 ```sh
-status [options]
+m365 status [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -27,5 +21,5 @@ If you are logged in to Microsoft 365, the `status` command will show you inform
 Show the information about the current login to the Microsoft 365
 
 ```sh
-status
+m365 status
 ```

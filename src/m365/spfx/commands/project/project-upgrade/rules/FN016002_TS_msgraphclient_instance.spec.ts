@@ -1,10 +1,10 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as sinon from 'sinon';
-import { Finding } from '../Finding';
-import { Project, TsFile } from '../../model';
-import { FN016002_TS_msgraphclient_instance } from './FN016002_TS_msgraphclient_instance';
 import Utils from '../../../../../../Utils';
+import { Project, TsFile } from '../../model';
+import { Finding } from '../Finding';
+import { FN016002_TS_msgraphclient_instance } from './FN016002_TS_msgraphclient_instance';
 import { TsRule } from './TsRule';
 
 describe('FN016002_TS_msgraphclient_instance', () => {
@@ -29,7 +29,7 @@ describe('FN016002_TS_msgraphclient_instance', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if specified .ts file not found', () => {
@@ -41,7 +41,7 @@ describe('FN016002_TS_msgraphclient_instance', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if couldn\'t retrieve the call expression', () => {
@@ -54,7 +54,7 @@ describe('FN016002_TS_msgraphclient_instance', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if service key is a constant', () => {
@@ -67,7 +67,7 @@ describe('FN016002_TS_msgraphclient_instance', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if service key is not MSGraphClient', () => {
@@ -80,7 +80,7 @@ describe('FN016002_TS_msgraphclient_instance', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if retrieved MSGraphClient is not assigned to a variable', () => {
@@ -93,6 +93,6 @@ describe('FN016002_TS_msgraphclient_instance', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

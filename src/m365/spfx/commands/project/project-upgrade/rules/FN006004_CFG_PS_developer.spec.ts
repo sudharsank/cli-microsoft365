@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN006004_CFG_PS_developer } from './FN006004_CFG_PS_developer';
 
 describe('FN006004_CFG_PS_developer', () => {
@@ -17,6 +17,6 @@ describe('FN006004_CFG_PS_developer', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

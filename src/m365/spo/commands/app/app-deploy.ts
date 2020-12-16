@@ -1,14 +1,13 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
 import { SpoAppBaseCommand } from './SpoAppBaseCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -41,29 +40,29 @@ class SpoAppDeployCommand extends SpoAppBaseCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let appId: string = '';
     const scope: string = (args.options.scope) ? args.options.scope.toLowerCase() : 'tenant';
     let appCatalogUrl: string = '';
 
     this
-      .getSpoUrl(cmd, this.debug)
+      .getSpoUrl(logger, this.debug)
       .then((spoUrl: string): Promise<string> => {
-        return this.getAppCatalogSiteUrl(cmd, spoUrl, args)
+        return this.getAppCatalogSiteUrl(logger, spoUrl, args)
       })
       .then((_appCatalogUrl: string): Promise<{ UniqueId: string; }> => {
         appCatalogUrl = _appCatalogUrl;
 
         if (args.options.id) {
           if (this.verbose) {
-            cmd.log(`Using the specified app id ${args.options.id}`);
+            logger.logToStderr(`Using the specified app id ${args.options.id}`);
           }
 
           return Promise.resolve({ UniqueId: args.options.id });
         }
         else {
           if (this.verbose) {
-            cmd.log(`Looking up app id for app named ${args.options.name}...`);
+            logger.logToStderr(`Looking up app id for app named ${args.options.name}...`);
           }
 
           const requestOptions: any = {
@@ -71,7 +70,7 @@ class SpoAppDeployCommand extends SpoAppBaseCommand {
             headers: {
               accept: 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           };
 
           return request.get(requestOptions);
@@ -81,7 +80,7 @@ class SpoAppDeployCommand extends SpoAppBaseCommand {
         appId = res.UniqueId;
 
         if (this.verbose) {
-          cmd.log(`Deploying app...`);
+          logger.logToStderr(`Deploying app...`);
         }
 
         const requestOptions: any = {
@@ -90,19 +89,19 @@ class SpoAppDeployCommand extends SpoAppBaseCommand {
             accept: 'application/json;odata=nometadata',
             'content-type': 'application/json;odata=nometadata;charset=utf-8'
           },
-          body: { 'skipFeatureDeployment': args.options.skipFeatureDeployment || false },
-          json: true
+          data: { 'skipFeatureDeployment': args.options.skipFeatureDeployment || false },
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -134,88 +133,36 @@ class SpoAppDeployCommand extends SpoAppBaseCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      // verify either 'tenant' or 'sitecollection' specified if scope provided
-      if (args.options.scope) {
-        const testScope: string = args.options.scope.toLowerCase();
-        if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
-          return `Scope must be either 'tenant' or 'sitecollection'`
-        }
-
-        if (testScope === 'sitecollection' && !args.options.appCatalogUrl) {
-          return `You must specify appCatalogUrl when the scope is sitecollection`;
-        }
+  public validate(args: CommandArgs): boolean | string {
+    // verify either 'tenant' or 'sitecollection' specified if scope provided
+    if (args.options.scope) {
+      const testScope: string = args.options.scope.toLowerCase();
+      if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
+        return `Scope must be either 'tenant' or 'sitecollection'`
       }
 
-      if (!args.options.id && !args.options.name) {
-        return 'Specify either the id or the name';
+      if (testScope === 'sitecollection' && !args.options.appCatalogUrl) {
+        return `You must specify appCatalogUrl when the scope is sitecollection`;
       }
+    }
 
-      if (args.options.id && args.options.name) {
-        return 'Specify either the id or the name but not both';
-      }
+    if (!args.options.id && !args.options.name) {
+      return 'Specify either the id or the name';
+    }
 
-      if (args.options.id && !Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
+    if (args.options.id && args.options.name) {
+      return 'Specify either the id or the name but not both';
+    }
 
-      if (args.options.appCatalogUrl) {
-        return SpoAppBaseCommand.isValidSharePointUrl(args.options.appCatalogUrl);
-      }
+    if (args.options.id && !Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      return true;
-    };
-  }
+    if (args.options.appCatalogUrl) {
+      return SpoAppBaseCommand.isValidSharePointUrl(args.options.appCatalogUrl);
+    }
 
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.APP_DEPLOY).helpInformation());
-    log(
-      `  Remarks:
-  
-    When adding an app to the tenant app catalog, it's not necessary to specify
-    the tenant app catalog URL. When the URL is not specified, the CLI will
-    try to resolve the URL itself. Specifying the app catalog URL is required
-    when you want to add the app to a site collection app catalog.
-
-    When specifying site collection app catalog, you can specify the URL either
-    with our without the ${chalk.grey('AppCatalog')} part, for example
-    ${chalk.grey('https://contoso.sharepoint.com/sites/team-a/AppCatalog')} or
-    ${chalk.grey('https://contoso.sharepoint.com/sites/team-a')}. CLI will accept both formats.
-
-    If the app with the specified ID doesn't exist in the app catalog,
-    the command will fail with an error. Before you can deploy an app,
-    you have to add it to the app catalog first
-    using the ${chalk.blue(commands.APP_ADD)} command.
-   
-  Examples:
-  
-    Deploy the specified app in the tenant app catalog. Try to resolve the URL
-    of the tenant app catalog automatically.
-      ${commands.APP_DEPLOY} --id 058140e3-0e37-44fc-a1d3-79c487d371a3
-
-    Deploy the specified app in the site collection app catalog 
-    of site ${chalk.grey('https://contoso.sharepoint.com/sites/site1')}.
-      ${commands.APP_DEPLOY} --id 058140e3-0e37-44fc-a1d3-79c487d371a3 --scope sitecollection --appCatalogUrl https://contoso.sharepoint.com/sites/site1
-
-    Deploy the app with the specified name in the tenant app catalog.
-    Try to resolve the URL of the tenant app catalog automatically.
-      ${commands.APP_DEPLOY} --name solution.sppkg
-
-    Deploy the specified app in the tenant app catalog located at
-    ${chalk.grey('https://contoso.sharepoint.com/sites/apps')}
-      ${commands.APP_DEPLOY} --id 058140e3-0e37-44fc-a1d3-79c487d371a3 --appCatalogUrl https://contoso.sharepoint.com/sites/apps
-
-    Deploy the specified app to the whole tenant at once. Features included in
-    the solution will not be activated.
-      ${commands.APP_DEPLOY} --id 058140e3-0e37-44fc-a1d3-79c487d371a3 --skipFeatureDeployment
-    
-  More information:
-  
-    Application Lifecycle Management (ALM) APIs
-      https://docs.microsoft.com/en-us/sharepoint/dev/apis/alm-api-for-spfx-add-ins
-`);
+    return true;
   }
 }
 

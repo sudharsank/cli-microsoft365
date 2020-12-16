@@ -1,9 +1,8 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: GlobalOptions;
@@ -18,12 +17,12 @@ class SpoHideDefaultThemesGetCommand extends SpoCommand {
     return 'Gets the current value of the HideDefaultThemes setting';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((spoAdminUrl: string): Promise<any> => {
         if (this.verbose) {
-          cmd.log(`Getting the current value of the HideDefaultThemes setting...`);
+          logger.logToStderr(`Getting the current value of the HideDefaultThemes setting...`);
         }
 
         const requestOptions: any = {
@@ -31,35 +30,16 @@ class SpoHideDefaultThemesGetCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((rawRes: any): void => {
-        cmd.log(rawRes.value);
+        logger.log(rawRes.value);
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-      
-  Examples:
-  
-    Get the current value of the HideDefaultThemes setting
-      ${commands.HIDEDEFAULTTHEMES_GET}
-
-  More information:
-
-    SharePoint site theming
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-theming/sharepoint-site-theming-overview
-      `);
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 }
 

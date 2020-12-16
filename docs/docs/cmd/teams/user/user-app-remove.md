@@ -5,22 +5,21 @@ Uninstall an app from the personal scope of the specified user
 ## Usage
 
 ```sh
-teams user app remove [options]
+m365 teams user app remove [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--appId <appId>`|The unique id of the app instance installed for the user
-`--userId <userId>`|The ID of the user to uninstall the app for
-`--confirm`|Confirm removal of app for user
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--pretty`|Prettifies `json` output
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--appId <appId>`
+: The unique id of the app instance installed for the user
+
+`--userId <userId>`
+: The ID of the user to uninstall the app for
+
+`--confirm`
+: Confirm removal of app for user
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -35,5 +34,5 @@ Do not use the ID from the manifest of the zip app package or the id from the Mi
 Uninstall an app for the specified user
 
 ```sh
-teams user app remove --appId YzUyN2E0NzAtYTg4Mi00ODFjLTk4MWMtZWU2ZWZhYmE4NWM3IyM0ZDFlYTA0Ny1mMTk2LTQ1MGQtYjJlOS0wZDI4NTViYTA1YTY= --userId 2609af39-7775-4f94-a3dc-0dd67657e900
+m365 teams user app remove --appId YzUyN2E0NzAtYTg4Mi00ODFjLTk4MWMtZWU2ZWZhYmE4NWM3IyM0ZDFlYTA0Ny1mMTk2LTQ1MGQtYjJlOS0wZDI4NTViYTA1YTY= --userId 2609af39-7775-4f94-a3dc-0dd67657e900
 ```

@@ -1,14 +1,13 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -40,18 +39,22 @@ class SpoListWebhookListCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['id', 'clientState', 'expirationDateTime', 'resource'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (args.options.title && this.verbose) {
-      cmd.log(vorpal.chalk.yellow(`Option 'title' is deprecated. Please use 'listTitle' instead`));
+      logger.logToStderr(chalk.yellow(`Option 'title' is deprecated. Please use 'listTitle' instead`));
     }
 
     if (args.options.id && this.verbose) {
-      cmd.log(vorpal.chalk.yellow(`Option 'id' is deprecated. Please use 'listId' instead`));
+      logger.logToStderr(chalk.yellow(`Option 'id' is deprecated. Please use 'listId' instead`));
     }
 
     if (this.verbose) {
       const list: string = args.options.id ? encodeURIComponent(args.options.id as string) : (args.options.listId ? encodeURIComponent(args.options.listId as string) : (args.options.title ? encodeURIComponent(args.options.title as string) : encodeURIComponent(args.options.listTitle as string)));
-      cmd.log(`Retrieving webhook information for list ${list} in site at ${args.options.webUrl}...`);
+      logger.logToStderr(`Retrieving webhook information for list ${list} in site at ${args.options.webUrl}...`);
     }
 
     let requestUrl: string = '';
@@ -75,35 +78,27 @@ class SpoListWebhookListCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get<{ value: [{ id: string, clientState: string, expirationDateTime: Date, resource: string }] }>(requestOptions)
       .then((res: { value: [{ id: string, clientState: string, expirationDateTime: Date, resource: string }] }): void => {
         if (res.value && res.value.length > 0) {
-          if (args.options.output === 'json') {
-            cmd.log(res.value);
-          }
-          else {
-            cmd.log(res.value.map(e => {
-              return {
-                id: e.id,
-                clientState: e.clientState || '',
-                expirationDateTime: e.expirationDateTime,
-                resource: e.resource
-              };
-            }));
-          }
+          res.value.forEach(w => {
+            w.clientState = w.clientState || '';
+          });
+
+          logger.log(res.value);
         }
         else {
           if (this.verbose) {
-            cmd.log('No webhooks found');
+            logger.logToStderr('No webhooks found');
           }
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -134,61 +129,39 @@ class SpoListWebhookListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
+
+    if (args.options.id) {
+      if (!Utils.isValidGuid(args.options.id)) {
+        return `${args.options.id} is not a valid GUID`;
       }
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
+    if (args.options.listId) {
+      if (!Utils.isValidGuid(args.options.listId)) {
+        return `${args.options.listId} is not a valid GUID`;
       }
+    }
 
-      if (args.options.id) {
-        if (!Utils.isValidGuid(args.options.id)) {
-          return `${args.options.id} is not a valid GUID`;
-        }
+    if (args.options.id && args.options.title) {
+      return 'Specify id or title, but not both';
+    }
+
+    if (args.options.listId && args.options.listTitle) {
+      return 'Specify listId or listTitle, but not both';
+    }
+
+    if (!args.options.id && !args.options.title) {
+      if (!args.options.listId && !args.options.listTitle) {
+        return 'Specify listId or listTitle, one is required';
       }
+    }
 
-      if (args.options.listId) {
-        if (!Utils.isValidGuid(args.options.listId)) {
-          return `${args.options.listId} is not a valid GUID`;
-        }
-      }
-
-      if (args.options.id && args.options.title) {
-        return 'Specify id or title, but not both';
-      }
-
-      if (args.options.listId && args.options.listTitle) {
-        return 'Specify listId or listTitle, but not both';
-      }
-
-      if (!args.options.id && !args.options.title) {
-        if (!args.options.listId && !args.options.listTitle) {
-          return 'Specify listId or listTitle, one is required';
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    List all webhooks for a list with ID ${chalk.grey('0cd891ef-afce-4e55-b836-fce03286cccf')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_WEBHOOK_LIST} --webUrl https://contoso.sharepoint.com/sites/project-x --listId 0cd891ef-afce-4e55-b836-fce03286cccf
-
-    List all webhooks for a list with title ${chalk.grey('Documents')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_WEBHOOK_LIST} --webUrl https://contoso.sharepoint.com/sites/project-x --listTitle Documents
-      `);
+    return true;
   }
 }
 

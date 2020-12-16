@@ -1,19 +1,21 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./web-reindex');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
 import { SpoPropertyBagBaseCommand } from '../propertybag/propertybag-base';
+const command: Command = require('./web-reindex');
 
 describe(commands.WEB_REINDEX, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -23,23 +25,24 @@ describe(commands.WEB_REINDEX, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get,
       request.post,
       SpoPropertyBagBaseCommand.isNoScriptSite,
@@ -58,11 +61,11 @@ describe(commands.WEB_REINDEX, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.WEB_REINDEX), true);
+    assert.strictEqual(command.name.startsWith(commands.WEB_REINDEX), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('requests reindexing site that is not a no-script site for the first time', (done) => {
@@ -71,7 +74,7 @@ describe(commands.WEB_REINDEX, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
-        if (opts.body.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
+        if (opts.data.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
           return Promise.resolve(JSON.stringify([{
             "SchemaVersion": "15.0.0.0",
             "LibraryVersion": "16.0.7331.1206",
@@ -101,11 +104,11 @@ describe(commands.WEB_REINDEX, () => {
       return Promise.resolve(JSON.stringify({}));
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled, 'Something has been logged');
-        assert.equal(propertyName, 'vti_searchversion', 'Incorrect property stored in the property bag');
-        assert.equal(propertyValue, '1', 'Incorrect property value stored in the property bag');
+        assert(loggerLogSpy.notCalled, 'Something has been logged');
+        assert.strictEqual(propertyName, 'vti_searchversion', 'Incorrect property stored in the property bag');
+        assert.strictEqual(propertyValue, '1', 'Incorrect property value stored in the property bag');
         done();
       }
       catch (e) {
@@ -120,7 +123,7 @@ describe(commands.WEB_REINDEX, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
-        if (opts.body.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
+        if (opts.data.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
           return Promise.resolve(JSON.stringify([{
             "SchemaVersion": "15.0.0.0",
             "LibraryVersion": "16.0.7331.1206",
@@ -152,11 +155,11 @@ describe(commands.WEB_REINDEX, () => {
       return Promise.resolve(JSON.stringify({}));
     });
 
-    cmdInstance.action({ options: { debug: true, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: true, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
-        assert.equal(propertyName, 'vti_searchversion', 'Incorrect property stored in the property bag');
-        assert.equal(propertyValue, '2', 'Incorrect property value stored in the property bag');
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
+        assert.strictEqual(propertyName, 'vti_searchversion', 'Incorrect property stored in the property bag');
+        assert.strictEqual(propertyValue, '2', 'Incorrect property value stored in the property bag');
         done();
       }
       catch (e) {
@@ -171,7 +174,7 @@ describe(commands.WEB_REINDEX, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
-        if (opts.body.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
+        if (opts.data.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
           return Promise.resolve(JSON.stringify([{
             "SchemaVersion": "15.0.0.0",
             "LibraryVersion": "16.0.7331.1206",
@@ -184,7 +187,7 @@ describe(commands.WEB_REINDEX, () => {
           }]));
         }
 
-        if (opts.body.indexOf(`<ObjectPath Id="10" ObjectPathId="9" />`) > -1) {
+        if (opts.data.indexOf(`<ObjectPath Id="10" ObjectPathId="9" />`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7331.1206", "ErrorInfo": null, "TraceCorrelationId": "93e5499e-00f1-5000-1f36-3ab12512a7e9"
@@ -242,13 +245,13 @@ describe(commands.WEB_REINDEX, () => {
       return Promise.resolve(JSON.stringify({}));
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled, 'Something has been logged');
-        assert.equal(propertyName[0], 'vti_searchversion');
-        assert.equal(propertyName[1], 'vti_searchversion');
-        assert.equal(propertyValue[0], '1');
-        assert.equal(propertyValue[1], '2');
+        assert(loggerLogSpy.notCalled, 'Something has been logged');
+        assert.strictEqual(propertyName[0], 'vti_searchversion');
+        assert.strictEqual(propertyName[1], 'vti_searchversion');
+        assert.strictEqual(propertyValue[0], '1');
+        assert.strictEqual(propertyValue[1], '2');
         done();
       }
       catch (e) {
@@ -263,7 +266,7 @@ describe(commands.WEB_REINDEX, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
-        if (opts.body.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
+        if (opts.data.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
           return Promise.resolve(JSON.stringify([{
             "SchemaVersion": "15.0.0.0",
             "LibraryVersion": "16.0.7331.1206",
@@ -276,7 +279,7 @@ describe(commands.WEB_REINDEX, () => {
           }]));
         }
 
-        if (opts.body.indexOf(`<ObjectPath Id="10" ObjectPathId="9" />`) > -1) {
+        if (opts.data.indexOf(`<ObjectPath Id="10" ObjectPathId="9" />`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7331.1206", "ErrorInfo": null, "TraceCorrelationId": "93e5499e-00f1-5000-1f36-3ab12512a7e9"
@@ -334,13 +337,13 @@ describe(commands.WEB_REINDEX, () => {
       return Promise.resolve(JSON.stringify({}));
     });
 
-    cmdInstance.action({ options: { debug: true, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: true, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.called, 'Nothing has been logged');
-        assert.equal(propertyName[0], 'vti_searchversion');
-        assert.equal(propertyName[1], 'vti_searchversion');
-        assert.equal(propertyValue[0], '1');
-        assert.equal(propertyValue[1], '2');
+        assert(loggerLogToStderrSpy.called, 'Nothing has been logged');
+        assert.strictEqual(propertyName[0], 'vti_searchversion');
+        assert.strictEqual(propertyName[1], 'vti_searchversion');
+        assert.strictEqual(propertyValue[0], '1');
+        assert.strictEqual(propertyValue[1], '2');
         done();
       }
       catch (e) {
@@ -352,7 +355,7 @@ describe(commands.WEB_REINDEX, () => {
   it('correctly handles error while requiring reindexing a list', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
-        if (opts.body.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
+        if (opts.data.indexOf(`<Query Id="1" ObjectPathId="5">`) > -1) {
           return Promise.resolve(JSON.stringify([{
             "SchemaVersion": "15.0.0.0",
             "LibraryVersion": "16.0.7331.1206",
@@ -365,7 +368,7 @@ describe(commands.WEB_REINDEX, () => {
           }]));
         }
 
-        if (opts.body.indexOf(`<ObjectPath Id="10" ObjectPathId="9" />`) > -1) {
+        if (opts.data.indexOf(`<ObjectPath Id="10" ObjectPathId="9" />`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.7331.1206", "ErrorInfo": null, "TraceCorrelationId": "93e5499e-00f1-5000-1f36-3ab12512a7e9"
@@ -419,9 +422,9 @@ describe(commands.WEB_REINDEX, () => {
     sinon.stub(SpoPropertyBagBaseCommand, 'isNoScriptSite').callsFake(() => Promise.resolve(true));
     sinon.stub(SpoPropertyBagBaseCommand, 'setProperty').callsFake(() => Promise.reject('ClientSvc unknown error'));
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
         done();
       }
       catch (e) {
@@ -431,7 +434,7 @@ describe(commands.WEB_REINDEX, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -441,52 +444,13 @@ describe(commands.WEB_REINDEX, () => {
     assert(containsDebugOption);
   });
 
-  it('fails validation if webUrl not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if webUrl is not a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if webUrl is valid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.WEB_REINDEX));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.strictEqual(actual, true);
   });
 });

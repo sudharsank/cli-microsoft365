@@ -1,13 +1,13 @@
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -33,7 +33,7 @@ class SpoSiteInPlaceRecordsManagementSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const enabled: boolean = args.options.enabled.toLocaleLowerCase() === 'true';
 
     const requestOptions: any = {
@@ -41,26 +41,26 @@ class SpoSiteInPlaceRecordsManagementSetCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      body: {
+      data: {
         featureId: 'da2e115b-07e4-49d9-bb2c-35e93bb9fca9',
         force: true
       },
-      json: true
+      responseType: 'json'
     };
 
     if (this.verbose) {
-      cmd.log(`${enabled ? 'Activating' : 'Deactivating'} in-place records management for site ${args.options.siteUrl}`);
+      logger.logToStderr(`${enabled ? 'Activating' : 'Deactivating'} in-place records management for site ${args.options.siteUrl}`);
     }
 
     request
       .post(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -79,38 +79,12 @@ class SpoSiteInPlaceRecordsManagementSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.siteUrl) {
-        return 'Required option siteUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidBoolean(args.options.enabled)) {
+      return 'Invalid "enabled" option value. Specify "true" or "false"';
+    }
 
-      if (!args.options.enabled) {
-        return 'Required option enabled missing';
-      }
-
-      if (!Utils.isValidBoolean(args.options.enabled)) {
-        return 'Invalid "enabled" option value. Specify "true" or "false"';
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.siteUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Activates in-place records management for site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/team-a')}
-      ${commands.SITE_INPLACERECORDSMANAGEMENT_SET} --siteUrl https://contoso.sharepoint.com/sites/team-a --enabled true
-
-    Deactivates in-place records management for site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/team-a')}
-      ${commands.SITE_INPLACERECORDSMANAGEMENT_SET} --siteUrl https://contoso.sharepoint.com/sites/team-a --enabled false
-  ` );
+    return SpoCommand.isValidSharePointUrl(args.options.siteUrl);
   }
 }
 

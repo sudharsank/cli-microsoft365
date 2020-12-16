@@ -5,18 +5,12 @@ Returns all modern and classic site collections in the tenant scoped recycle bin
 ## Usage
 
 ```sh
-spo tenant recyclebinitem list [options]
+m365 spo tenant recyclebinitem list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -26,5 +20,5 @@ Option|Description
 Returns all modern and classic site collections in the tenant scoped recycle bin
 
 ```sh
-spo tenant recyclebinitem list
+m365 spo tenant recyclebinitem list
 ```

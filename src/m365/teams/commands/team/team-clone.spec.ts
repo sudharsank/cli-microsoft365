@@ -1,18 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./team-clone');
-import * as assert from 'assert';
-import Utils from '../../../../Utils';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./team-clone');
 
 describe(commands.TEAMS_TEAM_CLONE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,24 +22,25 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -52,65 +54,32 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TEAMS_TEAM_CLONE), true);
+    assert.strictEqual(command.name.startsWith(commands.TEAMS_TEAM_CLONE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
-  });
-
-  it('fails validation if the teamId is not provided.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        displayName: "Library Assist",
-        partsToClone: "apps,tabs,settings,channels,members"
-      }
-    });
-    assert.notEqual(actual, true);
-    done();
+    assert.notStrictEqual(command.description, null);
   });
 
   it('fails validation if the teamId is not a valid GUID.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: 'invalid',
         displayName: "Library Assist",
         partsToClone: "apps,tabs,settings,channels,members"
       }
     });
-    assert.notEqual(actual, true);
-    done();
-  });
-
-  it('fails validation if the displayName is not provided.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
-        partsToClone: "apps,tabs,settings,channels,members"
-      }
-    });
-    assert.notEqual(actual, true);
-    done();
-  });
-
-  it('fails validation if the partsToClone is not provided.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
-        displayName: "Library Assist"
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('fails validation on invalid visibility', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { visibility: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { visibility: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation on valid \'private\' visibility', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
@@ -118,11 +87,11 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
         visibility: 'private'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation on valid \'public\' visibility', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
@@ -130,22 +99,22 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
         visibility: 'public'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the input is correct with mandatory parameters', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
         partsToClone: "apps,tabs,settings,channels,members"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the input is correct with mandatory and optional parameters', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
@@ -155,11 +124,11 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
         classification: "public"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if visibility is set to private', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
@@ -167,22 +136,22 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
         visibility: "abc"
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if partsToClone is set to invalid value', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
         partsToClone: "abc"
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if visibility is set to private', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
@@ -190,11 +159,11 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
         visibility: "private"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation if visibility is set to private', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
@@ -202,7 +171,7 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
         visibility: "private"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('creates a clone of a Microsoft Teams team with mandatory parameters', (done) => {
@@ -216,16 +185,16 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
         partsToClone: "apps,tabs,settings,channels,members"
       }
-    }, () => {
+    } as any, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -245,16 +214,16 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
         displayName: "Library Assist",
         partsToClone: "apps,tabs,settings,channels,members"
       }
-    }, () => {
+    } as any, () => {
       try {
-        assert(cmdInstanceLogSpy.called);
+        assert(loggerLogToStderrSpy.called);
         done();
       }
       catch (e) {
@@ -274,7 +243,7 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
@@ -284,15 +253,15 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
         visibility: 'public',
         classification: 'label'
       }
-    }, () => {
+    } as any, () => {
       try {
-        assert.equal(sinonStub.lastCall.args[0].url, 'https://graph.microsoft.com/v1.0/teams/15d7a78e-fd77-4599-97a5-dbb6372846c5/clone');
-        assert.equal(sinonStub.lastCall.args[0].body.displayName, 'Library Assist');
-        assert.equal(sinonStub.lastCall.args[0].body.partsToClone, 'apps,tabs,settings,channels,members');
-        assert.equal(sinonStub.lastCall.args[0].body.description, 'abc');
-        assert.equal(sinonStub.lastCall.args[0].body.visibility, 'public');
-        assert.equal(sinonStub.lastCall.args[0].body.classification, 'label');
-        assert.notEqual(sinonStub.lastCall.args[0].body.mailNickname.length, 0);
+        assert.strictEqual(sinonStub.lastCall.args[0].url, 'https://graph.microsoft.com/v1.0/teams/15d7a78e-fd77-4599-97a5-dbb6372846c5/clone');
+        assert.strictEqual(sinonStub.lastCall.args[0].data.displayName, 'Library Assist');
+        assert.strictEqual(sinonStub.lastCall.args[0].data.partsToClone, 'apps,tabs,settings,channels,members');
+        assert.strictEqual(sinonStub.lastCall.args[0].data.description, 'abc');
+        assert.strictEqual(sinonStub.lastCall.args[0].data.visibility, 'public');
+        assert.strictEqual(sinonStub.lastCall.args[0].data.classification, 'label');
+        assert.notStrictEqual(sinonStub.lastCall.args[0].data.mailNickname.length, 0);
         done();
       }
       catch (e) {
@@ -304,7 +273,7 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
   it('correctly handles random API error', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => Promise.reject('An error has occurred'));
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5',
@@ -314,9 +283,9 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
         visibility: 'public',
         classification: 'label'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -326,7 +295,7 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -334,39 +303,5 @@ describe(commands.TEAMS_TEAM_CLONE, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TEAMS_TEAM_CLONE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

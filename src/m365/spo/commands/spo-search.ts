@@ -1,17 +1,15 @@
-import commands from '../commands';
-import request from '../../../request';
-import GlobalOptions from '../../../GlobalOptions';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../Command';
-import SpoCommand from '../../base/SpoCommand';
-import Utils from '../../../Utils';
-import { SearchResult } from './search/datatypes/SearchResult';
-import { ResultTableRow } from './search/datatypes/ResultTableRow';
 import { isNumber } from 'util';
-
-const vorpal: Vorpal = require('../../../vorpal-init');
+import { Logger } from '../../../cli';
+import {
+  CommandOption
+} from '../../../Command';
+import GlobalOptions from '../../../GlobalOptions';
+import request from '../../../request';
+import Utils from '../../../Utils';
+import SpoCommand from '../../base/SpoCommand';
+import commands from '../commands';
+import { ResultTableRow } from './search/datatypes/ResultTableRow';
+import { SearchResult } from './search/datatypes/SearchResult';
 
 interface CommandArgs {
   options: Options;
@@ -81,43 +79,43 @@ class SpoSearchCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let webUrl: string = '';
 
-      ((): Promise<string> => {
-        if (args.options.webUrl) {
-          return Promise.resolve(args.options.webUrl);
-        }
-        else {
-          return this.getSpoUrl(cmd, this.debug);
-        }
-      })()
+    ((): Promise<string> => {
+      if (args.options.webUrl) {
+        return Promise.resolve(args.options.webUrl);
+      }
+      else {
+        return this.getSpoUrl(logger, this.debug);
+      }
+    })()
       .then((_webUrl: string): Promise<SearchResult[]> => {
         webUrl = _webUrl;
 
         if (this.verbose) {
-          cmd.log(`Executing search query '${args.options.queryText}' on site at ${webUrl}...`);
+          logger.logToStderr(`Executing search query '${args.options.queryText}' on site at ${webUrl}...`);
         }
 
         const startRow = args.options.startRow ? args.options.startRow : 0;
 
-        return this.executeSearchQuery(cmd, args, webUrl, [], startRow);
+        return this.executeSearchQuery(logger, args, webUrl, [], startRow);
       })
       .then((results: SearchResult[]) => {
-        this.printResults(cmd, args, results);
+        this.printResults(logger, args, results);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
-  private executeSearchQuery(cmd: CommandInstance, args: CommandArgs, webUrl: string, resultSet: SearchResult[], startRow: number): Promise<SearchResult[]> {
+  private executeSearchQuery(logger: Logger, args: CommandArgs, webUrl: string, resultSet: SearchResult[], startRow: number): Promise<SearchResult[]> {
     return ((): Promise<SearchResult> => {
-      const requestUrl: string = this.getRequestUrl(webUrl, cmd, args, startRow);
+      const requestUrl: string = this.getRequestUrl(webUrl, logger, args, startRow);
       const requestOptions: any = {
         url: requestUrl,
         headers: {
           'accept': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       return request.get(requestOptions);
@@ -131,7 +129,7 @@ class SpoSearchCommand extends SpoCommand {
         if (args.options.allResults) {
           if (startRow + searchResult.PrimaryQueryResult.RelevantResults.RowCount < searchResult.PrimaryQueryResult.RelevantResults.TotalRows) {
             const nextStartRow = startRow + searchResult.PrimaryQueryResult.RelevantResults.RowCount;
-            return this.executeSearchQuery(cmd, args, webUrl, resultSet, nextStartRow);
+            return this.executeSearchQuery(logger, args, webUrl, resultSet, nextStartRow);
           }
         }
         return new Promise<SearchResult[]>((resolve) => { resolve(resultSet); });
@@ -139,7 +137,7 @@ class SpoSearchCommand extends SpoCommand {
       .then(() => { return resultSet });
   }
 
-  private getRequestUrl(webUrl: string, cmd: CommandInstance, args: CommandArgs, startRow: number): string {
+  private getRequestUrl(webUrl: string, logger: Logger, args: CommandArgs, startRow: number): string {
     // get the list of selected properties
     const selectPropertiesArray: string[] = this.getSelectPropertiesArray(args);
 
@@ -188,7 +186,7 @@ class SpoSearchCommand extends SpoCommand {
     );
 
     if (this.debug) {
-      cmd.log(`RequestURL: ${requestUrl}`);
+      logger.logToStderr(`RequestURL: ${requestUrl}`);
     }
 
     return requestUrl;
@@ -318,51 +316,45 @@ class SpoSearchCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.queryText) {
-        return 'Required parameter queryText missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.sourceId && !Utils.isValidGuid(args.options.sourceId)) {
+      return `${args.options.sourceId} is not a valid GUID`;
+    }
 
-      if (args.options.sourceId && !Utils.isValidGuid(args.options.sourceId)) {
-        return `${args.options.sourceId} is not a valid GUID`;
-      }
+    if (args.options.rankingModelId && !Utils.isValidGuid(args.options.rankingModelId)) {
+      return `${args.options.rankingModelId} is not a valid GUID`;
+    }
 
-      if (args.options.rankingModelId && !Utils.isValidGuid(args.options.rankingModelId)) {
-        return `${args.options.rankingModelId} is not a valid GUID`;
-      }
+    if (args.options.sortList && !/^([a-z0-9_]+:(ascending|descending))(,([a-z0-9_]+:(ascending|descending)))*$/gi.test(args.options.sortList)) {
+      return `sortlist parameter value '${args.options.sortList}' does not match the required pattern (=comma-separated list of '<property>:(ascending|descending)'-pattern)`;
+    }
+    if (args.options.rowLimit && !isNumber(args.options.rowLimit)) {
+      return `${args.options.rowLimit} is not a valid number`;
+    }
 
-      if (args.options.sortList && !/^([a-z0-9_]+:(ascending|descending))(,([a-z0-9_]+:(ascending|descending)))*$/gi.test(args.options.sortList)) {
-        return `sortlist parameter value '${args.options.sortList}' does not match the required pattern (=comma-separated list of '<property>:(ascending|descending)'-pattern)`;
-      }
-      if (args.options.rowLimit && !isNumber(args.options.rowLimit)) {
-        return `${args.options.rowLimit} is not a valid number`;
-      }
+    if (args.options.startRow && !isNumber(args.options.startRow)) {
+      return `${args.options.startRow} is not a valid number`;
+    }
 
-      if (args.options.startRow && !isNumber(args.options.startRow)) {
-        return `${args.options.startRow} is not a valid number`;
-      }
+    if (args.options.culture && !isNumber(args.options.culture)) {
+      return `${args.options.culture} is not a valid number`;
+    }
 
-      if (args.options.culture && !isNumber(args.options.culture)) {
-        return `${args.options.culture} is not a valid number`;
-      }
-
-      return true;
-    };
+    return true;
   }
 
-  private printResults(cmd: CommandInstance, args: CommandArgs, results: SearchResult[]): void {
+  private printResults(logger: Logger, args: CommandArgs, results: SearchResult[]): void {
     if (args.options.rawOutput) {
-      cmd.log(results);
+      logger.log(results);
     }
     else {
-      cmd.log(this.getParsedOutput(args, results));
+      logger.log(this.getParsedOutput(args, results));
     }
 
     if (!args.options.output || args.options.output == 'text') {
-      cmd.log("# Rows: " + results[results.length - 1].PrimaryQueryResult.RelevantResults.TotalRows);
-      cmd.log("# Rows (Including duplicates): " + results[results.length - 1].PrimaryQueryResult.RelevantResults.TotalRowsIncludingDuplicates);
-      cmd.log("Elapsed Time: " + this.getElapsedTime(results));
+      logger.log("# Rows: " + results[results.length - 1].PrimaryQueryResult.RelevantResults.TotalRows);
+      logger.log("# Rows (Including duplicates): " + results[results.length - 1].PrimaryQueryResult.RelevantResults.TotalRowsIncludingDuplicates);
+      logger.log("Elapsed Time: " + this.getElapsedTime(results));
     }
   }
 
@@ -402,29 +394,6 @@ class SpoSearchCommand extends SpoCommand {
     });
 
     return outputData;
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-
-    Execute search query to retrieve all Document Sets
-    (ContentTypeId = '${chalk.grey('0x0120D520')}') for the English locale
-      ${commands.SEARCH} --queryText "ContentTypeId:0x0120D520" --culture 1033
-
-    Retrieve all documents. For each document, retrieve the Path, Author
-    and FileType.
-      ${commands.SEARCH} --queryText "IsDocument:1" --selectProperties "Path,Author,FileType" --allResults
-
-    Return the top 50 items of which the title starts with 'Marketing' while
-    trimming duplicates.
-      ${commands.SEARCH} --queryText "Title:Marketing*" --rowLimit=50 --trimDuplicates
-
-    Return only items from a specific result source (using the source id).
-      ${commands.SEARCH} --queryText "*" --sourceId "6e71030e-5e16-4406-9bff-9c1829843083"
-      `);
   }
 }
 

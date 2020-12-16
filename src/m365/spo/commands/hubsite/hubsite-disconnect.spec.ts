@@ -1,18 +1,20 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./hubsite-disconnect');
-import * as assert from 'assert';
+import { Cli, Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./hubsite-disconnect');
 
 describe(commands.HUBSITE_DISCONNECT, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let promptOptions: any;
 
   before(() => {
@@ -23,29 +25,31 @@ describe(commands.HUBSITE_DISCONNECT, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
         log.push(msg);
       },
-      prompt: (options: any, cb: (result: { continue: boolean }) => void) => {
-        promptOptions = options;
-        cb({ continue: false });
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
+        log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
+      promptOptions = options;
+      cb({ continue: false });
+    });
     promptOptions = undefined;
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
-      request.post
+      request.post,
+      Cli.prompt
     ]);
   });
 
@@ -59,11 +63,11 @@ describe(commands.HUBSITE_DISCONNECT, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.HUBSITE_DISCONNECT), true);
+    assert.strictEqual(command.name.startsWith(commands.HUBSITE_DISCONNECT), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('disconnects the site from its hub site without prompting for confirmation when confirm option specified', (done) => {
@@ -77,9 +81,9 @@ describe(commands.HUBSITE_DISCONNECT, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, url: 'https://contoso.sharepoint.com/sites/Sales', confirm: true } }, () => {
+    command.action(logger, { options: { debug: false, url: 'https://contoso.sharepoint.com/sites/Sales', confirm: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -99,9 +103,9 @@ describe(commands.HUBSITE_DISCONNECT, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, url: 'https://contoso.sharepoint.com/sites/Sales', confirm: true } }, () => {
+    command.action(logger, { options: { debug: true, url: 'https://contoso.sharepoint.com/sites/Sales', confirm: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -111,7 +115,7 @@ describe(commands.HUBSITE_DISCONNECT, () => {
   });
 
   it('prompts before disconnecting the specified site from its hub site when confirm option not passed', (done) => {
-    cmdInstance.action({ options: { debug: false, url: 'https://contoso.sharepoint.com/sites/Sales' } }, () => {
+    command.action(logger, { options: { debug: false, url: 'https://contoso.sharepoint.com/sites/Sales' } }, () => {
       let promptIssued = false;
 
       if (promptOptions && promptOptions.type === 'confirm') {
@@ -130,10 +134,11 @@ describe(commands.HUBSITE_DISCONNECT, () => {
 
   it('aborts disconnecting site from its hub site when prompt not confirmed', (done) => {
     const postSpy = sinon.spy(request, 'post');
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({ options: { debug: false, url: 'https://contoso.sharepoint.com/sites/Sales' } }, () => {
+    });
+    command.action(logger, { options: { debug: false, url: 'https://contoso.sharepoint.com/sites/Sales' } }, () => {
       try {
         assert(postSpy.notCalled);
         done();
@@ -148,10 +153,11 @@ describe(commands.HUBSITE_DISCONNECT, () => {
     const postStub = sinon.stub(request, 'post').callsFake(() => Promise.resolve({
       "odata.null": true
     }));
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({ options: { debug: false, url: 'https://contoso.sharepoint.com/sites/Sales' } }, () => {
+    });
+    command.action(logger, { options: { debug: false, url: 'https://contoso.sharepoint.com/sites/Sales' } }, () => {
       try {
         assert(postStub.called);
         done();
@@ -177,9 +183,9 @@ describe(commands.HUBSITE_DISCONNECT, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, url: 'https://contoso.sharepoint.com/sites/sales', confirm: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, url: 'https://contoso.sharepoint.com/sites/sales', confirm: true } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Exception of type \'Microsoft.SharePoint.Client.ResourceNotFoundException\' was thrown.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Exception of type \'Microsoft.SharePoint.Client.ResourceNotFoundException\' was thrown.')));
         done();
       }
       catch (e) {
@@ -189,7 +195,7 @@ describe(commands.HUBSITE_DISCONNECT, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -200,7 +206,7 @@ describe(commands.HUBSITE_DISCONNECT, () => {
   });
 
   it('supports specifying site URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--url') > -1) {
@@ -210,52 +216,13 @@ describe(commands.HUBSITE_DISCONNECT, () => {
     assert(containsOption);
   });
 
-  it('fails validation if url not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if url is not a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { url: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { url: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when url is a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { url: 'https://contoso.sharepoint.com/sites/Sales' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.HUBSITE_DISCONNECT));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { url: 'https://contoso.sharepoint.com/sites/Sales' } });
+    assert.strictEqual(actual, true);
   });
 });

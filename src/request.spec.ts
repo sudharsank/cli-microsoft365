@@ -1,27 +1,24 @@
-import * as sinon from 'sinon';
 import * as assert from 'assert';
-import _request from './request';
-import * as requestPromise from 'request-promise-native';
-import Utils from './Utils';
-import * as https from 'https';
-import request = require('request');
-import auth from './Auth';
+import { AxiosRequestConfig } from 'axios';
 import { ClientRequest } from 'http';
+import * as https from 'https';
+import * as sinon from 'sinon';
+import auth from './Auth';
+import { Logger } from './cli';
+import _request from './request';
+import Utils from './Utils';
 
 describe('Request', () => {
-  const cmdInstance = {
-    commandWrapper: {
-      command: 'command'
-    },
+  const logger: Logger = {
     log: (msg: any) => { },
-    prompt: () => { },
-    action: () => { }
+    logRaw: (msg: any) => { },
+    logToStderr: (msg: any) => { }
   };
 
-  let _options: requestPromise.OptionsWithUrl;
+  let _options: AxiosRequestConfig;
 
   beforeEach(() => {
-    _request.cmd = cmdInstance;
+    _request.logger = logger;
     _request.debug = false;
     sinon.stub(auth, 'ensureAccessToken').callsFake(() => Promise.resolve('ABC'));
   });
@@ -32,13 +29,13 @@ describe('Request', () => {
       global.setTimeout,
       https.request,
       (_request as any).req,
-      cmdInstance.log,
+      logger.log,
       auth.ensureAccessToken
     ]);
   });
 
   it('fails when no command instance set', (done) => {
-    _request.cmd = undefined as any;
+    _request.logger = undefined as any;
     _request
       .get({
         url: 'https://contoso.sharepoint.com/'
@@ -47,7 +44,7 @@ describe('Request', () => {
         done('Error expected');
       }, (err: any) => {
         try {
-          assert.equal(err, 'Command reference not set on the request object');
+          assert.strictEqual(err, 'Logger not set on the request object');
           done();
         }
         catch (err) {
@@ -70,7 +67,7 @@ describe('Request', () => {
         done('Error expected');
       }, () => {
         try {
-          assert((_options.headers as request.Headers)['user-agent'].indexOf('NONISV|SharePointPnP|Office365CLI') > -1);
+          assert(_options.headers['user-agent'].indexOf('NONISV|SharePointPnP|CLIMicrosoft365') > -1);
           done();
         }
         catch (err) {
@@ -80,7 +77,6 @@ describe('Request', () => {
   });
 
   it('uses gzip compression on all requests', (done) => {
-    https.request
     sinon.stub(https, 'request').callsFake((options: any) => {
       _options = options;
       return new ClientRequest('', () => { });
@@ -94,7 +90,7 @@ describe('Request', () => {
         done('Error expected');
       }, () => {
         try {
-          assert((_options.headers as request.Headers)['accept-encoding'].indexOf('gzip') > -1);
+          assert(_options.headers['accept-encoding'].indexOf('gzip') > -1);
           done();
         }
         catch (err) {
@@ -118,7 +114,7 @@ describe('Request', () => {
         done('Error expected');
       }, () => {
         try {
-          assert((_options.headers as request.Headers)['authorization'].indexOf('Bearer ABC') > -1);
+          assert(_options.headers['authorization'].indexOf('Bearer ABC') > -1);
           done();
         }
         catch (err) {
@@ -144,7 +140,7 @@ describe('Request', () => {
         done('Error expected');
       }, () => {
         try {
-          assert.equal(typeof (_options.headers as request.Headers)['authorization'], 'undefined');
+          assert.strictEqual(typeof _options.headers['authorization'], 'undefined');
           done();
         }
         catch (err) {
@@ -170,7 +166,7 @@ describe('Request', () => {
         done('Error expected');
       }, () => {
         try {
-          assert.equal(typeof (_options.headers as request.Headers)['x-anonymous'], 'undefined');
+          assert.strictEqual(typeof _options.headers['x-anonymous'], 'undefined');
           done();
         }
         catch (err) {
@@ -182,7 +178,7 @@ describe('Request', () => {
   it('sets method to GET for a GET request', (done) => {
     sinon.stub(_request as any, 'req').callsFake((options) => {
       _options = options;
-      return Promise.resolve();
+      return Promise.resolve({ data: {} });
     });
 
     _request
@@ -191,7 +187,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(_options.method, 'GET');
+          assert.strictEqual(_options.method, 'GET');
           done();
         }
         catch (err) {
@@ -205,7 +201,7 @@ describe('Request', () => {
   it('sets method to HEAD for a HEAD request', (done) => {
     sinon.stub(_request as any, 'req').callsFake((options) => {
       _options = options;
-      return Promise.resolve();
+      return Promise.resolve({ data: {} });
     });
 
     _request
@@ -214,7 +210,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(_options.method, 'HEAD');
+          assert.strictEqual(_options.method, 'HEAD');
           done();
         }
         catch (err) {
@@ -228,7 +224,7 @@ describe('Request', () => {
   it('sets method to POST for a POST request', (done) => {
     sinon.stub(_request as any, 'req').callsFake((options) => {
       _options = options;
-      return Promise.resolve();
+      return Promise.resolve({ data: {} });
     });
 
     _request
@@ -237,7 +233,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(_options.method, 'POST');
+          assert.strictEqual(_options.method, 'POST');
           done();
         }
         catch (err) {
@@ -251,7 +247,7 @@ describe('Request', () => {
   it('sets method to PATCH for a PATCH request', (done) => {
     sinon.stub(_request as any, 'req').callsFake((options) => {
       _options = options;
-      return Promise.resolve();
+      return Promise.resolve({ data: {} });
     });
 
     _request
@@ -260,7 +256,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(_options.method, 'PATCH');
+          assert.strictEqual(_options.method, 'PATCH');
           done();
         }
         catch (err) {
@@ -274,7 +270,7 @@ describe('Request', () => {
   it('sets method to PUT for a PUT request', (done) => {
     sinon.stub(_request as any, 'req').callsFake((options) => {
       _options = options;
-      return Promise.resolve();
+      return Promise.resolve({ data: {} });
     });
 
     _request
@@ -283,7 +279,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(_options.method, 'PUT');
+          assert.strictEqual(_options.method, 'PUT');
           done();
         }
         catch (err) {
@@ -297,7 +293,7 @@ describe('Request', () => {
   it('sets method to DELETE for a DELETE request', (done) => {
     sinon.stub(_request as any, 'req').callsFake((options) => {
       _options = options;
-      return Promise.resolve();
+      return Promise.resolve({ data: {} });
     });
 
     _request
@@ -306,7 +302,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(_options.method, 'DELETE');
+          assert.strictEqual(_options.method, 'DELETE');
           done();
         }
         catch (err) {
@@ -320,7 +316,25 @@ describe('Request', () => {
   it('returns response of a successful GET request', (done) => {
     sinon.stub(_request as any, 'req').callsFake((options) => {
       _options = options;
-      return Promise.resolve();
+      return Promise.resolve({ data: {} });
+    });
+
+    _request
+      .get({
+        url: 'https://contoso.sharepoint.com/'
+      })
+      .then(() => {
+        done();
+      }, (err) => {
+        done(err);
+      });
+  });
+
+  it('returns response of a successful GET request for large file (stream)', (done) => {
+    sinon.stub(_request as any, 'req').callsFake((options) => {
+      _options = options;
+      options.responseType = "stream";
+      return Promise.resolve({ data: {} });
     });
 
     _request
@@ -348,7 +362,7 @@ describe('Request', () => {
         cb('Error expected');
       }, (err) => {
         try {
-          assert.equal(err, 'Error');
+          assert.strictEqual(err, 'Error');
           cb();
         }
         catch (e) {
@@ -365,7 +379,7 @@ describe('Request', () => {
       if (i++ === 0) {
         return Promise.reject({
           response: {
-            statusCode: 429,
+            status: 429,
             headers: {
               'retry-after': 60
             }
@@ -373,7 +387,7 @@ describe('Request', () => {
         })
       }
       else {
-        return Promise.resolve();
+        return Promise.resolve({ data: {} });
       }
     });
     sinon.stub(global as NodeJS.Global, 'setTimeout').callsFake((fn, to) => {
@@ -388,7 +402,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(timeout, 60000);
+          assert.strictEqual(timeout, 60000);
           done();
         }
         catch (err) {
@@ -407,13 +421,13 @@ describe('Request', () => {
       if (i++ === 0) {
         return Promise.reject({
           response: {
-            statusCode: 429,
+            status: 429,
             headers: {}
           }
         })
       }
       else {
-        return Promise.resolve();
+        return Promise.resolve({ data: {} });
       }
     });
     sinon.stub(global as NodeJS.Global, 'setTimeout').callsFake((fn, to) => {
@@ -428,7 +442,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(timeout, 10000);
+          assert.strictEqual(timeout, 10000);
           done();
         }
         catch (err) {
@@ -447,7 +461,7 @@ describe('Request', () => {
       if (i++ === 0) {
         return Promise.reject({
           response: {
-            statusCode: 429,
+            status: 429,
             headers: {
               'retry-after': 'a'
             }
@@ -455,7 +469,7 @@ describe('Request', () => {
         })
       }
       else {
-        return Promise.resolve();
+        return Promise.resolve({ data: {} });
       }
     });
     sinon.stub(global as NodeJS.Global, 'setTimeout').callsFake((fn, to) => {
@@ -470,7 +484,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(timeout, 10000);
+          assert.strictEqual(timeout, 10000);
           done();
         }
         catch (err) {
@@ -488,13 +502,13 @@ describe('Request', () => {
       if (i++ < 3) {
         return Promise.reject({
           response: {
-            statusCode: 429,
+            status: 429,
             headers: {}
           }
         })
       }
       else {
-        return Promise.resolve();
+        return Promise.resolve({ data: {} });
       }
     });
     sinon.stub(global as NodeJS.Global, 'setTimeout').callsFake((fn, to) => {
@@ -508,13 +522,58 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(i, 4);
+          assert.strictEqual(i, 4);
           done();
         }
         catch (err) {
           done(err)
         }
       }, (err: any) => {
+        done(err);
+      });
+  });
+
+  it('repeats 429-throttled request after the designated retry value for large file (stream)', (done) => {
+    let i: number = 0;
+    let timeout: number = -1;
+
+    sinon.stub(_request as any, 'req').callsFake((options) => {
+      _options = options;
+      options.responseType = "stream";
+
+      if (i++ === 0) {
+        return Promise.reject({
+          response: {
+            status: 429,
+            headers: {
+              'retry-after': 60
+            }
+          }
+        })
+      }
+      else {
+        return Promise.resolve({ data: {} });
+      }
+    });
+    sinon.stub(global as NodeJS.Global, 'setTimeout').callsFake((fn, to) => {
+      timeout = to;
+      fn();
+      return {} as any;
+    });
+
+    _request
+      .get({
+        url: 'https://contoso.sharepoint.com/'
+      })
+      .then(() => {
+        try {
+          assert.strictEqual(timeout, 60000);
+          done();
+        }
+        catch (err) {
+          done(err)
+        }
+      }, (err) => {
         done(err);
       });
   });
@@ -526,13 +585,13 @@ describe('Request', () => {
       if (i++ < 3) {
         return Promise.reject({
           response: {
-            statusCode: 503,
+            status: 503,
             headers: {}
           }
         })
       }
       else {
-        return Promise.resolve();
+        return Promise.resolve({ data: {} });
       }
     });
     sinon.stub(global as NodeJS.Global, 'setTimeout').callsFake((fn, to) => {
@@ -546,7 +605,7 @@ describe('Request', () => {
       })
       .then(() => {
         try {
-          assert.equal(i, 4);
+          assert.strictEqual(i, 4);
           done();
         }
         catch (err) {
@@ -564,7 +623,7 @@ describe('Request', () => {
       if (i++ === 0) {
         return Promise.reject({
           response: {
-            statusCode: 429,
+            status: 429,
             headers: {}
           }
         })
@@ -586,7 +645,7 @@ describe('Request', () => {
         done('Expected error')
       }, (err) => {
         try {
-          assert.equal(err, 'Error');
+          assert.strictEqual(err, 'Error');
           done();
         }
         catch (e) {
@@ -598,13 +657,13 @@ describe('Request', () => {
   it('logs additional info for throttled requests in debug mode', (done) => {
     let i: number = 0;
     _request.debug = true;
-    const logSpy: sinon.SinonSpy = sinon.spy(cmdInstance, 'log');
+    const logSpy: sinon.SinonSpy = sinon.spy(logger, 'log');
 
     sinon.stub(_request as any, 'req').callsFake(() => {
       if (i++ === 0) {
         return Promise.reject({
           response: {
-            statusCode: 429,
+            status: 429,
             headers: {
               'retry-after': 10
             }
@@ -612,7 +671,7 @@ describe('Request', () => {
         })
       }
       else {
-        return Promise.resolve();
+        return Promise.resolve({ data: {} });
       }
     });
     sinon.stub(global as NodeJS.Global, 'setTimeout').callsFake((fn, to) => {
@@ -636,33 +695,4 @@ describe('Request', () => {
         done(err);
       });
   });
-
-  it('logs response body in debug mode', (done) => {
-    _request.debug = true;
-    const logSpy: sinon.SinonSpy = sinon.spy(cmdInstance, 'log');
-
-    sinon.stub(_request as any, 'req').callsFake(() => {
-      return Promise.resolve({
-        hello: 'world'
-      });
-    });
-
-    _request
-      .get({
-        url: 'https://contoso.sharepoint.com/'
-      })
-      .then(() => {
-        try {
-          assert(logSpy.calledWith(JSON.stringify({
-            hello: 'world'
-          })));
-          done();
-        }
-        catch (err) {
-          done(err)
-        }
-      }, (err: any) => {
-        done(err);
-      });
-  });
-})
+});

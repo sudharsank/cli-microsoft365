@@ -5,19 +5,15 @@ Removes the current Home Site
 ## Usage
 
 ```sh
-spo homesite remove [options]
+m365 spo homesite remove [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--confirm`|Do not prompt for confirmation before removing the Home Site
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--confirm`
+: Do not prompt for confirmation before removing the Home Site
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -27,7 +23,7 @@ Option|Description
 Removes the current Home Site without confirmation
 
 ```sh
-spo homesite remove --confirm
+m365 spo homesite remove --confirm
 ```
 
 ## More information

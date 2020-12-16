@@ -5,19 +5,15 @@ Gets a list of principals that have access to a site design
 ## Usage
 
 ```sh
-spo sitedesign rights list [options]
+m365 spo sitedesign rights list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id <id>`|The ID of the site design to get rights information from
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id <id>`
+: The ID of the site design to get rights information from
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,7 +26,7 @@ If no permissions are listed, it means that the particular site design is visibl
 Get information about rights granted for the site design with ID _2c1ba4c4-cd9b-4417-832f-92a34bc34b2a_
 
 ```sh
-spo sitedesign rights list --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a
+m365 spo sitedesign rights list --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a
 ```
 
 ## More information

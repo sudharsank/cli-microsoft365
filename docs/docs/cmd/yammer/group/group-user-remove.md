@@ -5,20 +5,21 @@ Removes a user from a Yammer group
 ## Usage
 
 ```sh
-yammer group user remove [options]
+m365 yammer group user remove [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--id <id>`|The ID of the Yammer group
-`--userId [userId]`|ID of the user to remove from the group. If not specified, removes the current user
-`--confirm`|Don't prompt for confirmation before removing the user from the group
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--id <id>`
+: The ID of the Yammer group
+
+`--userId [userId]`
+: ID of the user to remove from the group. If not specified, removes the current user
+
+`--confirm`
+: Don't prompt for confirmation before removing the user from the group
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,17 +31,17 @@ Option|Description
 Remove the current user from the group with the ID `5611239081`
 
 ```sh
-yammer group user remove --id 5611239081
+m365 yammer group user remove --id 5611239081
 ```
 
 Remove the user with the ID `66622349` from the group with the ID `5611239081`
 
 ```sh
-yammer group user remove --id 5611239081 --userId 66622349
+m365 yammer group user remove --id 5611239081 --userId 66622349
 ```
 
 Remove the user with the ID `66622349` from the group with the ID `5611239081` without asking for confirmation
 
 ```sh
-yammer group user remove --id 5611239081 --userId 66622349 --confirm
+m365 yammer group user remove --id 5611239081 --userId 66622349 --confirm
 ```

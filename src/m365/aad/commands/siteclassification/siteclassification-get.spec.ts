@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./siteclassification-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./siteclassification-get');
 
 describe(commands.SITECLASSIFICATION_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.SITECLASSIFICATION_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,45 +51,11 @@ describe(commands.SITECLASSIFICATION_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SITECLASSIFICATION_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.SITECLASSIFICATION_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SITECLASSIFICATION_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('handles Microsoft 365 Tenant siteclassification is not enabled', (done) => {
@@ -104,9 +70,9 @@ describe(commands.SITECLASSIFICATION_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Site classification is not enabled.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Site classification is not enabled.')));
         done();
       }
       catch (e) {
@@ -186,9 +152,9 @@ describe(commands.SITECLASSIFICATION_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("Missing DirectorySettingTemplate for \"Group.Unified\"")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("Missing DirectorySettingTemplate for \"Group.Unified\"")));
         done();
       }
       catch (e) {
@@ -269,9 +235,9 @@ describe(commands.SITECLASSIFICATION_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: true } }, () => {
+    command.action(logger, { options: { debug: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Classifications": ["TopSecret"],
           "DefaultClassification": "TopSecret",
           "UsageGuidelinesUrl": "https://test",
@@ -356,9 +322,9 @@ describe(commands.SITECLASSIFICATION_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: true } }, () => {
+    command.action(logger, { options: { debug: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Classifications": ["TopSecret", "HBI"],
           "DefaultClassification": "TopSecret",
           "UsageGuidelinesUrl": "https://test",
@@ -443,9 +409,9 @@ describe(commands.SITECLASSIFICATION_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: true } }, () => {
+    command.action(logger, { options: { debug: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Classifications": [],
           "DefaultClassification": "",
           "UsageGuidelinesUrl": "",
@@ -464,9 +430,9 @@ describe(commands.SITECLASSIFICATION_GET, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({ options: { debug: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: true } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {

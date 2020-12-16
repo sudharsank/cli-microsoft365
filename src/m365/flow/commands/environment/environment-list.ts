@@ -1,9 +1,8 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import AzmgmtCommand from '../../../base/AzmgmtCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: GlobalOptions;
@@ -18,9 +17,13 @@ class FlowEnvironmentListCommand extends AzmgmtCommand {
     return 'Lists Microsoft Flow environments in the current tenant';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['name', 'displayName'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving list of Microsoft Flow environments...`);
+      logger.logToStderr(`Retrieving list of Microsoft Flow environments...`);
     }
 
     const requestOptions: any = {
@@ -28,45 +31,22 @@ class FlowEnvironmentListCommand extends AzmgmtCommand {
       headers: {
         accept: 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
-      .get<{ value: [{ name: string, properties: { displayName: string } }] }>(requestOptions)
-      .then((res: { value: [{ name: string, properties: { displayName: string } }] }): void => {
+      .get<{ value: [{ name: string, displayName: string; properties: { displayName: string } }] }>(requestOptions)
+      .then((res: { value: [{ name: string, displayName: string; properties: { displayName: string } }] }): void => {
         if (res.value && res.value.length > 0) {
-          if (args.options.output === 'json') {
-            cmd.log(res.value);
-          }
-          else {
-            cmd.log(res.value.map(e => {
-              return {
-                name: e.name,
-                displayName: e.properties.displayName
-              };
-            }));
-          }
+          res.value.forEach(e => {
+            e.displayName = e.properties.displayName
+          });
+
+          logger.log(res.value);
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.FLOW_ENVIRONMENT_LIST).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-  
-  Examples:
-  
-    List Microsoft Flow environments in the current tenant
-      ${this.getCommandName()}
-`);
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 }
 

@@ -1,17 +1,17 @@
-import commands from '../../commands';
-import Command from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./report-mailactivitycounts');
-import * as assert from 'assert';
-import Utils from '../../../../Utils';
+import { Logger } from '../../../../cli';
+import Command from '../../../../Command';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./report-mailactivitycounts');
 
 describe(commands.OUTLOOK_REPORT_MAILACTIVITYCOUNTS, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
+  let logger: Logger;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -20,14 +20,15 @@ describe(commands.OUTLOOK_REPORT_MAILACTIVITYCOUNTS, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -36,7 +37,6 @@ describe(commands.OUTLOOK_REPORT_MAILACTIVITYCOUNTS, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -50,11 +50,11 @@ describe(commands.OUTLOOK_REPORT_MAILACTIVITYCOUNTS, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.OUTLOOK_REPORT_MAILACTIVITYCOUNTS), true);
+    assert.strictEqual(command.name.startsWith(commands.OUTLOOK_REPORT_MAILACTIVITYCOUNTS), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('gets the report for the last week', (done) => {
@@ -68,28 +68,15 @@ describe(commands.OUTLOOK_REPORT_MAILACTIVITYCOUNTS, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, period: 'D7' } }, () => {
+    command.action(logger, { options: { debug: false, period: 'D7' } }, () => {
       try {
-        assert.equal(requestStub.lastCall.args[0].url, "https://graph.microsoft.com/v1.0/reports/getEmailActivityCounts(period='D7')");
-        assert.equal(requestStub.lastCall.args[0].headers["accept"], 'application/json;odata.metadata=none');
-        assert.equal(requestStub.lastCall.args[0].json, true);
+        assert.strictEqual(requestStub.lastCall.args[0].url, "https://graph.microsoft.com/v1.0/reports/getEmailActivityCounts(period='D7')");
+        assert.strictEqual(requestStub.lastCall.args[0].headers["accept"], 'application/json;odata.metadata=none');
         done();
       }
       catch (e) {
         done(e);
       }
     });
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.OUTLOOK_REPORT_MAILACTIVITYCOUNTS));
   });
 });

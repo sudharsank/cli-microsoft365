@@ -1,17 +1,14 @@
+import { Logger } from '../../../../cli';
+import {
+  CommandError, CommandOption
+} from '../../../../Command';
 import config from '../../../../config';
-import commands from '../../commands';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate,
-  CommandError
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -43,12 +40,12 @@ class SpoThemeApplyCommand extends SpoCommand {
     return 'Applies theme to the specified site';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const isSharePointTheme: boolean = args.options.sharePointTheme ? true : false;
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
 
@@ -60,7 +57,7 @@ class SpoThemeApplyCommand extends SpoCommand {
       })
       .then((res: ContextInfo): Promise<string> => {
         if (this.verbose) {
-          cmd.log(`Applying theme ${args.options.name} to the ${args.options.webUrl} site...`);
+          logger.logToStderr(`Applying theme ${args.options.name} to the ${args.options.webUrl} site...`);
         }
 
         let requestOptions: any = {};
@@ -74,7 +71,7 @@ class SpoThemeApplyCommand extends SpoCommand {
               'accept': 'application/json;odata=nometadata',
               'Content-Type': 'application/json;odata=nometadata'
             },
-            body: requestBody
+            data: requestBody
           }
         }
         else {
@@ -83,7 +80,7 @@ class SpoThemeApplyCommand extends SpoCommand {
             headers: {
               'X-RequestDigest': res.FormDigestValue
             },
-            body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><Method Name="SetWebTheme" Id="11" ObjectPathId="9"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.name)}</Parameter><Parameter Type="String">${Utils.escapeXml(args.options.webUrl)}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="9" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
+            data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><Method Name="SetWebTheme" Id="11" ObjectPathId="9"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.name)}</Parameter><Parameter Type="String">${Utils.escapeXml(args.options.webUrl)}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="9" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
           };
         }
 
@@ -98,7 +95,7 @@ class SpoThemeApplyCommand extends SpoCommand {
             return;
           }
           else {
-            cmd.log(json.value);
+            logger.log(json.value);
           }
         }
         else {
@@ -111,11 +108,11 @@ class SpoThemeApplyCommand extends SpoCommand {
           }
           else {
             const result: boolean = json[json.length - 1];
-            cmd.log(result);
+            logger.log(result);
           }
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -136,27 +133,17 @@ class SpoThemeApplyCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required parameter name missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+    if (args.options.sharePointTheme && !(args.options.name in SharePointThemes)) {
+      return 'Please check if the theme name is entered correctly.'
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      if (args.options.sharePointTheme && !(args.options.name in SharePointThemes)) {
-        return 'Please check if the theme name is entered correctly.'
-      }
-
-      return true;
-    };
+    return true;
   }
 
   private getSharePointTheme(themeName: string): any {
@@ -196,36 +183,6 @@ class SpoThemeApplyCommand extends SpoCommand {
       'name': '${themeName}' ,
       'themeJson': '{\"palette\": {${palette}}}'
     }`
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-
-  Remarks:
-
-    Following standard SharePoint themes are supported by the CLI for Microsoft 365:
-    Blue, Orange, Red, Purple, Green, Gray, Dark Yellow and Dark Blue.
-  
-  Examples:
-  
-    Apply theme to the specified site
-      ${commands.THEME_APPLY} --name Contoso-Blue --webUrl https://contoso.sharepoint.com/sites/project-x
-
-    Apply a standard SharePoint theme to the specified site
-      ${commands.THEME_APPLY} --name Blue --webUrl https://contoso.sharepoint.com/sites/project-x --sharePointTheme
-    
-  More information:
-
-    SharePoint site theming
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-theming/sharepoint-site-theming-overview
-
-    Theme Generator
-      https://aka.ms/themedesigner
-      `);
   }
 }
 

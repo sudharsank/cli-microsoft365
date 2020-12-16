@@ -5,18 +5,28 @@ Externalizes SharePoint Framework project dependencies
 ## Usage
 
 ```sh
-spfx project externalize [options]
+m365 spfx project externalize [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text,md`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-f, --outputFile [outputFile]`
+: Path to the file where the report should be stored in
+
+`-h, --help`
+: output usage information
+
+`--query [query]`
+: JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
+
+`-o, --output [output]`
+: Output type. `json,text,md`. Default `text`
+
+`--verbose`
+: Runs command with verbose logging
+
+`--debug`
+: Runs command with debug logging
 
 !!! important
     Run this command in the folder where the project for which you want to externalize dependencies is located. This command doesn't change your project files.
@@ -35,11 +45,11 @@ This command doesn't change your project files. Instead, it gives you a report w
 Get instructions to externalize the current SharePoint Framework project dependencies and save the findings in a Markdown file
 
 ```sh
-spfx project externalize --output md > "deps-report.md"
+m365 spfx project externalize --output md > "deps-report.md"
 ```
 
 Get instructions to externalize the current SharePoint Framework project dependencies and show the summary of the findings in the terminal
 
 ```sh
-spfx project externalize
+m365 spfx project externalize
 ```

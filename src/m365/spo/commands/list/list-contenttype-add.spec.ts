@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandError, CommandOption, CommandTypes } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./list-contenttype-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError, CommandTypes } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./list-contenttype-add');
 
 describe(commands.LIST_CONTENTTYPE_ADD, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -51,11 +51,11 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.LIST_CONTENTTYPE_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.LIST_CONTENTTYPE_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('adds content type to the specific list if listTitle option is passed (debug)', (done) => {
@@ -64,7 +64,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
         if (opts.headers &&
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
-          JSON.stringify(opts.body) === JSON.stringify({
+          JSON.stringify(opts.data) === JSON.stringify({
             contentTypeId: '0x0120'
           })) {
           return Promise.resolve({
@@ -99,7 +99,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         listTitle: 'Documents',
@@ -108,7 +108,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Description": "Create a new folder.",
           "DisplayFormTemplateName": "ListForm",
           "DisplayFormUrl": "",
@@ -148,7 +148,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
         if (opts.headers &&
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
-          JSON.stringify(opts.body) === JSON.stringify({
+          JSON.stringify(opts.data) === JSON.stringify({
             contentTypeId: '0x0120'
           })) {
           return Promise.resolve({
@@ -183,7 +183,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         listTitle: 'Documents',
@@ -192,7 +192,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Description": "Create a new folder.",
           "DisplayFormTemplateName": "ListForm",
           "DisplayFormUrl": "",
@@ -232,7 +232,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
         if (opts.headers &&
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
-          JSON.stringify(opts.body) === JSON.stringify({
+          JSON.stringify(opts.data) === JSON.stringify({
             contentTypeId: '0x0120'
           })) {
           return Promise.resolve({
@@ -267,7 +267,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         listId: 'dfddade1-4729-428d-881e-7fedf3cae50d',
@@ -276,7 +276,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Description": "Create a new folder.",
           "DisplayFormTemplateName": "ListForm",
           "DisplayFormUrl": "",
@@ -316,7 +316,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
         if (opts.headers &&
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
-          JSON.stringify(opts.body) === JSON.stringify({
+          JSON.stringify(opts.data) === JSON.stringify({
             contentTypeId: '0x0120'
           })) {
           return Promise.resolve({
@@ -351,7 +351,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         listId: 'dfddade1-4729-428d-881e-7fedf3cae50d',
@@ -360,7 +360,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Description": "Create a new folder.",
           "DisplayFormTemplateName": "ListForm",
           "DisplayFormUrl": "",
@@ -406,7 +406,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
 
     const actionTitle: string = 'Documents';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         listTitle: actionTitle,
@@ -415,7 +415,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
@@ -460,7 +460,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
 
     const actionTitle: string = 'Documents';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         listTitle: actionTitle,
@@ -515,7 +515,7 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
 
     const actionId: string = '0CD891EF-AFCE-4E55-B836-FCE03286CCCF';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         listId: actionId,
@@ -534,53 +534,48 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
     });
   });
 
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', contentTypeId: '0x0120' } });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if both listId and listTitle options are not passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', contentTypeId: '0x0120' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', contentTypeId: '0x0120' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the webUrl option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', contentTypeId: '0x0120' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', contentTypeId: '0x0120' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the webUrl option is a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', contentTypeId: '0x0120' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', contentTypeId: '0x0120' } });
     assert(actual);
   });
 
   it('fails validation if the listId option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '12345', contentTypeId: '0x0120' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '12345', contentTypeId: '0x0120' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the listId option is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', contentTypeId: '0x0120' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', contentTypeId: '0x0120' } });
     assert(actual);
   });
 
   it('passes validation if the listTitle option is passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Documents', contentTypeId: '0x0120' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'Documents', contentTypeId: '0x0120' } });
     assert(actual);
   });
 
   it('fails validation if both listId and listTitle options are passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', listTitle: 'Documents', contentTypeId: '0x0120' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', listTitle: 'Documents', contentTypeId: '0x0120' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the contentTypeId option is not passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', listTitle: 'Documents' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', listTitle: 'Documents' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -590,49 +585,15 @@ describe(commands.LIST_CONTENTTYPE_ADD, () => {
     assert(containsDebugOption);
   });
 
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.LIST_CONTENTTYPE_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
-  });
-
   it('configures command types', () => {
-    assert.notEqual(typeof command.types(), 'undefined', 'command types undefined');
-    assert.notEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
+    assert.notStrictEqual(typeof command.types(), 'undefined', 'command types undefined');
+    assert.notStrictEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
   });
 
   it('configures contentTypeId as string option', () => {
     const types = (command.types() as CommandTypes);
     ['c', 'contentTypeId'].forEach(o => {
-      assert.notEqual((types.string as string[]).indexOf(o), -1, `option ${o} not specified as string`);
+      assert.notStrictEqual((types.string as string[]).indexOf(o), -1, `option ${o} not specified as string`);
     });
   });
 });

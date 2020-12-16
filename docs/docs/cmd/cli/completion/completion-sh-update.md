@@ -5,18 +5,12 @@ Updates command completion for Zsh, Bash and Fish
 ## Usage
 
 ```sh
-cli completion sh update [options]
+m365 cli completion sh update [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -27,7 +21,7 @@ This commands updates the list of commands and their options used by command com
 Update list of commands for Zsh, Bash and Fish command completion
 
 ```sh
-cli completion sh update
+m365 cli completion sh update
 ```
 
 ## More information

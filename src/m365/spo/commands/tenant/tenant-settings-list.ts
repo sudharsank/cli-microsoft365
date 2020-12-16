@@ -1,12 +1,12 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import request from '../../../../request';
-import config from '../../../../config';
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
 import {
-  CommandError
+    CommandError
 } from '../../../../Command';
+import config from '../../../../config';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 class SpoTenantSettingsListCommand extends SpoCommand {
   public get name(): string {
@@ -17,11 +17,11 @@ class SpoTenantSettingsListCommand extends SpoCommand {
     return 'Lists the global tenant settings';
   }
 
-  public commandAction(cmd: CommandInstance, args: any, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: any, cb: (err?: any) => void): void {
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
         return this.getRequestDigest(spoAdminUrl);
@@ -32,7 +32,7 @@ class SpoTenantSettingsListCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Query Id="5" ObjectPathId="3"><Query SelectAllProperties="true"><Properties><Property Name="HideDefaultThemes" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><Query Id="5" ObjectPathId="3"><Query SelectAllProperties="true"><Properties><Property Name="HideDefaultThemes" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Constructor Id="3" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -72,24 +72,10 @@ class SpoTenantSettingsListCommand extends SpoCommand {
         result['SpecialCharactersStateInFileFolderNames'] = specialCharactersState[result['SpecialCharactersStateInFileFolderNames']];
         result['LimitedAccessFileType'] = sPOLimitedAccessFileType[result['LimitedAccessFileType']];
 
-        cmd.log(result);
+        logger.log(result);
 
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-    
-  Examples:
-  
-    Lists the settings of the tenant
-      ${commands.TENANT_SETTINGS_LIST}
-  ` );
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 }
 

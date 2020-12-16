@@ -1,18 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./team-archive');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./team-archive');
 
 describe(commands.TEAMS_TEAM_ARCHIVE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,24 +22,25 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -52,37 +54,29 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TEAMS_TEAM_ARCHIVE), true);
+    assert.strictEqual(command.name.startsWith(commands.TEAMS_TEAM_ARCHIVE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('fails validation if the teamId is not a valid guid.', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: 'invalid'
       }
     });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the teamId is not provided.', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the input is correct', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '15d7a78e-fd77-4599-97a5-dbb6372846c5'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('archives a Microsoft Team', (done) => {
@@ -94,14 +88,13 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         teamId: 'f5dba91d-6494-4d5e-89a7-ad832f6946d6'
       }
-    }, () => {
+    } as any, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -119,15 +112,14 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         teamId: 'f5dba91d-6494-4d5e-89a7-ad832f6946d6',
         shouldSetSpoSiteReadOnlyForMembers: true
       }
-    }, () => {
+    } as any, () => {
       try {
-        assert.equal(postStub.lastCall.args[0].body.shouldSetSpoSiteReadOnlyForMembers, true);
+        assert.strictEqual(postStub.lastCall.args[0].data.shouldSetSpoSiteReadOnlyForMembers, true);
         done();
       }
       catch (e) {
@@ -145,14 +137,13 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         teamId: 'f5dba91d-6494-4d5e-89a7-ad832f6946d6'
       }
-    }, () => {
+    } as any, () => {
       try {
-        assert.equal(postStub.lastCall.args[0].body["shouldSetSpoSiteReadOnlyForMembers"], false);
+        assert.strictEqual(postStub.lastCall.args[0].data["shouldSetSpoSiteReadOnlyForMembers"], false);
         done();
       }
       catch (e) {
@@ -180,14 +171,13 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         teamId: 'f5dba91d-6494-4d5e-89a7-ad832f6946d6'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(err.message, 'No team found with Group Id f5dba91d-6494-4d5e-89a7-ad832f6946d6');
+        assert.strictEqual(err.message, 'No team found with Group Id f5dba91d-6494-4d5e-89a7-ad832f6946d6');
         done();
       }
       catch (e) {
@@ -205,15 +195,14 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         teamId: 'f5dba91d-6494-4d5e-89a7-ad832f6946d6',
         debug: true
       }
-    }, () => {
+    } as any, () => {
       try {
-        assert(cmdInstanceLogSpy.called);
+        assert(loggerLogToStderrSpy.called);
         done();
       }
       catch (e) {
@@ -227,15 +216,14 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         teamId: 'f5dba91d-6494-4d5e-89a7-ad832f6946d6',
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -245,7 +233,7 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -253,39 +241,5 @@ describe(commands.TEAMS_TEAM_ARCHIVE, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TEAMS_TEAM_ARCHIVE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

@@ -1,13 +1,13 @@
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import { Group } from './Group';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { Group } from './Group';
 
 interface CommandArgs {
   options: Options;
@@ -40,7 +40,11 @@ class AadO365GroupListCommand extends GraphItemsListCommand<Group> {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['id', 'displayName', 'mailNickname', 'deletedDateTime', 'siteUrl'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const groupFilter: string = `?$filter=groupTypes/any(c:c+eq+'Unified')`;
     const displayNameFilter: string = args.options.displayName ? ` and startswith(DisplayName,'${encodeURIComponent(args.options.displayName).replace(/'/g, `''`)}')` : '';
     const mailNicknameFilter: string = args.options.mailNickname ? ` and startswith(MailNickname,'${encodeURIComponent(args.options.mailNickname).replace(/'/g, `''`)}')` : '';
@@ -54,7 +58,7 @@ class AadO365GroupListCommand extends GraphItemsListCommand<Group> {
     }
 
     this
-      .getAllItems(endpoint, cmd, true)
+      .getAllItems(endpoint, logger, true)
       .then((): Promise<any> => {
         if (args.options.orphaned) {
           const orphanedGroups: Group[] = [];
@@ -69,7 +73,7 @@ class AadO365GroupListCommand extends GraphItemsListCommand<Group> {
         }
 
         if (args.options.includeSiteUrl) {
-          return Promise.all(this.items.map(g => this.getGroupSiteUrl(g.id, cmd)));
+          return Promise.all(this.items.map(g => this.getGroupSiteUrl(g.id, logger)));
         }
         else {
           return Promise.resolve();
@@ -89,45 +93,24 @@ class AadO365GroupListCommand extends GraphItemsListCommand<Group> {
           });
         }
 
-        if (args.options.output === 'json') {
-          cmd.log(this.items);
-        }
-        else {
-          cmd.log(this.items.map(g => {
-            const group: any = {
-              id: g.id,
-              displayName: g.displayName,
-              mailNickname: g.mailNickname
-            };
-
-            if (args.options.deleted) {
-              group.deletedDateTime = g.deletedDateTime;
-            }
-
-            if (args.options.includeSiteUrl) {
-              group.siteUrl = g.siteUrl;
-            }
-
-            return group;
-          }));
-        }
+        logger.log(this.items);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
-  private getGroupSiteUrl(groupId: string, cmd: CommandInstance): Promise<{ id: string, url: string }> {
+  private getGroupSiteUrl(groupId: string, logger: Logger): Promise<{ id: string, url: string }> {
     return new Promise<{ id: string, url: string }>((resolve: (siteInfo: { id: string, url: string }) => void, reject: (error: any) => void): void => {
       const requestOptions: any = {
         url: `${this.resource}/v1.0/groups/${groupId}/drive?$select=webUrl`,
         headers: {
           accept: 'application/json;odata.metadata=none'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -171,59 +154,12 @@ class AadO365GroupListCommand extends GraphItemsListCommand<Group> {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (args.options.deleted && args.options.includeSiteUrl) {
-        return 'You can\'t retrieve site URLs of deleted Microsoft 365 Groups';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.deleted && args.options.includeSiteUrl) {
+      return 'You can\'t retrieve site URLs of deleted Microsoft 365 Groups';
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    Using the ${chalk.blue('--includeSiteUrl')} option, you can retrieve the URL
-    of the site associated with the particular Microsoft 365 Group. If you however
-    retrieve too many groups and will try to get their site URLs, you will most
-    likely get an error as the command will get throttled, issuing too many
-    requests, too frequently. If you get an error, consider narrowing down
-    the result set using the ${chalk.blue('--displayName')} and ${chalk.blue('--mailNickname')} filters.
-    
-    Retrieving the URL of the site associated with the particular
-    Microsoft 365 Group is not possible when retrieving deleted groups.
-
-    Using the ${chalk.blue('--orphaned')} option, you can retrieve Microsoft 365 Groups without
-    owners.
-
-  Examples:
-  
-    List all Microsoft 365 Groups in the tenant
-      ${this.name}
-
-    List Microsoft 365 Groups with display name starting with ${chalk.grey(`Project`)}
-      ${this.name} --displayName Project
-
-    List Microsoft 365 Groups mail nick name starting with ${chalk.grey(`team`)}
-      ${this.name} --mailNickname team
-
-    List deleted Microsoft 365 Groups with display name starting with ${chalk.grey(`Project`)}
-      ${this.name} --displayName Project --deleted
-
-    List deleted Microsoft 365 Groups with mail nick name starting with ${chalk.grey(`team`)}
-      ${this.name} --mailNickname team --deleted
-
-    List Microsoft 365 Groups with display name starting with ${chalk.grey(`Project`)} including
-    the URL of the corresponding SharePoint site
-      ${this.name} --displayName Project --includeSiteUrl
-
-    List Microsoft 365 Groups without owners
-      ${this.name} --orphaned
-`);
+    return true;
   }
 }
 

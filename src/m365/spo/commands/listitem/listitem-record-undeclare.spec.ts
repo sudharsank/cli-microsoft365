@@ -1,24 +1,24 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./listitem-record-undeclare');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./listitem-record-undeclare');
 
 describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
+  let logger: Logger;
   const expectedId = 147;
   let actualId = 0;
   let postFakes = (opts: any) => {
     if ((opts.url as string).indexOf('_vti_bin/client.svc/ProcessQuery') > -1) {
 
       // requestObjectIdentity mock
-      if (opts.body.indexOf('Name="Current"') > -1) {
+      if (opts.data.indexOf('Name="Current"') > -1) {
 
         if ((opts.url as string).indexOf('rejectme.com') > -1) {
 
@@ -51,7 +51,7 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
         )
 
       }
-      if (opts.body.indexOf('Name="UndeclareItemAsRecord') > -1) {
+      if (opts.data.indexOf('Name="UndeclareItemAsRecord') > -1) {
 
         actualId = expectedId;
         return Promise.resolve();
@@ -77,14 +77,15 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -92,7 +93,6 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       request.get
     ]);
@@ -108,11 +108,11 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.LISTITEM_RECORD_UNDECLARE), true);
+    assert.strictEqual(command.name.startsWith(commands.LISTITEM_RECORD_UNDECLARE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('fails to get _ObjecttIdentity_ when an error is returned by the _ObjectIdentity_ CSOM request', (done) => {
@@ -127,7 +127,7 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
       webUrl: 'https://returnerror.com/sites/project-y',
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         done();
       }
@@ -150,7 +150,7 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
       id: 47,
       webUrl: 'https://contoso.sharepoint.com/sites/project-x'
     }
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         done();
       }
@@ -172,7 +172,7 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
       id: 47,
       webUrl: 'https://contoso.sharepoint.com/sites/project-x'
     }
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         done();
       }
@@ -195,7 +195,7 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
       webUrl: 'https://rejectme.com/sites/project-y',
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         done();
       }
@@ -206,7 +206,7 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
 
   });
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -217,7 +217,7 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -227,82 +227,43 @@ describe(commands.LISTITEM_RECORD_UNDECLARE, () => {
     assert(containsTypeOption);
   });
 
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if both id and title options are not passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: 1 } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: 1 } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo', id: 1 } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo', id: 1 } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the url option is a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', id: 1 } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', id: 1 } });
     assert(actual);
   });
 
   it('fails validation if the id option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '12345', id: 1 } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '12345', id: 1 } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the id option is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', id: 1 } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', id: 1 } });
     assert(actual);
   });
 
   it('fails validation if both id and title options are passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', listTitle: 'Documents', id: 1 } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', listTitle: 'Documents', id: 1 } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if id is not passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if id is not a number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: 'abc' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.LISTITEM_RECORD_UNDECLARE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 });

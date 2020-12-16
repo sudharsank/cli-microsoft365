@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN010005_YORC_environment } from './FN010005_YORC_environment';
 
 describe('FN010005_YORC_environment', () => {
@@ -17,7 +17,7 @@ describe('FN010005_YORC_environment', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if environment is already up-to-date', () => {
@@ -30,6 +30,6 @@ describe('FN010005_YORC_environment', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

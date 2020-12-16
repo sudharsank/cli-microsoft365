@@ -1,10 +1,11 @@
-import * as sinon from 'sinon';
 import * as assert from 'assert';
-import YammerCommand from './YammerCommand';
-import auth from '../../Auth';
-import Utils from '../../Utils';
-import { CommandError } from '../../Command';
+import * as sinon from 'sinon';
 import appInsights from '../../appInsights';
+import auth from '../../Auth';
+import { Logger } from '../../cli';
+import { CommandError } from '../../Command';
+import Utils from '../../Utils';
+import YammerCommand from './YammerCommand';
 
 class MockCommand extends YammerCommand {
   public get name(): string {
@@ -15,15 +16,15 @@ class MockCommand extends YammerCommand {
     return 'Mock command';
   }
 
-  public commandAction(cmd: CommandInstance, args: {}, cb: () => void): void {
+  public commandAction(logger: Logger, args: {}, cb: () => void): void {
     cb();
   }
 
   public commandHelp(args: any, log: (message: string) => void): void {
   }
 
-  public handlePromiseError(response: any, cmd: CommandInstance, callback: (err?: any) => void): void {
-    this.handleRejectedODataJsonPromise(response, cmd, callback);
+  public handlePromiseError(response: any, logger: Logger, callback: (err?: any) => void): void {
+    this.handleRejectedODataJsonPromise(response, logger, callback);
   }
 }
 
@@ -43,17 +44,14 @@ describe('YammerCommand', () => {
   it('correctly reports an error while restoring auth info', (done) => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.reject('An error has occurred'));
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'yammer command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
-    cmdInstance.action({ options: {} }, (err?: any) => {
+    command.action(logger, { options: {} } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -65,16 +63,13 @@ describe('YammerCommand', () => {
   it('doesn\'t execute command when error occurred while restoring auth info', (done) => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.reject('An error has occurred'));
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'yammer command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     const commandCommandActionSpy = sinon.spy(command, 'commandAction');
-    cmdInstance.action({ options: {} }, () => {
+    command.action(logger, { options: {} }, () => {
       try {
         assert(commandCommandActionSpy.notCalled);
         done();
@@ -88,17 +83,14 @@ describe('YammerCommand', () => {
   it('doesn\'t execute command when not logged in', (done) => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'yammer command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     auth.service.connected = false;
     const commandCommandActionSpy = sinon.spy(command, 'commandAction');
-    cmdInstance.action({ options: {} }, () => {
+    command.action(logger, { options: {} }, () => {
       try {
         assert(commandCommandActionSpy.notCalled);
         done();
@@ -112,17 +104,14 @@ describe('YammerCommand', () => {
   it('executes command when logged in', (done) => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'yammer command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     auth.service.connected = true;
     const commandCommandActionSpy = sinon.spy(command, 'commandAction');
-    cmdInstance.action({ options: {} }, () => {
+    command.action(logger, { options: {} }, () => {
       try {
         assert(commandCommandActionSpy.called);
         done();
@@ -135,7 +124,7 @@ describe('YammerCommand', () => {
 
   it('returns correct resource', () => {
     const command = new MockCommand();
-    assert.equal((command as any).resource, 'https://www.yammer.com/api');
+    assert.strictEqual((command as any).resource, 'https://www.yammer.com/api');
   });
 
   it('displays error message coming from Yammer', () => {
@@ -144,6 +133,8 @@ describe('YammerCommand', () => {
         command: 'command'
       },
       log: (msg?: string) => { },
+      logRaw: (msg?: string) => { },
+      logToStderr: (msg?: string) => { },
       prompt: () => { }
     };
     const mock = new MockCommand();
@@ -152,7 +143,7 @@ describe('YammerCommand', () => {
         base: 'abc'
       }
     }, cmd, (err?: any) => {
-      assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
+      assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
     });
 
   });
@@ -163,13 +154,15 @@ describe('YammerCommand', () => {
         command: 'command'
       },
       log: (msg?: string) => { },
+      logRaw: (msg?: string) => { },
+      logToStderr: (msg?: string) => { },
       prompt: () => { }
     };
     const mock = new MockCommand();
     mock.handlePromiseError({
       statusCode: 404
     }, cmd, (err?: any) => {
-      assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("Not found (404)")));
+      assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("Not found (404)")));
     });
   });
 
@@ -179,13 +172,15 @@ describe('YammerCommand', () => {
         command: 'command'
       },
       log: (msg?: string) => { },
+      logRaw: (msg?: string) => { },
+      logToStderr: (msg?: string) => { },
       prompt: () => { }
     };
     const mock = new MockCommand();
     mock.handlePromiseError({
       error: 'not from Yammer'
     }, cmd, (err?: any) => {
-      assert.equal(JSON.stringify(err), JSON.stringify({ "message": { "error": "not from Yammer" } }));
+      assert.strictEqual(JSON.stringify(err), JSON.stringify({ "message": { "error": "not from Yammer" } }));
     });
   });
 
@@ -195,13 +190,15 @@ describe('YammerCommand', () => {
         command: 'command'
       },
       log: (msg?: string) => { },
+      logRaw: (msg?: string) => { },
+      logToStderr: (msg?: string) => { },
       prompt: () => { }
     };
     const mock = new MockCommand();
     mock.handlePromiseError({
       message: "test"
     }, cmd, (err?: any) => {
-      assert.equal(JSON.stringify(err), JSON.stringify({ "message": { "message": "test" } }));
+      assert.strictEqual(JSON.stringify(err), JSON.stringify({ "message": { "message": "test" } }));
     });
   });
 });

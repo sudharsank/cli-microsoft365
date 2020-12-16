@@ -8,31 +8,39 @@ Connects site collection to an Microsoft 365 Group
 ## Usage
 
 ```sh
-spo site groupify [options]
+m365 spo site groupify [options]
 ```
 
 ## Alias
 
 ```sh
-spo site groupify
+m365 spo site groupify
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --siteUrl <siteUrl>`|URL of the site collection being connected to new Microsoft 365 Group
-`-a, --alias <alias>`|The email alias for the new Microsoft 365 Group that will be created
-`-n, --displayName <displayName>`|The name of the new Microsoft 365 Group that will be created
-`-d, --description [description]`|The group’s description
-`-c, --classification [classification]`|The classification value, if classifications are set for the organization. If no value is provided, the default classification will be set, if one is configured
-`--isPublic`|Determines the Microsoft 365 Group’s privacy setting. If set, the group will be public, otherwise it will be private
-`--keepOldHomepage`|For sites that already have a modern page set as homepage, set this option, to keep it as the homepage
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --siteUrl <siteUrl>`
+: URL of the site collection being connected to new Microsoft 365 Group
+
+`-a, --alias <alias>`
+: The email alias for the new Microsoft 365 Group that will be created
+
+`-n, --displayName <displayName>`
+: The name of the new Microsoft 365 Group that will be created
+
+`-d, --description [description]`
+: The group’s description
+
+`-c, --classification [classification]`
+: The classification value, if classifications are set for the organization. If no value is provided, the default classification will be set, if one is configured
+
+`--isPublic`
+: Determines the Microsoft 365 Group’s privacy setting. If set, the group will be public, otherwise it will be private
+
+`--keepOldHomepage`
+: For sites that already have a modern page set as homepage, set this option, to keep it as the homepage
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -43,25 +51,25 @@ When connecting site collection to an Microsoft 365 Group, SharePoint will creat
 Connect site collection to an Microsoft 365 Group
 
 ```sh
-spo site groupify --siteUrl https://contoso.sharepoin.com/sites/team-a --alias team-a --displayName 'Team A'
+m365 spo site groupify --siteUrl https://contoso.sharepoin.com/sites/team-a --alias team-a --displayName 'Team A'
 ```
 
 Connect site collection to an Microsoft 365 Group and make the group public
 
 ```sh
-spo site groupify --siteUrl https://contoso.sharepoin.com/sites/team-a --alias team-a --displayName 'Team A' --isPublic
+m365 spo site groupify --siteUrl https://contoso.sharepoin.com/sites/team-a --alias team-a --displayName 'Team A' --isPublic
 ```
 
 Connect site collection to an Microsoft 365 Group and set the group classification
 
 ```sh
-spo site groupify --siteUrl https://contoso.sharepoin.com/sites/team-a --alias team-a --displayName 'Team A' --classification HBI
+m365 spo site groupify --siteUrl https://contoso.sharepoin.com/sites/team-a --alias team-a --displayName 'Team A' --classification HBI
 ```
 
 Connect site collection to an Microsoft 365 Group and keep the old home page
 
 ```sh
-spo site groupify --siteUrl https://contoso.sharepoin.com/sites/team-a --alias team-a --displayName 'Team A' --keepOldHomepage
+m365 spo site groupify --siteUrl https://contoso.sharepoin.com/sites/team-a --alias team-a --displayName 'Team A' --keepOldHomepage
 ```
 
 ## More information

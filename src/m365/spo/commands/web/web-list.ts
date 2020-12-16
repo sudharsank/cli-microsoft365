@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { WebPropertiesCollection } from "./WebPropertiesCollection";
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -27,9 +25,13 @@ class SpoWebListCommand extends SpoCommand {
     return 'Lists subsites of the specified site';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['Title', 'Url', 'Id'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving all webs in site at ${args.options.webUrl}...`);
+      logger.logToStderr(`Retrieving all webs in site at ${args.options.webUrl}...`);
     }
 
     let requestUrl: string = `${args.options.webUrl}/_api/web/webs`;
@@ -43,27 +45,15 @@ class SpoWebListCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get<WebPropertiesCollection>(requestOptions)
       .then((webProperties: WebPropertiesCollection): void => {
-        if (args.options.output === 'json') {
-          cmd.log(webProperties);
-        }
-        else {
-          cmd.log(webProperties.value.map(l => {
-            return {
-              Title: l.Title,
-              Url: l.Url,
-              Id: l.Id
-            };
-          }));
-        }
-
+        logger.log(webProperties);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -78,30 +68,8 @@ class SpoWebListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Return all subsites from site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.WEB_LIST} --webUrl https://contoso.sharepoint.com/sites/project-x
-      `);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

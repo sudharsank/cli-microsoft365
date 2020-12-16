@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN008003_CFG_TSL_preferConst } from './FN008003_CFG_TSL_preferConst';
 
 describe('FN010201_CFG_TSL_preferConst', () => {
@@ -25,7 +25,7 @@ describe('FN010201_CFG_TSL_preferConst', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if tslint is not available', () => {
@@ -33,6 +33,6 @@ describe('FN010201_CFG_TSL_preferConst', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

@@ -1,12 +1,12 @@
-import request from '../../../../request';
+import * as chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandValidate } from '../../../../Command';
+import request from '../../../../request';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -25,10 +25,10 @@ class TeamsAppPublishCommand extends GraphCommand {
     return 'Publishes Teams app to the organization\'s app catalog';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const fullPath: string = path.resolve(args.options.filePath);
     if (this.verbose) {
-      cmd.log(`Adding app '${fullPath}' to app catalog...`);
+      logger.logToStderr(`Adding app '${fullPath}' to app catalog...`);
     }
 
     const requestOptions: any = {
@@ -37,22 +37,22 @@ class TeamsAppPublishCommand extends GraphCommand {
         "content-type": "application/zip",
         accept: 'application/json;odata.metadata=none'
       },
-      body: fs.readFileSync(fullPath)
+      data: fs.readFileSync(fullPath)
     };
 
     request
       .post<{ id: string; }>(requestOptions)
       .then((res: { id: string; }): void => {
         if (res && res.id) {
-          cmd.log(res.id);
+          logger.log(res.id);
         }
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (res: any): void => this.handleRejectedODataJsonPromise(res, cmd, cb));
+      }, (res: any): void => this.handleRejectedODataJsonPromise(res, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -67,39 +67,18 @@ class TeamsAppPublishCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.filePath) {
-        return 'Missing required option filePath';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const fullPath: string = path.resolve(args.options.filePath);
 
-      const fullPath: string = path.resolve(args.options.filePath);
+    if (!fs.existsSync(fullPath)) {
+      return `File '${fullPath}' not found`;
+    }
 
-      if (!fs.existsSync(fullPath)) {
-        return `File '${fullPath}' not found`;
-      }
+    if (fs.lstatSync(fullPath).isDirectory()) {
+      return `Path '${fullPath}' points to a directory`;
+    }
 
-      if (fs.lstatSync(fullPath).isDirectory()) {
-        return `Path '${fullPath}' points to a directory`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    You can only publish a Teams app as a global administrator.
-
-  Examples:
-
-    Add the ${chalk.grey('teams-manifest.zip')} file to the organization's app catalog
-      ${this.name} --filePath ./teams-manifest.zip
-`);
+    return true;
   }
 }
 

@@ -1,14 +1,13 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -35,11 +34,11 @@ class SpoAppInstallCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const scope: string = (args.options.scope) ? args.options.scope.toLowerCase() : 'tenant';
 
     if (this.verbose) {
-      cmd.log(`Installing app '${args.options.id}' in site '${args.options.siteUrl}'...`);
+      logger.logToStderr(`Installing app '${args.options.id}' in site '${args.options.siteUrl}'...`);
     }
 
     const requestOptions: any = {
@@ -53,11 +52,11 @@ class SpoAppInstallCommand extends SpoCommand {
       .post(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -81,57 +80,19 @@ class SpoAppInstallCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (args.options.scope) {
-        const testScope: string = args.options.scope.toLowerCase();
-        if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
-          return `Scope must be either 'tenant' or 'sitecollection' if specified`
-        }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.scope) {
+      const testScope: string = args.options.scope.toLowerCase();
+      if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
+        return `Scope must be either 'tenant' or 'sitecollection' if specified`
       }
+    }
 
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
-
-      if (!args.options.siteUrl) {
-        return 'Required parameter siteUrl missing';
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.siteUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.APP_INSTALL).helpInformation());
-    log(
-      `  Remarks:
-  
-    If the app with the specified ID doesn't exist in the app catalog,
-    the command will fail with an error. Before you can install app in a site,
-    you have to add it to the tenant or site collection app catalog first
-    using the ${chalk.blue(commands.APP_ADD)} command.
-   
-  Examples:
-  
-    Install the app with ID ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531d6')}
-    in the ${chalk.grey('https://contoso.sharepoint.com')} site.
-      ${commands.APP_INSTALL} --id b2307a39-e878-458b-bc90-03bc578531d6 --siteUrl https://contoso.sharepoint.com
-
-    Install the app with ID ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531d6')}
-    in the ${chalk.grey('https://contoso.sharepoint.com')} site from site collection app catalog.
-      ${commands.APP_INSTALL} --id b2307a39-e878-458b-bc90-03bc578531d6 --siteUrl https://contoso.sharepoint.com --scope sitecollection
-
-  More information:
-  
-    Application Lifecycle Management (ALM) APIs
-      https://docs.microsoft.com/en-us/sharepoint/dev/apis/alm-api-for-spfx-add-ins
-`);
+    return SpoCommand.isValidSharePointUrl(args.options.siteUrl);
   }
 }
 

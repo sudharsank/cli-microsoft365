@@ -1,12 +1,11 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import YammerCommand from "../../../base/YammerCommand";
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import YammerCommand from "../../../base/YammerCommand";
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -34,7 +33,7 @@ class YammerGroupUserRemoveCommand extends YammerCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const executeRemoveAction: () => void = (): void => {
       let endpoint = `${this.resource}/v1/group_memberships.json`;
 
@@ -44,8 +43,8 @@ class YammerGroupUserRemoveCommand extends YammerCommand {
           accept: 'application/json;odata.metadata=none',
           'content-type': 'application/json;odata=nometadata'
         },
-        json: true,
-        body: {
+        responseType: 'json',
+        data: {
           group_id: args.options.id,
           user_id: args.options.userId
         }
@@ -55,7 +54,7 @@ class YammerGroupUserRemoveCommand extends YammerCommand {
         .delete(requestOptions)
         .then((res: any): void => {
           cb();
-        }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
@@ -67,7 +66,7 @@ class YammerGroupUserRemoveCommand extends YammerCommand {
         messagePrompt = `Are you sure you want to remove the user ${args.options.userId} from the group ${args.options.id}?`;
       }
 
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -103,47 +102,16 @@ class YammerGroupUserRemoveCommand extends YammerCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required id value is missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.id && typeof args.options.id !== 'number') {
+      return `${args.options.id} is not a number`;
+    }
 
-      if (args.options.id && typeof args.options.id !== 'number') {
-        return `${args.options.id} is not a number`;
-      }
+    if (args.options.userId && typeof args.options.userId !== 'number') {
+      return `${args.options.userId} is not a number`;
+    }
 
-      if (args.options.userId && typeof args.options.userId !== 'number') {
-        return `${args.options.userId} is not a number`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-  
-    ${chalk.yellow('Attention:')} In order to use this command, you need to grant the Azure AD
-    application used by the CLI for Microsoft 365 the permission to the Yammer API.
-    To do this, execute the ${chalk.blue('cli consent --service yammer')} command.
-
-  Examples:
-    
-    Remove the current user from the group with the ID ${chalk.grey('5611239081')}
-      ${this.name} --id 5611239081
-    
-    Remove the user with the ID ${chalk.grey('66622349')} from the group with the ID
-    ${chalk.grey('5611239081')}
-      ${this.name} --id 5611239081 --userId 66622349
-
-    Remove the user with the ID ${chalk.grey('66622349')} from the group with the ID
-    ${chalk.grey('5611239081')} without asking for confirmation
-      ${this.name} --id 5611239081 --userId 66622349 --confirm
-  `);
+    return true;
   }
 }
 

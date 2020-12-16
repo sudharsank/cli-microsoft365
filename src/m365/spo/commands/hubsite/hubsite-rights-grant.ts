@@ -1,15 +1,13 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandError, CommandOption } from '../../../../Command';
 import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import {
-  CommandOption, CommandValidate, CommandError
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -30,18 +28,18 @@ class SpoHubSiteRightsGrantCommand extends SpoCommand {
     return 'Grants permissions to join the hub site for one or more principals';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
         return this.getRequestDigest(spoAdminUrl);
       })
       .then((res: ContextInfo): Promise<string> => {
         if (this.verbose) {
-          cmd.log(`Granting permissions to join the hub site ${args.options.url} to principals ${args.options.principals}...`);
+          logger.logToStderr(`Granting permissions to join the hub site ${args.options.url} to principals ${args.options.principals}...`);
         }
 
         const principals: string = args.options.principals
@@ -55,7 +53,7 @@ class SpoHubSiteRightsGrantCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="37" ObjectPathId="36" /><Method Name="GrantHubSiteRights" Id="38" ObjectPathId="36"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.url)}</Parameter><Parameter Type="Array">${principals}</Parameter><Parameter Type="Enum">${grantedRights}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="36" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="37" ObjectPathId="36" /><Method Name="GrantHubSiteRights" Id="38" ObjectPathId="36"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.url)}</Parameter><Parameter Type="Array">${principals}</Parameter><Parameter Type="Enum">${grantedRights}</Parameter></Parameters></Method></Actions><ObjectPaths><Constructor Id="36" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -69,11 +67,11 @@ class SpoHubSiteRightsGrantCommand extends SpoCommand {
         }
         else {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -97,65 +95,17 @@ class SpoHubSiteRightsGrantCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.url) {
-        return 'Required parameter url missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.rights !== 'Join') {
+      return `${args.options.rights} is not a valid rights value. Allowed values Join`;
+    }
 
-      if (!args.options.principals) {
-        return 'Required parameter principals missing';
-      }
-
-      if (!args.options.rights) {
-        return 'Required parameter rights missing';
-      }
-
-      if (args.options.rights !== 'Join') {
-        return `${args.options.rights} is not a valid rights value. Allowed values Join`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-
-  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on a SharePoint API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-
-  Examples:
-
-    Grant user with alias ${chalk.grey('PattiF')} permission to join sites to the hub site with
-    URL ${chalk.grey('https://contoso.sharepoint.com/sites/sales')}
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --principals PattiF --rights Join
-
-    Grant users with aliases ${chalk.grey('PattiF')} and ${chalk.grey('AdeleV')} permission to join sites
-    to the hub site with URL ${chalk.grey('https://contoso.sharepoint.com/sites/sales')}
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --principals "PattiF,AdeleV" --rights Join
-
-    Grant user with email ${chalk.grey('PattiF@contoso.com')} permission to join sites
-    to the hub site with URL ${chalk.grey('https://contoso.sharepoint.com/sites/sales')}
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --principals PattiF@contoso.com --rights Join
-
-  More information:
-
-    SharePoint hub sites new in Microsoft 365
-      https://techcommunity.microsoft.com/t5/SharePoint-Blog/SharePoint-hub-sites-new-in-Office-365/ba-p/109547
-`);
+    return true;
   }
 }
 

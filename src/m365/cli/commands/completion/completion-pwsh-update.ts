@@ -1,9 +1,9 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { autocomplete } from '../../../../autocomplete';
+import { Logger } from '../../../../cli';
 import GlobalOptions from '../../../../GlobalOptions';
 import AnonymousCommand from '../../../base/AnonymousCommand';
-import { autocomplete } from '../../../../autocomplete';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: GlobalOptions;
@@ -18,39 +18,18 @@ class CliCompletionPwshUpdateCommand extends AnonymousCommand {
     return 'Updates command completion for PowerShell';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     if (this.debug) {
-      cmd.log('Generating command completion...');
+      logger.logToStderr('Generating command completion...');
     }
 
-    autocomplete.generateShCompletion(vorpal);
+    autocomplete.generateShCompletion();
 
     if (this.debug) {
-      cmd.log(vorpal.chalk.green('DONE'));
+      logger.logToStderr(chalk.green('DONE'));
     }
 
     cb();
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(commands.COMPLETION_PWSH_UPDATE).helpInformation());
-    log(
-      `  Remarks:
-  
-    This commands updates the list of commands and their options used by
-    command completion in PowerShell. You should run this command each time
-    after upgrading the CLI for Microsoft 365.
-   
-  Examples:
-  
-    Update list of commands for PowerShell command completion
-      ${this.getCommandName()}
-
-  More information:
-
-    Command completion
-      https://pnp.github.io/cli-microsoft365/concepts/completion/
-`);
   }
 }
 

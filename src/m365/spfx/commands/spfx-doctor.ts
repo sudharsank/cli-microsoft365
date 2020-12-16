@@ -1,11 +1,11 @@
-import commands from '../commands';
-import GlobalOptions from '../../../GlobalOptions';
-import { CommandError, CommandOption, CommandValidate, CommandTypes } from '../../../Command';
+import * as chalk from 'chalk';
 import * as child_process from 'child_process';
-import AnonymousCommand from '../../base/AnonymousCommand';
 import { satisfies } from 'semver';
-
-const vorpal: Vorpal = require('../../../vorpal-init');
+import { Logger } from '../../../cli';
+import { CommandError, CommandOption, CommandTypes } from '../../../Command';
+import GlobalOptions from '../../../GlobalOptions';
+import AnonymousCommand from '../../base/AnonymousCommand';
+import commands from '../commands';
 
 interface CommandArgs {
   options: Options;
@@ -320,6 +320,21 @@ class SpfxDoctorCommand extends AnonymousCommand {
           fix: 'npm i react@16.8.5'
         },
         sp: SharePointVersion.SPO
+      },
+      '1.11.0': {
+        node: {
+          range: '^10.0.0',
+          fix: 'Install Node.js v10'
+        },
+        npm: {
+          range: '^5.0.0 || ^6.0.0',
+          fix: 'npm i -g npm@6'
+        },
+        react: {
+          range: '16.8.5',
+          fix: 'npm i react@16.8.5'
+        },
+        sp: SharePointVersion.SPO
       }
     };
 
@@ -331,21 +346,21 @@ class SpfxDoctorCommand extends AnonymousCommand {
     return 'Verifies environment configuration for using the specific version of the SharePoint Framework';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
-    cmd.log(' ');
-    cmd.log('CLI for Microsoft 365 SharePoint Framework doctor');
-    cmd.log('Verifying configuration of your system for working with the SharePoint Framework');
-    cmd.log(' ');
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
+    logger.log(' ');
+    logger.log('CLI for Microsoft 365 SharePoint Framework doctor');
+    logger.log('Verifying configuration of your system for working with the SharePoint Framework');
+    logger.log(' ');
 
     let spfxVersion: string = '';
     let prerequisites: SpfxVersionPrerequisites;
     const fixes: string[] = [];
 
     this
-      .getSharePointFrameworkVersion(cmd)
+      .getSharePointFrameworkVersion(logger)
       .then((_spfxVersion: string): Promise<void> => {
         if (!_spfxVersion) {
-          cmd.log(this.getStatus(CheckStatus.Failure, `SharePoint Framework`));
+          logger.log(this.getStatus(CheckStatus.Failure, `SharePoint Framework`));
           return Promise.reject(`SharePoint Framework not found`);
         }
 
@@ -353,55 +368,55 @@ class SpfxDoctorCommand extends AnonymousCommand {
 
         prerequisites = this.versions[spfxVersion];
         if (!prerequisites) {
-          cmd.log(this.getStatus(CheckStatus.Failure, `SharePoint Framework v${spfxVersion}`));
+          logger.log(this.getStatus(CheckStatus.Failure, `SharePoint Framework v${spfxVersion}`));
           return Promise.reject(`spfx doctor doesn't support SPFx v${spfxVersion} at this moment`);
         }
 
-        cmd.log(this.getStatus(CheckStatus.Success, `SharePoint Framework v${spfxVersion}`));
+        logger.log(this.getStatus(CheckStatus.Success, `SharePoint Framework v${spfxVersion}`));
         return Promise.resolve();
       })
-      .then(_ => this.checkSharePointCompatibility(spfxVersion, prerequisites, args, fixes, cmd))
-      .then(_ => this.checkNodeVersion(prerequisites, fixes, cmd))
-      .then(_ => this.checkNpmVersion(prerequisites, fixes, cmd))
-      .then(_ => this.checkYo(fixes, cmd))
-      .then(_ => this.checkGulp(fixes, cmd))
-      .then(_ => this.checkReact(prerequisites, fixes, cmd))
-      .then(_ => this.checkTypeScript(fixes, cmd))
+      .then(_ => this.checkSharePointCompatibility(spfxVersion, prerequisites, args, fixes, logger))
+      .then(_ => this.checkNodeVersion(prerequisites, fixes, logger))
+      .then(_ => this.checkNpmVersion(prerequisites, fixes, logger))
+      .then(_ => this.checkYo(fixes, logger))
+      .then(_ => this.checkGulp(fixes, logger))
+      .then(_ => this.checkReact(prerequisites, fixes, logger))
+      .then(_ => this.checkTypeScript(fixes, logger))
       .then(_ => {
         if (fixes.length > 0) {
-          cmd.log(' ');
-          cmd.log('Recommended fixes:');
-          cmd.log(' ');
-          fixes.forEach(f => cmd.log(`- ${f}`));
-          cmd.log(' ');
+          logger.log(' ');
+          logger.log('Recommended fixes:');
+          logger.log(' ');
+          fixes.forEach(f => logger.log(`- ${f}`));
+          logger.log(' ');
         }
 
         cb();
       })
       .catch((error: string): void => {
-        cmd.log(' ');
+        logger.log(' ');
 
         if (fixes.length > 0) {
-          cmd.log('Recommended fixes:');
-          cmd.log(' ');
-          fixes.forEach(f => cmd.log(`- ${f}`));
-          cmd.log(' ');
+          logger.log('Recommended fixes:');
+          logger.log(' ');
+          fixes.forEach(f => logger.log(`- ${f}`));
+          logger.log(' ');
         }
 
         cb(new CommandError(error));
       });
   }
 
-  private checkSharePointCompatibility(spfxVersion: string, prerequisites: SpfxVersionPrerequisites, args: CommandArgs, fixes: string[], cmd: CommandInstance): Promise<void> {
+  private checkSharePointCompatibility(spfxVersion: string, prerequisites: SpfxVersionPrerequisites, args: CommandArgs, fixes: string[], logger: Logger): Promise<void> {
     return new Promise<void>((resolve: () => void, reject: (error: string) => void): void => {
       if (args.options.env) {
         const sp: SharePointVersion = this.spVersionStringToEnum(args.options.env) as SharePointVersion;
         if ((prerequisites.sp & sp) === sp) {
-          cmd.log(this.getStatus(CheckStatus.Success, `Supported in ${SharePointVersion[sp]}`));
+          logger.log(this.getStatus(CheckStatus.Success, `Supported in ${SharePointVersion[sp]}`));
           resolve();
         }
         else {
-          cmd.log(this.getStatus(CheckStatus.Failure, `Not supported in ${SharePointVersion[sp]}`));
+          logger.log(this.getStatus(CheckStatus.Failure, `Not supported in ${SharePointVersion[sp]}`));
           fixes.push(`Use SharePoint Framework v${(sp === SharePointVersion.SP2016 ? '1.1' : '1.4.1')}`);
           reject(`SharePoint Framework v${spfxVersion} is not supported in ${SharePointVersion[sp]}`);
         }
@@ -412,71 +427,71 @@ class SpfxDoctorCommand extends AnonymousCommand {
     });
   }
 
-  private checkNodeVersion(prerequisites: SpfxVersionPrerequisites, fixes: string[], cmd: CommandInstance): Promise<void> {
+  private checkNodeVersion(prerequisites: SpfxVersionPrerequisites, fixes: string[], logger: Logger): Promise<void> {
     return Promise
       .resolve(this.getNodeVersion())
       .then((nodeVersion: string): void => {
-        this.checkStatus('Node', nodeVersion, prerequisites.node, OptionalOrRequired.Required, fixes, cmd);
+        this.checkStatus('Node', nodeVersion, prerequisites.node, OptionalOrRequired.Required, fixes, logger);
       });
   }
 
-  private checkNpmVersion(prerequisites: SpfxVersionPrerequisites, fixes: string[], cmd: CommandInstance): Promise<void> {
+  private checkNpmVersion(prerequisites: SpfxVersionPrerequisites, fixes: string[], logger: Logger): Promise<void> {
     return this
       .getNpmVersion()
       .then((npmVersion: string): void => {
-        this.checkStatus('npm', npmVersion, prerequisites.npm, OptionalOrRequired.Required, fixes, cmd);
+        this.checkStatus('npm', npmVersion, prerequisites.npm, OptionalOrRequired.Required, fixes, logger);
       }, (error: string): Promise<void> => {
-        cmd.log(this.getStatus(CheckStatus.Failure, error));
+        logger.log(this.getStatus(CheckStatus.Failure, error));
         return Promise.reject(error);
       });
   }
 
-  private checkYo(fixes: string[], cmd: CommandInstance): Promise<void> {
+  private checkYo(fixes: string[], logger: Logger): Promise<void> {
     return this
-      .getPackageVersion('yo', PackageSearchMode.GlobalOnly, HandlePromise.Continue, cmd)
+      .getPackageVersion('yo', PackageSearchMode.GlobalOnly, HandlePromise.Continue, logger)
       .then((yoVersion: string): void => {
         if (yoVersion) {
-          cmd.log(this.getStatus(CheckStatus.Success, `yo v${yoVersion}`));
+          logger.log(this.getStatus(CheckStatus.Success, `yo v${yoVersion}`));
         }
         else {
-          cmd.log(this.getStatus(CheckStatus.Failure, `yo not found`));
+          logger.log(this.getStatus(CheckStatus.Failure, `yo not found`));
           fixes.push('npm i -g yo');
         }
       });
   }
 
-  private checkGulp(fixes: string[], cmd: CommandInstance): Promise<void> {
+  private checkGulp(fixes: string[], logger: Logger): Promise<void> {
     return this
-      .getPackageVersion('gulp', PackageSearchMode.GlobalOnly, HandlePromise.Continue, cmd)
+      .getPackageVersion('gulp', PackageSearchMode.GlobalOnly, HandlePromise.Continue, logger)
       .then((gulpVersion: string): void => {
         if (gulpVersion) {
-          cmd.log(this.getStatus(CheckStatus.Success, `gulp v${gulpVersion}`));
+          logger.log(this.getStatus(CheckStatus.Success, `gulp v${gulpVersion}`));
         }
         else {
-          cmd.log(this.getStatus(CheckStatus.Failure, `gulp not found`));
+          logger.log(this.getStatus(CheckStatus.Failure, `gulp not found`));
           fixes.push('npm i -g gulp');
         }
       });
   }
 
-  private checkReact(prerequisites: SpfxVersionPrerequisites, fixes: string[], cmd: CommandInstance): Promise<void> {
+  private checkReact(prerequisites: SpfxVersionPrerequisites, fixes: string[], logger: Logger): Promise<void> {
     return this
-      .getPackageVersion('react', PackageSearchMode.LocalOnly, HandlePromise.Continue, cmd)
+      .getPackageVersion('react', PackageSearchMode.LocalOnly, HandlePromise.Continue, logger)
       .then((reactVersion: string): void => {
-        this.checkStatus('react', reactVersion, prerequisites.react, OptionalOrRequired.Optional, fixes, cmd);
+        this.checkStatus('react', reactVersion, prerequisites.react, OptionalOrRequired.Optional, fixes, logger);
       });
   }
 
-  private checkTypeScript(fixes: string[], cmd: CommandInstance): Promise<void> {
+  private checkTypeScript(fixes: string[], logger: Logger): Promise<void> {
     return this
-      .getPackageVersion('typescript', PackageSearchMode.LocalOnly, HandlePromise.Continue, cmd)
+      .getPackageVersion('typescript', PackageSearchMode.LocalOnly, HandlePromise.Continue, logger)
       .then((typeScriptVersion: string): void => {
         if (typeScriptVersion) {
-          cmd.log(this.getStatus(CheckStatus.Failure, `typescript v${typeScriptVersion} installed in the project`));
+          logger.log(this.getStatus(CheckStatus.Failure, `typescript v${typeScriptVersion} installed in the project`));
           fixes.push('npm un typescript');
         }
         else {
-          cmd.log(this.getStatus(CheckStatus.Success, `bundled typescript used`));
+          logger.log(this.getStatus(CheckStatus.Success, `bundled typescript used`));
         }
       });
   }
@@ -485,34 +500,34 @@ class SpfxDoctorCommand extends AnonymousCommand {
     return (<any>SharePointVersion)[sp.toUpperCase()];
   }
 
-  private getSharePointFrameworkVersion(cmd: CommandInstance): Promise<string> {
+  private getSharePointFrameworkVersion(logger: Logger): Promise<string> {
     return new Promise<string>((resolve: (version: string) => void, reject: (error: string) => void): void => {
       if (this.debug) {
-        cmd.log('Detecting SharePoint Framework version based on @microsoft/sp-core-library local...');
+        logger.logToStderr('Detecting SharePoint Framework version based on @microsoft/sp-core-library local...');
       }
 
       this
-        .getPackageVersion('@microsoft/sp-core-library', PackageSearchMode.LocalOnly, HandlePromise.Fail, cmd)
+        .getPackageVersion('@microsoft/sp-core-library', PackageSearchMode.LocalOnly, HandlePromise.Fail, logger)
         .then((version: string): Promise<string> => {
           if (this.debug) {
-            cmd.log(`Found @microsoft/sp-core-library@${version}`);
+            logger.logToStderr(`Found @microsoft/sp-core-library@${version}`);
           }
 
           return Promise.resolve(version);
         })
         .catch((): Promise<string> => {
           if (this.debug) {
-            cmd.log(`@microsoft/sp-core-library not found. Search for @microsoft/generator-sharepoint local or global...`);
+            logger.logToStderr(`@microsoft/sp-core-library not found. Search for @microsoft/generator-sharepoint local or global...`);
           }
 
-          return this.getPackageVersion('@microsoft/generator-sharepoint', PackageSearchMode.LocalAndGlobal, HandlePromise.Fail, cmd);
+          return this.getPackageVersion('@microsoft/generator-sharepoint', PackageSearchMode.LocalAndGlobal, HandlePromise.Fail, logger);
         })
         .then((version: string): void => {
           resolve(version);
         })
         .catch((error?: string): void => {
           if (this.debug) {
-            cmd.log('@microsoft/generator-sharepoint not found');
+            logger.logToStderr('@microsoft/generator-sharepoint not found');
           }
 
           if (error && error.indexOf('ENOENT') > -1) {
@@ -525,7 +540,7 @@ class SpfxDoctorCommand extends AnonymousCommand {
     });
   }
 
-  private getPackageVersion(packageName: string, searchMode: PackageSearchMode, handlePromise: HandlePromise, cmd: CommandInstance): Promise<string> {
+  private getPackageVersion(packageName: string, searchMode: PackageSearchMode, handlePromise: HandlePromise, logger: Logger): Promise<string> {
     return new Promise<string>((resolve: (version: string) => void, reject: (err?: any) => void): void => {
       const args: string[] = ['ls', packageName, '--depth=0', '--json'];
       if (searchMode === PackageSearchMode.GlobalOnly) {
@@ -533,14 +548,14 @@ class SpfxDoctorCommand extends AnonymousCommand {
       }
 
       this
-        .getPackageVersionFromNpm(args, cmd)
+        .getPackageVersionFromNpm(args, logger)
         .then((version: string): Promise<string> => {
           return Promise.resolve(version);
         })
         .catch((): Promise<string> => {
           if (searchMode === PackageSearchMode.LocalAndGlobal) {
             args.push('-g');
-            return this.getPackageVersionFromNpm(args, cmd);
+            return this.getPackageVersionFromNpm(args, logger);
           }
           else {
             return Promise.resolve('');
@@ -565,15 +580,15 @@ class SpfxDoctorCommand extends AnonymousCommand {
     });
   }
 
-  private getPackageVersionFromNpm(args: string[], cmd: CommandInstance): Promise<string> {
+  private getPackageVersionFromNpm(args: string[], logger: Logger): Promise<string> {
     return new Promise<string>((resolve: (version: string) => void, reject: (error: string) => void): void => {
       const packageName: string = args[1];
 
       if (this.debug) {
-        cmd.log(`Executing npm: ${args.join(' ')}...`);
+        logger.logToStderr(`Executing npm: ${args.join(' ')}...`);
       }
 
-      child_process.execFile(/^win/.test(process.platform) ? 'npm.cmd' : 'npm', args, (err: child_process.ExecException | null, stdout: string, stderr: string): void => {
+      child_process.execFile(/^win/.test(process.platform) ? 'npm.logger' : 'npm', args, (err: child_process.ExecException | null, stdout: string, stderr: string): void => {
         if (err) {
           reject(err.message);
         }
@@ -608,7 +623,7 @@ class SpfxDoctorCommand extends AnonymousCommand {
 
   private getNpmVersion(): Promise<string> {
     return new Promise<string>((resolve: (version: string) => void, reject: (error: string) => void): void => {
-      child_process.execFile(/^win/.test(process.platform) ? 'npm.cmd' : 'npm', ['-v'], (err: child_process.ExecException | null, stdout: string, stderr: string): void => {
+      child_process.execFile(/^win/.test(process.platform) ? 'npm.logger' : 'npm', ['-v'], (err: child_process.ExecException | null, stdout: string, stderr: string): void => {
         if (err) {
           return reject('npm not found');
         }
@@ -618,21 +633,21 @@ class SpfxDoctorCommand extends AnonymousCommand {
     });
   }
 
-  private checkStatus(what: string, versionFound: string, versionCheck: VersionCheck, optionalOrRequired: OptionalOrRequired, fixes: string[], cmd: CommandInstance): void {
+  private checkStatus(what: string, versionFound: string, versionCheck: VersionCheck, optionalOrRequired: OptionalOrRequired, fixes: string[], logger: Logger): void {
     if (!versionFound) {
       // TODO: we might need this code in the future if SPFx introduces required
       // prerequisites with a specific version
       // if (optionalOrRequired === OptionalOrRequired.Required) {
-      //   cmd.log(this.getStatus(CheckStatus.Failure, `${what} not found, v${versionCheck.range} required`));
+      //   logger.log(this.getStatus(CheckStatus.Failure, `${what} not found, v${versionCheck.range} required`));
       //   fixes.push(versionCheck.fix);
       // }
     }
     else {
       if (satisfies(versionFound, versionCheck.range)) {
-        cmd.log(this.getStatus(CheckStatus.Success, `${what} v${versionFound}`));
+        logger.log(this.getStatus(CheckStatus.Success, `${what} v${versionFound}`));
       }
       else {
-        cmd.log(this.getStatus(CheckStatus.Failure, `${what} v${versionFound} found, v${versionCheck.range} required`));
+        logger.log(this.getStatus(CheckStatus.Failure, `${what} v${versionFound} found, v${versionCheck.range} required`));
         fixes.push(versionCheck.fix);
       }
     }
@@ -644,7 +659,7 @@ class SpfxDoctorCommand extends AnonymousCommand {
       process.env.TERM === 'xterm-256color';
     const success: string = primarySupported ? '✔' : '√';
     const failure: string = primarySupported ? '✖' : '×';
-    return `${result === CheckStatus.Success ? vorpal.chalk.green(success) : vorpal.chalk.red(failure)} ${message}`;
+    return `${result === CheckStatus.Success ? chalk.green(success) : chalk.red(failure)} ${message}`;
   }
 
   public options(): CommandOption[] {
@@ -666,65 +681,15 @@ class SpfxDoctorCommand extends AnonymousCommand {
     };
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (args.options.env) {
-        const sp: SharePointVersion | undefined = this.spVersionStringToEnum(args.options.env);
-        if (!sp) {
-          return `${args.options.env} is not a valid SharePoint version. Valid versions are sp2016, sp2019 or spo`;
-        }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.env) {
+      const sp: SharePointVersion | undefined = this.spVersionStringToEnum(args.options.env);
+      if (!sp) {
+        return `${args.options.env} is not a valid SharePoint version. Valid versions are sp2016, sp2019 or spo`;
       }
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.DOCTOR).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} checks ran by this command are based on what is officially
-    supported by Microsoft. It's possible that using different package managers
-    or packages versions will work just fine.
-      
-  Remarks:
-  
-    This commands helps you to verify if your environment meets all
-    prerequisites for building solutions using a particular version of the
-    SharePoint Framework.
-
-    The command starts by detecting the version of SharePoint Framework that
-    you want to use. First, it looks at the current project. If you didn't run
-    the command in the context of a SharePoint Framework project, the command
-    will try to determine the SharePoint Framework version based on the
-    SharePoint Framework Yeoman generator that you have installed either in the
-    current directory or globally.
-
-    Based on the determined version of the SharePoint Framework, the command
-    will look at other dependencies such as Node.js, npm, Yeoman, Gulp, React
-    and TypeScript to verify if their meet the requirements of that particular
-    version of the SharePoint Framework.
-
-    If you miss any required tools or use a version that doesn't meet the
-    SharePoint Framework requirements, the command will give you a list of
-    recommendation how to address these issues.
-
-    Next to verifying the readiness of your environment to use a particular
-    version of the SharePoint Framework, you can also check if the version
-    of the SharePoint Framework that you use is compatible with the specific
-    version of SharePoint. Supported versions are ${chalk.grey('sp2016')}, ${chalk.grey('sp2019')} and ${chalk.grey('spo')}.
-    
-  Examples:
-  
-    Verify if your environment meets the requirements to work with
-    the SharePoint Framework
-      ${this.getCommandName()}
-
-    Verify if your environment meets the requirements to work with
-    the SharePoint Framework and also if the version of the SharePoint Framework
-    that you're using is compatible with SharePoint 2019
-      ${this.getCommandName()} --env sp2019
-`);
+    return true;
   }
 }
 

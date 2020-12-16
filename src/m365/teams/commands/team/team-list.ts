@@ -1,13 +1,13 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption
+    CommandOption
 } from '../../../../Command';
-import { Team } from '../../Team';
-import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
+import commands from '../../commands';
+import { Team } from '../../Team';
 
 interface CommandArgs {
   options: Options;
@@ -32,18 +32,18 @@ class TeamsListCommand extends GraphItemsListCommand<Team> {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let endpoint: string = `${this.resource}/beta/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&$select=id,displayName,description`;
     if (args.options.joined) {
       endpoint = `${this.resource}/beta/me/joinedTeams`;
     }
     this
-      .getAllItems(endpoint, cmd, true)
+      .getAllItems(endpoint, logger, true)
       .then((): Promise<any> => {
         if (args.options.joined) {
           return Promise.resolve();
         } else {
-          return Promise.all(this.items.map(g => this.getTeamFromGroup(g, cmd)));
+          return Promise.all(this.items.map(g => this.getTeamFromGroup(g, logger)));
         }
       })
       .then((res?: Team[]): void => {
@@ -51,24 +51,24 @@ class TeamsListCommand extends GraphItemsListCommand<Team> {
           this.items = res;
         }
 
-        cmd.log(this.items);
+        logger.log(this.items);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
-  private getTeamFromGroup(group: { id: string, displayName: string, description: string }, cmd: CommandInstance): Promise<Team> {
+  private getTeamFromGroup(group: { id: string, displayName: string, description: string }, logger: Logger): Promise<Team> {
     return new Promise<Team>((resolve: (team: Team) => void, reject: (error: any) => void): void => {
       const requestOptions: any = {
         url: `${this.resource}/beta/teams/${group.id}`,
         headers: {
           accept: 'application/json;odata.metadata=none'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -107,24 +107,6 @@ class TeamsListCommand extends GraphItemsListCommand<Team> {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    You can only see the details or archived status of the Microsoft Teams
-    you are a member of.
-
-  Examples:
-  
-    List all Microsoft Teams in the tenant
-      ${this.name}
-
-    List all Microsoft Teams in the tenant you are a member of
-      ${this.name} --joined
-`);
   }
 }
 

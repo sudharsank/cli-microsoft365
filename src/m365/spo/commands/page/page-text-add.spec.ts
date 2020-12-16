@@ -1,18 +1,20 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./page-text-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError, CommandOption } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./page-text-add');
 
 describe(commands.PAGE_TEXT_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -24,23 +26,24 @@ describe(commands.PAGE_TEXT_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       request.get
     ]);
@@ -56,11 +59,11 @@ describe(commands.PAGE_TEXT_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.PAGE_TEXT_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.PAGE_TEXT_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('adds text to an empty modern page', (done) => {
@@ -132,14 +135,14 @@ describe(commands.PAGE_TEXT_ADD, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfilebyserverrelativeurl('/sites/team-a/SitePages/page.aspx')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body).indexOf(`&quot;,&quot;position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;1,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;\\"><div data-sp-rte=\\"\\"><p>Hello world</p></div></div></div>"}`) > -1) {
+        JSON.stringify(opts.data).indexOf(`&quot;,&quot;position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;1,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;\\"><div data-sp-rte=\\"\\"><p>Hello world</p></div></div></div>"}`) > -1) {
         return Promise.resolve({});
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -150,7 +153,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       () => {
         try {
-          assert(cmdInstanceLogSpy.notCalled);
+          assert(loggerLogSpy.notCalled);
           done();
         }
         catch (e) {
@@ -229,14 +232,14 @@ describe(commands.PAGE_TEXT_ADD, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`https://contoso.sharepoint.com/sites/team-a/_api/web/getfilebyserverrelativeurl('/sites/team-a/sitepages/page.aspx')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body).indexOf(`&quot;,&quot;position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;1,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;\\"><div data-sp-rte=\\"\\"><p>Hello world</p></div></div></div>"}`) > -1) {
+        JSON.stringify(opts.data).indexOf(`&quot;,&quot;position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;1,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;\\"><div data-sp-rte=\\"\\"><p>Hello world</p></div></div></div>"}`) > -1) {
         return Promise.resolve({});
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: true,
@@ -247,7 +250,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       () => {
         try {
-          assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+          assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
           done();
         }
         catch (e) {
@@ -326,14 +329,14 @@ describe(commands.PAGE_TEXT_ADD, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`https://contoso.sharepoint.com/_api/web/getfilebyserverrelativeurl('/sitepages/page.aspx')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body).indexOf(`&quot;,&quot;position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;1,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;\\"><div data-sp-rte=\\"\\"><p>Hello world</p></div></div></div>"}`) > -1) {
+        JSON.stringify(opts.data).indexOf(`&quot;,&quot;position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;1,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;\\"><div data-sp-rte=\\"\\"><p>Hello world</p></div></div></div>"}`) > -1) {
         return Promise.resolve({});
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: true,
@@ -344,7 +347,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       () => {
         try {
-          assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+          assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
           done();
         }
         catch (e) {
@@ -427,14 +430,14 @@ describe(commands.PAGE_TEXT_ADD, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfilebyserverrelativeurl('/sites/team-a/SitePages/page.aspx')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body).endsWith(`&quot;position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;2,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;"><div data-sp-rte=""><p>Hello world 2</p></div></div></div>`)) {
+        JSON.stringify(opts.data).endsWith(`&quot;position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;2,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;"><div data-sp-rte=""><p>Hello world 2</p></div></div></div>`)) {
         return Promise.resolve({});
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -445,7 +448,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       () => {
         try {
-          assert(cmdInstanceLogSpy.notCalled);
+          assert(loggerLogSpy.notCalled);
           done();
         }
         catch (e) {
@@ -528,14 +531,14 @@ describe(commands.PAGE_TEXT_ADD, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfilebyserverrelativeurl('/sites/team-a/SitePages/page.aspx')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body).endsWith(`position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;3,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;"><div data-sp-rte=""><p>Hello world 2</p></div></div></div>`)) {
+        JSON.stringify(opts.data).endsWith(`position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;3,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;"><div data-sp-rte=""><p>Hello world 2</p></div></div></div>`)) {
         return Promise.resolve({});
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -547,7 +550,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       () => {
         try {
-          assert(cmdInstanceLogSpy.notCalled);
+          assert(loggerLogSpy.notCalled);
           done();
         }
         catch (e) {
@@ -630,14 +633,14 @@ describe(commands.PAGE_TEXT_ADD, () => {
 
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfilebyserverrelativeurl('/sites/team-a/SitePages/page.aspx')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body).endsWith(`position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;1,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;\"><div data-sp-rte=\"\"><p>Hello world</p></div></div></div>`)) {
+        JSON.stringify(opts.data).endsWith(`position&quot;&#58;&#123;&quot;controlIndex&quot;&#58;1,&quot;sectionFactor&quot;&#58;12,&quot;sectionIndex&quot;&#58;1,&quot;zoneIndex&quot;&#58;1&#125;&#125;\"><div data-sp-rte=\"\"><p>Hello world</p></div></div></div>`)) {
         return Promise.resolve({});
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -648,7 +651,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       () => {
         try {
-          assert(cmdInstanceLogSpy.notCalled);
+          assert(loggerLogSpy.notCalled);
           done();
         }
         catch (e) {
@@ -667,7 +670,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -678,7 +681,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       (err?: any) => {
         try {
-          assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('The file /sites/team-a/SitePages/foo.aspx does not exist')));
+          assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('The file /sites/team-a/SitePages/foo.aspx does not exist')));
           done();
         } catch (e) {
           done(e);
@@ -758,7 +761,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       return Promise.reject({ error: { 'odata.error': { message: { value: 'An error has occurred' } } } });
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -769,7 +772,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       (err?: any) => {
         try {
-          assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+          assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
           done();
         } catch (e) {
           done(e);
@@ -837,7 +840,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -848,7 +851,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       (err?: any) => {
         try {
-          assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Page page.aspx is not a modern page.`)));
+          assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Page page.aspx is not a modern page.`)));
           done();
         } catch (e) {
           done(e);
@@ -924,7 +927,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -936,7 +939,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       (err?: any) => {
         try {
-          assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("Invalid section '8'")));
+          assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("Invalid section '8'")));
           done();
         } catch (e) {
           done(e);
@@ -1012,7 +1015,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -1025,7 +1028,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       (err?: any) => {
         try {
-          assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("Invalid column '7'")));
+          assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("Invalid column '7'")));
           done();
         } catch (e) {
           done(e);
@@ -1101,7 +1104,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action(
+    command.action(logger, 
       {
         options: {
           debug: false,
@@ -1114,7 +1117,7 @@ describe(commands.PAGE_TEXT_ADD, () => {
       },
       (err?: any) => {
         try {
-          assert.equal(JSON.stringify(new CommandError("Unexpected end of JSON input")), JSON.stringify(err));
+          assert.strictEqual(JSON.stringify(new CommandError("Unexpected end of JSON input")), JSON.stringify(err));
           done();
         } catch (e) {
           done(e);
@@ -1200,69 +1203,48 @@ describe(commands.PAGE_TEXT_ADD, () => {
     assert(containsOption);
   });
 
-  it('fails validation if page name not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: { webUrl: 'https://contoso.sharepoint.com', text: 'Hello world' }
-    });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if webUrl not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: { pageName: 'page.aspx', text: 'Hello world' }
-    });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if webUrl is not an absolute URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: { pageName: 'page.aspx', webUrl: 'foo', text: 'Hello world' }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if webUrl is not a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         pageName: 'page.aspx',
         webUrl: 'http://foo',
         text: 'Hello world'
       }
     });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the text parameter is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: { pageName: 'page.aspx', webUrl: 'https://contoso.sharepoint.com' }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when name and webUrl specified, webUrl is a valid SharePoint URL and text is specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         pageName: 'page.aspx',
         webUrl: 'https://contoso.sharepoint.com',
         text: 'Hello world'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when name has no extension', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         pageName: 'page',
         webUrl: 'https://contoso.sharepoint.com',
         text: 'Hello world'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if section has invalid (negative) value', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         pageName: 'page.aspx',
         webUrl: 'https://contoso.sharepoint.com',
@@ -1270,11 +1252,11 @@ describe(commands.PAGE_TEXT_ADD, () => {
         section: -1
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if section has invalid (non number) value', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         pageName: 'page.aspx',
         webUrl: 'https://contoso.sharepoint.com',
@@ -1282,11 +1264,11 @@ describe(commands.PAGE_TEXT_ADD, () => {
         section: 'foobar'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if column has invalid (negative) value', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         pageName: 'page.aspx',
         webUrl: 'https://contoso.sharepoint.com',
@@ -1294,11 +1276,11 @@ describe(commands.PAGE_TEXT_ADD, () => {
         column: -1
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if column has invalid (non number) value', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         pageName: 'page.aspx',
         webUrl: 'https://contoso.sharepoint.com',
@@ -1306,40 +1288,6 @@ describe(commands.PAGE_TEXT_ADD, () => {
         column: 'foobar'
       }
     });
-    assert.notEqual(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.PAGE_TEXT_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach((l) => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.notStrictEqual(actual, true);
   });
 });

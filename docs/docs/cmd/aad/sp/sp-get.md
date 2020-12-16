@@ -5,21 +5,21 @@ Gets information about the specific service principal
 ## Usage
 
 ```sh
-aad sp get [options]
+m365 aad sp get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --appId [appId]`|ID of the application for which the service principal should be retrieved
-`-n, --displayName [displayName]`|Display name of the application for which the service principal should be retrieved
-`--objectId [objectId]`|ObjectId of the application for which the service principal should be retrieved
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --appId [appId]`
+: ID of the application for which the service principal should be retrieved
+
+`-n, --displayName [displayName]`
+: Display name of the application for which the service principal should be retrieved
+
+`--objectId [objectId]`
+: ObjectId of the application for which the service principal should be retrieved
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,19 +30,19 @@ Specify either the `appId`, `objectId` or `displayName`. If you specify more tha
 Return details about the service principal with appId _b2307a39-e878-458b-bc90-03bc578531d6_.
 
 ```sh
-aad sp get --appId b2307a39-e878-458b-bc90-03bc578531d6
+m365 aad sp get --appId b2307a39-e878-458b-bc90-03bc578531d6
 ```
 
 Return details about the _Microsoft Graph_ service principal.
 
 ```sh
-aad sp get --displayName "Microsoft Graph"
+m365 aad sp get --displayName "Microsoft Graph"
 ```
 
 Return details about the service principal with ObjectId _b2307a39-e878-458b-bc90-03bc578531dd_.
 
 ```sh
-aad sp get --objectId b2307a39-e878-458b-bc90-03bc578531dd
+m365 aad sp get --objectId b2307a39-e878-458b-bc90-03bc578531dd
 ```
 
 ## More information

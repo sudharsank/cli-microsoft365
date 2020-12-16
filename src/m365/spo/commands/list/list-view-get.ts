@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -42,7 +40,7 @@ class SpoListViewGetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const baseRestUrl: string = `${args.options.webUrl}/_api/web`;
     let listRestUrl: string = '';
 
@@ -65,15 +63,15 @@ class SpoListViewGetCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get(requestOptions)
       .then((result: any): void => {
-        cmd.log(result);
+        logger.log(result);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -108,61 +106,35 @@ class SpoListViewGetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (!args.options.listId && !args.options.listTitle && !args.options.listUrl) {
+      return `Specify listId, listTitle or listUrl`;
+    }
 
-      if (!args.options.listId && !args.options.listTitle && !args.options.listUrl) {
-        return `Specify listId, listTitle or listUrl`;
-      }
+    if (args.options.listId &&
+      !Utils.isValidGuid(args.options.listId)) {
+      return `${args.options.listId} in option listId is not a valid GUID`;
+    }
 
-      if (args.options.listId &&
-        !Utils.isValidGuid(args.options.listId)) {
-        return `${args.options.listId} in option listId is not a valid GUID`;
-      }
+    if (!args.options.viewId && !args.options.viewTitle) {
+      return `Specify viewId or viewTitle`;
+    }
 
-      if (!args.options.viewId && !args.options.viewTitle) {
-        return `Specify viewId or viewTitle`;
-      }
+    if (args.options.viewId && args.options.viewTitle) {
+      return `Specify viewId or viewTitle but not both`;
+    }
 
-      if (args.options.viewId && args.options.viewTitle) {
-        return `Specify viewId or viewTitle but not both`;
-      }
+    if (args.options.viewId &&
+      !Utils.isValidGuid(args.options.viewId)) {
+      return `${args.options.viewId} in option viewId is not a valid GUID`;
+    }
 
-      if (args.options.viewId &&
-        !Utils.isValidGuid(args.options.viewId)) {
-        return `${args.options.viewId} in option viewId is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-
-    Gets a list view by name from a list located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_VIEW_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --listTitle 'My List' --viewTitle 'All Items'
-
-    Gets a list view by ID from a list located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_VIEW_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --listUrl 'Lists/My List' --viewId 330f29c5-5c4c-465f-9f4b-7903020ae1ce
-
-    Gets a list view by name from a list located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}. Retrieve the list by its ID
-      ${commands.LIST_VIEW_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --listId 330f29c5-5c4c-465f-9f4b-7903020ae1c1 --viewTitle 'All Items'
-   `);
+    return true;
   }
 }
 

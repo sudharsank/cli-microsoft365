@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./group-list');
-import * as assert from 'assert';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import auth from '../../../../Auth';
+import commands from '../../commands';
+const command: Command = require('./group-list');
 
 describe(commands.GROUP_LIST, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
     sinon.stub(appInsights, 'trackEvent').callsFake(() => { });
@@ -20,23 +20,23 @@ describe(commands.GROUP_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -50,59 +50,18 @@ describe(commands.GROUP_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.GROUP_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.GROUP_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
-  it('Lists all the groups within specific web with output option json', (done) => {
-    sinon.stub(request, 'get').callsFake((opts) => {
-      if ((opts.url as string).indexOf('/_api/web/sitegroups') > -1) {
-        return Promise.resolve(
-          {
-            "value": [{
-              "Id": 15,
-              "Title": "Contoso Members",
-              "LoginName": "Contoso Members",
-              "Description": "SharePoint Contoso",
-              "IsHiddenInUI": false,
-              "PrincipalType": 8
-            }]
-          }
-        );
-      }
-      return Promise.reject('Invalid request');
-    });
-
-    cmdInstance.action({
-      options: {
-        output: 'json',
-        debug: true,
-        webUrl: 'https://contoso.sharepoint.com'
-      }
-    }, () => {
-      try {
-        assert(cmdInstanceLogSpy.calledWith({
-          value: [{
-            Id: 15,
-            Title: "Contoso Members",
-            LoginName: "Contoso Members",
-            Description: "SharePoint Contoso",
-            IsHiddenInUI: false,
-            PrincipalType: 8
-          }]
-        }));
-        done();
-      }
-      catch (e) {
-        done(e);
-      }
-    });
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['Id', 'Title', 'LoginName', 'IsHiddenInUI', 'PrincipalType']);
   });
-
-  it('retrieves all groups with output option text', (done) => {
+  
+  it('retrieves all groups with', (done) => {
     sinon.stub(request, 'get').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_api/web/sitegroups') > -1) {
         return Promise.resolve(
@@ -123,23 +82,23 @@ describe(commands.GROUP_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
-        output: 'text',
         debug: false,
         webUrl: 'https://contoso.sharepoint.com'
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(
-          [{
+        assert(loggerLogSpy.calledWith({
+          value: [{
             Id: 15,
             Title: "Contoso Members",
             LoginName: "Contoso Members",
+            "Description": "SharePoint Contoso",
             IsHiddenInUI: false,
             PrincipalType: 8
           }]
-        ));
+        }));
         done();
       }
       catch (e) {
@@ -158,14 +117,14 @@ describe(commands.GROUP_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
@@ -175,7 +134,7 @@ describe(commands.GROUP_LIST, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -185,53 +144,14 @@ describe(commands.GROUP_LIST, () => {
     assert(containsTypeOption);
   });
 
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
 
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation url is valid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.GROUP_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.strictEqual(actual, true);
   });
 }); 

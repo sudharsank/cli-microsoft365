@@ -1,13 +1,13 @@
-import request from '../../../../request';
+import * as chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
-import Utils from '../../../../Utils';
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandValidate } from '../../../../Command';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -27,12 +27,12 @@ class TeamsAppUpdateCommand extends GraphCommand {
     return 'Updates Teams app in the organization\'s app catalog';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const { id: appId, filePath } = args.options;
 
     const fullPath: string = path.resolve(filePath);
     if (this.verbose) {
-      cmd.log(`Updating app with id '${appId}' and file '${fullPath}' in the app catalog...`);
+      logger.logToStderr(`Updating app with id '${appId}' and file '${fullPath}' in the app catalog...`);
     }
 
     const requestOptions: any = {
@@ -40,18 +40,18 @@ class TeamsAppUpdateCommand extends GraphCommand {
       headers: {
         "content-type": "application/zip"
       },
-      body: fs.readFileSync(fullPath)
+      data: fs.readFileSync(fullPath)
     };
 
     request
       .put(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (res: any): void => this.handleRejectedODataJsonPromise(res, cmd, cb));
+      }, (res: any): void => this.handleRejectedODataJsonPromise(res, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -70,48 +70,22 @@ class TeamsAppUpdateCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Missing required option id';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
+    const fullPath: string = path.resolve(args.options.filePath);
 
-      if (!args.options.filePath) {
-        return 'Missing required option filePath';
-      }
+    if (!fs.existsSync(fullPath)) {
+      return `File '${fullPath}' not found`;
+    }
 
-      const fullPath: string = path.resolve(args.options.filePath);
+    if (fs.lstatSync(fullPath).isDirectory()) {
+      return `Path '${fullPath}' points to a directory`;
+    }
 
-      if (!fs.existsSync(fullPath)) {
-        return `File '${fullPath}' not found`;
-      }
-
-      if (fs.lstatSync(fullPath).isDirectory()) {
-        return `Path '${fullPath}' points to a directory`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    You can only update a Teams app as a global administrator.
-
-  Examples:
-
-    Update the Teams app with ID ${chalk.grey('83cece1e-938d-44a1-8b86-918cf6151957')}
-    from file ${chalk.grey('teams-manifest.zip')}
-      ${this.name} --id 83cece1e-938d-44a1-8b86-918cf6151957 --filePath ./teams-manifest.zip
-`);
+    return true;
   }
 }
 

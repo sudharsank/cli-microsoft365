@@ -5,18 +5,12 @@ Gets the context URL for the root SharePoint site collection and SharePoint tena
 ## Usage
 
 ```sh
-spo get [options]
+m365 spo get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -27,5 +21,5 @@ CLI for Microsoft 365 automatically discovers the URL of the root SharePoint sit
 Get the context URL for the root SharePoint site collection and SharePoint tenant admin site
 
 ```sh
-spo get --output json
+m365 spo get --output json
 ```

@@ -1,14 +1,14 @@
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import {
+    CommandError
+} from '../../../../Command';
 import config from '../../../../config';
 import request from '../../../../request';
-import commands from '../../commands';
-import {
-  CommandError
-} from '../../../../Command';
 import SpoCommand from '../../../base/SpoCommand';
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 import { SPOWebAppServicePrincipalPermissionGrant } from './SPOWebAppServicePrincipalPermissionGrant';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 class SpoServicePrincipalGrantListCommand extends SpoCommand {
   public get name(): string {
@@ -23,15 +23,15 @@ class SpoServicePrincipalGrantListCommand extends SpoCommand {
     return [commands.SP_GRANT_LIST];
   }
 
-  public commandAction(cmd: CommandInstance, args: {}, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: {}, cb: (err?: any) => void): void {
     let spoAdminUrl: string = '';
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
 
         if (this.verbose) {
-          cmd.log(`Retrieving request digest...`);
+          logger.logToStderr(`Retrieving request digest...`);
         }
 
         return this.getRequestDigest(spoAdminUrl);
@@ -42,7 +42,7 @@ class SpoServicePrincipalGrantListCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectPath Id="6" ObjectPathId="5" /><Query Id="7" ObjectPathId="5"><Query SelectAllProperties="true"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties /></ChildItemQuery></Query></Actions><ObjectPaths><Constructor Id="3" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="5" ParentId="3" Name="PermissionGrants" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectPath Id="6" ObjectPathId="5" /><Query Id="7" ObjectPathId="5"><Query SelectAllProperties="true"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties /></ChildItemQuery></Query></Actions><ObjectPaths><Constructor Id="3" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="5" ParentId="3" Name="PermissionGrants" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -56,7 +56,7 @@ class SpoServicePrincipalGrantListCommand extends SpoCommand {
         }
         else {
           const result: SPOWebAppServicePrincipalPermissionGrant[] = json[json.length - 1]._Child_Items_;
-          cmd.log(result.map(r => {
+          logger.log(result.map(r => {
             delete r._ObjectType_;
             delete r.ClientId;
             delete r.ConsentType;
@@ -64,25 +64,11 @@ class SpoServicePrincipalGrantListCommand extends SpoCommand {
           }));
 
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.SERVICEPRINCIPAL_GRANT_LIST).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-        
-  Examples:
-  
-    List all permissions granted to the service principal
-      ${commands.SERVICEPRINCIPAL_GRANT_LIST}
-`);
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 }
 

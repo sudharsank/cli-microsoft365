@@ -1,14 +1,11 @@
-import commands from '../commands';
-import GlobalOptions from '../../../GlobalOptions';
+import { Logger } from '../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+    CommandOption
 } from '../../../Command';
+import GlobalOptions from '../../../GlobalOptions';
 import request from '../../../request';
 import AzmgmtCommand from '../../base/AzmgmtCommand';
-import * as os from 'os';
-
-const vorpal: Vorpal = require('../../../vorpal-init');
+import commands from '../commands';
 
 interface CommandArgs {
   options: Options;
@@ -29,9 +26,13 @@ class FlowGetCommand extends AzmgmtCommand {
     return 'Gets information about the specified Microsoft Flow';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['name', 'displayName', 'description', 'triggers', 'actions'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving information about Microsoft Flow ${args.options.name}...`);
+      logger.logToStderr(`Retrieving information about Microsoft Flow ${args.options.name}...`);
     }
 
     const requestOptions: any = {
@@ -39,28 +40,20 @@ class FlowGetCommand extends AzmgmtCommand {
       headers: {
         accept: 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get(requestOptions)
       .then((res: any): void => {
-        if (args.options.output === 'json') {
-          cmd.log(res);
-        }
-        else {
-          const summary: any = {
-            name: res.name,
-            displayName: res.properties.displayName,
-            description: res.properties.definitionSummary.description || '',
-            triggers: Object.keys(res.properties.definition.triggers).join(', '),
-            actions: Object.keys(res.properties.definition.actions).join(', ')
-          };
-          cmd.log(summary);
-        }
+        res.displayName = res.properties.displayName;
+        res.description = res.properties.definitionSummary.description || '';
+        res.triggers = Object.keys(res.properties.definition.triggers).join(', ');
+        res.actions = Object.keys(res.properties.definition.actions).join(', ');
 
+        logger.log(res);
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -81,54 +74,6 @@ class FlowGetCommand extends AzmgmtCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required option name missing';
-      }
-
-      if (!args.options.environment) {
-        return 'Required option environment missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.FLOW_GET).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-  
-    By default, the command will try to retrieve Microsoft Flows you own.
-    If you want to retrieve Flow owned by another user, use the ${chalk.blue('asAdmin')}
-    flag.
-
-    If the environment with the name you specified doesn't exist, you will get
-    the ${chalk.grey('Access to the environment \'xyz\' is denied.')} error.
-
-    If the Microsoft Flow with the name you specified doesn't exist, you will
-    get the ${chalk.grey(`The caller with object id \'abc\' does not have permission${os.EOL}` +
-        '    for connection \'xyz\' under Api \'shared_logicflows\'.')} error.
-    If you try to retrieve a non-existing flow as admin, you will get the
-    ${chalk.grey('Could not find flow \'xyz\'.')} error.
-   
-  Examples:
-  
-    Get information about the specified Microsoft Flow owned by the currently
-    signed-in user
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --name 3989cb59-ce1a-4a5c-bb78-257c5c39381d
-
-    Get information about the specified Microsoft Flow owned by another user
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --name 3989cb59-ce1a-4a5c-bb78-257c5c39381d --asAdmin
-`);
   }
 }
 

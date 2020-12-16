@@ -5,19 +5,15 @@ Requests reindexing the specified subsite
 ## Usage
 
 ```sh
-spo web reindex [options]
+m365 spo web reindex [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|URL of the subsite to reindex
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: URL of the subsite to reindex
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -28,5 +24,5 @@ If the subsite to be reindexed is a no-script site, the command will request rei
 Request reindexing the subsite _https://contoso.sharepoint.com/subsite_
 
 ```sh
-spo web reindex --webUrl https://contoso.sharepoint.com/subsite
+m365 spo web reindex --webUrl https://contoso.sharepoint.com/subsite
 ```

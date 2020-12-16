@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN012009_TSC_lib_es2015_collection } from './FN012009_TSC_lib_es2015_collection';
 
 describe('FN012009_TSC_lib_es2015_collection', () => {
@@ -22,7 +22,7 @@ describe('FN012009_TSC_lib_es2015_collection', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if tsconfig is not available', () => {
@@ -30,6 +30,6 @@ describe('FN012009_TSC_lib_es2015_collection', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

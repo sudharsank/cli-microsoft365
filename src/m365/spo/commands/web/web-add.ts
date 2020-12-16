@@ -1,16 +1,15 @@
-import config from '../../../../config';
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate,
-  CommandError
+  CommandError, CommandOption
 } from '../../../../Command';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-import { PermissionKind, BasePermissions } from '../../base-permissions';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { BasePermissions, PermissionKind } from '../../base-permissions';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -48,7 +47,7 @@ class SpoWebAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let siteInfo: any = null;
     let subsiteFullUrl: string = '';
 
@@ -62,8 +61,8 @@ class SpoWebAddCommand extends SpoCommand {
             accept: 'application/json;odata=nometadata',
             'X-RequestDigest': res.FormDigestValue
           },
-          json: true,
-          body: {
+          responseType: 'json',
+          data: {
             parameters: {
               Url: args.options.webUrl,
               Title: args.options.title,
@@ -76,7 +75,7 @@ class SpoWebAddCommand extends SpoCommand {
         };
 
         if (this.verbose) {
-          cmd.log(`Creating subsite ${args.options.parentWebUrl}/${args.options.webUrl}...`);
+          logger.logToStderr(`Creating subsite ${args.options.parentWebUrl}/${args.options.webUrl}...`);
         }
 
         return request.post(requestOptions)
@@ -89,7 +88,7 @@ class SpoWebAddCommand extends SpoCommand {
         }
 
         if (this.verbose) {
-          cmd.log("Setting inheriting navigation from the parent site...");
+          logger.logToStderr("Setting inheriting navigation from the parent site...");
         }
 
         subsiteFullUrl = `${args.options.parentWebUrl}/${encodeURIComponent(args.options.webUrl)}`;
@@ -99,7 +98,7 @@ class SpoWebAddCommand extends SpoCommand {
           headers: {
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
@@ -116,7 +115,7 @@ class SpoWebAddCommand extends SpoCommand {
         /// for the effects of NoScript
         if (!permissions.has(PermissionKind.AddAndCustomizePages)) {
           if (this.verbose) {
-            cmd.log("No script is enabled. Skipping the InheritParentNavigation settings.");
+            logger.logToStderr("No script is enabled. Skipping the InheritParentNavigation settings.");
           }
 
           return Promise.reject(SpoWebAddCommand.DONE);
@@ -130,7 +129,7 @@ class SpoWebAddCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}"><Actions><ObjectPath Id="1" ObjectPathId="0" /><ObjectPath Id="3" ObjectPathId="2" /><ObjectPath Id="5" ObjectPathId="4" /><SetProperty Id="6" ObjectPathId="4" Name="UseShared"><Parameter Type="Boolean">true</Parameter></SetProperty></Actions><ObjectPaths><StaticProperty Id="0" TypeId="{3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a}" Name="Current" /><Property Id="2" ParentId="0" Name="Web" /><Property Id="4" ParentId="2" Name="Navigation" /></ObjectPaths></Request>`
+          data: `<Request xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}"><Actions><ObjectPath Id="1" ObjectPathId="0" /><ObjectPath Id="3" ObjectPathId="2" /><ObjectPath Id="5" ObjectPathId="4" /><SetProperty Id="6" ObjectPathId="4" Name="UseShared"><Parameter Type="Boolean">true</Parameter></SetProperty></Actions><ObjectPaths><StaticProperty Id="0" TypeId="{3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a}" Name="Current" /><Property Id="2" ParentId="0" Name="Web" /><Property Id="4" ParentId="2" Name="Navigation" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions)
@@ -143,19 +142,19 @@ class SpoWebAddCommand extends SpoCommand {
           return;
         }
         else {
-          cmd.log(siteInfo);
+          logger.log(siteInfo);
 
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
         }
         cb();
       }, (err: any): void => {
         if (err === SpoWebAddCommand.DONE) {
-          cmd.log(siteInfo);
+          logger.log(siteInfo);
 
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
@@ -168,7 +167,7 @@ class SpoWebAddCommand extends SpoCommand {
           cb(new CommandError(err.error['odata.error'].message.value));
         }
         else {
-          this.handleRejectedPromise(err, cmd, cb);
+          this.handleRejectedPromise(err, logger, cb);
         }
       });
   }
@@ -213,57 +212,20 @@ class SpoWebAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.parentWebUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      if (!args.options.title) {
-        return 'Required option title missing';
+    if (args.options.locale) {
+      const locale: number = parseInt(args.options.locale);
+      if (isNaN(locale)) {
+        return `${args.options.locale} is not a valid locale number`;
       }
+    }
 
-      if (!args.options.webUrl) {
-        return 'Required option webUrl missing';
-      }
-
-      if (!args.options.webTemplate) {
-        return 'Required option webTemplate missing';
-      }
-
-      if (!args.options.parentWebUrl) {
-        return 'Required option parentWebUrl missing';
-      }
-      else {
-        const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.parentWebUrl);
-        if (isValidSharePointUrl !== true) {
-          return isValidSharePointUrl;
-        }
-      }
-
-      if (args.options.locale) {
-        const locale: number = parseInt(args.options.locale);
-        if (isNaN(locale)) {
-          return `${args.options.locale} is not a valid locale number`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-    
-      Create subsite using the ${chalk.grey('Team site')} template in the ${chalk.grey('en-US')} locale
-        ${commands.WEB_ADD} --title Subsite --description Subsite --webUrl subsite --webTemplate STS#0 --parentWebUrl https://contoso.sharepoint.com --locale 1033
-
-      Create subsite with unique permissions using the default ${chalk.grey('en-US')} locale
-        ${commands.WEB_ADD} --title Subsite --webUrl subsite --webTemplate STS#0 --parentWebUrl https://contoso.sharepoint.com --breakInheritance
-
-      Create subsite with the same navigation as the parent site
-        ${commands.WEB_ADD} --title Subsite --webUrl subsite --webTemplate STS#0 --parentWebUrl https://contoso.sharepoint.com --inheritNavigation
-  ` );
+    return true;
   }
 }
 

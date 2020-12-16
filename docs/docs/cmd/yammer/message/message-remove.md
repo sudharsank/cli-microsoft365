@@ -5,20 +5,18 @@ Removes a Yammer message
 ## Usage
 
 ```sh
-yammer message remove [options]
+m365 yammer message remove [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--id <id>`|The id of the Yammer message
-`--confirm`|Don't prompt for confirming removing the Yammer message
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--id <id>`
+: The id of the Yammer message
+
+`--confirm`
+: Don't prompt for confirming removing the Yammer message
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -36,11 +34,11 @@ To remove a message, you must either:
 Removes the Yammer message with the id _1239871123_
 
 ```sh
-yammer message remove --id 1239871123
+m365 yammer message remove --id 1239871123
 ```
 
 Removes the Yammer message with the id _1239871123_ without prompting for confirmation.
 
 ```sh
-yammer message remove --id 1239871123 --confirm
+m365 yammer message remove --id 1239871123 --confirm
 ```

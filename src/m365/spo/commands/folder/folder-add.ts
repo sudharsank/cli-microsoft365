@@ -1,15 +1,13 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { FolderProperties } from './FolderProperties';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -30,9 +28,9 @@ class SpoFolderAddCommand extends SpoCommand {
     return 'Creates a folder within a parent folder';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Adding folder to site ${args.options.webUrl}...`);
+      logger.logToStderr(`Adding folder to site ${args.options.webUrl}...`);
     }
 
     const parentFolderServerRelativeUrl: string = Utils.getServerRelativePath(args.options.webUrl, args.options.parentFolderUrl);
@@ -43,18 +41,18 @@ class SpoFolderAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata',
       },
-      body: {
+      data: {
         'ServerRelativeUrl': serverRelativeUrl
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .post<FolderProperties>(requestOptions)
       .then((folder: FolderProperties): void => {
-        cmd.log(folder);
+        logger.log(folder);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -77,39 +75,8 @@ class SpoFolderAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      if (!args.options.parentFolderUrl) {
-        return 'Required parameter parentFolderUrl missing';
-      }
-
-      if (!args.options.name) {
-        return 'Required parameter name missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Creates folder in a parent folder with site relative url ${chalk.grey('/Shared Documents')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FOLDER_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --parentFolderUrl '/Shared Documents' --name 'My Folder Name'
-    `);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

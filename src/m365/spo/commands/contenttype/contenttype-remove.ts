@@ -1,12 +1,10 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import {
-  CommandOption, CommandValidate, CommandTypes, CommandError
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
+import { CommandError, CommandOption, CommandTypes } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -42,7 +40,7 @@ class SpoContentTypeRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let contentTypeId: string = '';
 
     const contentTypeIdentifierLabel: string = args.options.id ?
@@ -52,7 +50,7 @@ class SpoContentTypeRemoveCommand extends SpoCommand {
     const removeContentType = (): void => {
       ((): Promise<any> => {
         if (this.debug) {
-          cmd.log(`Retrieving information about the content type ${contentTypeIdentifierLabel}...`);
+          logger.logToStderr(`Retrieving information about the content type ${contentTypeIdentifierLabel}...`);
         }
 
         if (args.options.id) {
@@ -60,7 +58,7 @@ class SpoContentTypeRemoveCommand extends SpoCommand {
         }
 
         if (this.verbose) {
-          cmd.log(`Looking up the ID of content type ${contentTypeIdentifierLabel}...`);
+          logger.logToStderr(`Looking up the ID of content type ${contentTypeIdentifierLabel}...`);
         }
 
         const requestOptions: any = {
@@ -68,7 +66,7 @@ class SpoContentTypeRemoveCommand extends SpoCommand {
           headers: {
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
@@ -87,7 +85,7 @@ class SpoContentTypeRemoveCommand extends SpoCommand {
                 'If-Match': '*',
                 'accept': 'application/json;odata=nometadata'
               },
-              json: true
+              responseType: 'json'
             };
 
             return request.post(requestOptions);
@@ -103,13 +101,13 @@ class SpoContentTypeRemoveCommand extends SpoCommand {
           }
           else {
             if (this.verbose) {
-              cmd.log(vorpal.chalk.green('DONE'));
+              logger.logToStderr(chalk.green('DONE'));
             }
           }
 
           cb();
         }, (err: any): void => {
-          this.handleRejectedODataJsonPromise(err, cmd, cb);
+          this.handleRejectedODataJsonPromise(err, logger, cb);
         });
     }
 
@@ -117,7 +115,7 @@ class SpoContentTypeRemoveCommand extends SpoCommand {
       removeContentType();
     }
     else {
-      cmd.prompt({ type: 'confirm', name: 'continue', default: false, message: `Are you sure you want to remove the content type ${args.options.id || args.options.name}?` }, (result: { continue: boolean }): void => {
+      Cli.prompt({ type: 'confirm', name: 'continue', default: false, message: `Are you sure you want to remove the content type ${args.options.id || args.options.name}?` }, (result: { continue: boolean }): void => {
         if (!result.continue) {
           cb();
         }
@@ -152,56 +150,21 @@ class SpoContentTypeRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (!args.options.id && !args.options.name) {
+      return 'Specify either the id or the name';
+    }
 
-      if (!args.options.id && !args.options.name) {
-        return 'Specify either the id or the name';
-      }
+    if (args.options.id && args.options.name) {
+      return 'Specify either the id or the name but not both';
+    }
 
-      if (args.options.id && args.options.name) {
-        return 'Specify either the id or the name but not both';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified content type is in use by a list and cannot be removed, 
-    you will be returned the error:
-    ${chalk.grey('Another site or list is still using this content type.')}
-    SharePoint will not allow a content type to be removed unless any 
-    dependent objects are also emptied from the recycle bin including 
-    the second-stage recycle bin.
-
-    The content type you wish to remove can be selected by the ID or Name 
-    of the content type. Either ID or Name parameter must be specified.
-
-  Examples:
-  
-    Remove a site content type by ID
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/contoso-sales --id 0x01007926A45D687BA842B947286090B8F67D
-    
-    Remove a site content type by Name
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/contoso-sales --name 'My Content Type'
-
-    Remove a site content type without prompting for confirmation
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/contoso-sales --name 'My Content Type' --confirm
-    `);
+    return true;
   }
 }
 

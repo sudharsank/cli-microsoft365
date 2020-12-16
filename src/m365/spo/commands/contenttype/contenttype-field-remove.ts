@@ -1,12 +1,13 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
+import { CommandError, CommandOption, CommandTypes } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandTypes, CommandValidate, CommandError } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
-const vorpal: Vorpal = require('../../../../vorpal-init');
 interface CommandArgs {
   options: Options;
 }
@@ -43,14 +44,14 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let webId: string = '';
     let siteId: string = '';
     let listId: string = '';
 
     const removeFieldLink = (): void => {
       if (this.debug) {
-        cmd.log(`Get SiteId required by ProcessQuery endpoint.`);
+        logger.logToStderr(`Get SiteId required by ProcessQuery endpoint.`);
       }
 
       // GET SiteId
@@ -59,7 +60,7 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
         headers: {
           accept: 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       }
 
       request
@@ -68,8 +69,8 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
           siteId = res.Id;
 
           if (this.debug) {
-            cmd.log(`SiteId: ${siteId}`);
-            cmd.log(`Get WebId required by ProcessQuery endpoint.`);
+            logger.logToStderr(`SiteId: ${siteId}`);
+            logger.logToStderr(`Get WebId required by ProcessQuery endpoint.`);
           }
 
           // GET WebId
@@ -78,7 +79,7 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
             headers: {
               accept: 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           }
 
           return request.get(requestOptions);
@@ -87,7 +88,7 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
           webId = res.Id;
 
           if (this.debug) {
-            cmd.log(`WebId: ${webId}`);
+            logger.logToStderr(`WebId: ${webId}`);
           }
 
           // If ListTitle is provided
@@ -100,7 +101,7 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
             headers: {
               accept: 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           }
 
           return request.get(requestOptions);
@@ -110,7 +111,7 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
             listId = res.Id;
 
             if (this.debug) {
-              cmd.log(`ListId: ${listId}`);
+              logger.logToStderr(`ListId: ${listId}`);
             }
           }
 
@@ -123,9 +124,9 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
 
           if (this.debug) {
             const additionalLog = args.options.listTitle ? `; ListTitle='${args.options.listTitle}'` : ` ; UpdateChildContentTypes='${updateChildContentTypes}`;
-            cmd.log(`Remove FieldLink from ContentType. FieldLinkId='${args.options.fieldLinkId}' ; ContentTypeId='${args.options.contentTypeId}' ${additionalLog}`);
-            cmd.log(`Execute ProcessQuery.`);
-            cmd.log('');
+            logger.logToStderr(`Remove FieldLink from ContentType. FieldLinkId='${args.options.fieldLinkId}' ; ContentTypeId='${args.options.contentTypeId}' ${additionalLog}`);
+            logger.logToStderr(`Execute ProcessQuery.`);
+            logger.logToStderr('');
           }
 
           let requestBody: string = '';
@@ -141,7 +142,7 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
             headers: {
               'X-RequestDigest': requestDigest
             },
-            body: requestBody
+            data: requestBody
           };
 
           return request.post(requestOptions);
@@ -154,11 +155,11 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
             return;
           }
           if (this.debug) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
           cb();
         }, (error: any): void => {
-          this.handleRejectedODataJsonPromise(error, cmd, cb);
+          this.handleRejectedODataJsonPromise(error, logger, cb);
         });
     }
 
@@ -166,7 +167,7 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
       removeFieldLink();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -214,49 +215,12 @@ class SpoContentTypeFieldRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.contentTypeId) {
-        return 'Required parameter contentTypeId missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.fieldLinkId)) {
+      return `${args.options.fieldLinkId} is not a valid GUID`;
+    }
 
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      if (!args.options.fieldLinkId) {
-        return 'Required parameter fieldLinkId missing';
-      }
-
-      if (!Utils.isValidGuid(args.options.fieldLinkId)) {
-        return `${args.options.fieldLinkId} is not a valid GUID`;
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Remove column with ID ${chalk.grey('2c1ba4c4-cd9b-4417-832f-92a34bc34b2a')} from
-    content type with ID ${chalk.grey('0x0100CA0FA0F5DAEF784494B9C6020C3020A6')}
-    from web with URL ${chalk.grey('https://contoso.sharepoint.com')}
-      ${this.name} --contentTypeId "0x0100CA0FA0F5DAEF784494B9C6020C3020A6" --fieldLinkId "880d2f46-fccb-43ca-9def-f88e722cef80" --webUrl https://contoso.sharepoint.com --confirm
-
-    Remove column with ID ${chalk.grey('2c1ba4c4-cd9b-4417-832f-92a34bc34b2a')} from
-    content type with ID ${chalk.grey('0x0100CA0FA0F5DAEF784494B9C6020C3020A6')}
-    from web with URL ${chalk.grey('https://contoso.sharepoint.com')} updating child content types
-      ${this.name} --contentTypeId "0x0100CA0FA0F5DAEF784494B9C6020C3020A6" --fieldLinkId "880d2f46-fccb-43ca-9def-f88e722cef80" --webUrl https://contoso.sharepoint.com --updateChildContentTypes 
-
-    Remove fieldLink with ID ${chalk.grey('2c1ba4c4-cd9b-4417-832f-92a34bc34b2a')} from list
-    content type with ID ${chalk.grey('0x0100CA0FA0F5DAEF784494B9C6020C3020A6')}
-    from web with URL ${chalk.grey('https://contoso.sharepoint.com')} 
-      ${this.name} --contentTypeId "0x0100CA0FA0F5DAEF784494B9C6020C3020A60062F089A38C867747942DB2C3FC50FF6A" --fieldLinkId "880d2f46-fccb-43ca-9def-f88e722cef80" --webUrl https://contoso.sharepoint.com --listTitle "Documents"
-      `);
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

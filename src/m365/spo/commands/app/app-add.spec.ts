@@ -1,19 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
+import * as fs from 'fs';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./app-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import * as fs from 'fs';
+import commands from '../../commands';
+const command: Command = require('./app-add');
 
 describe(commands.APP_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
   let requests: any[];
 
   before(() => {
@@ -24,25 +24,25 @@ describe(commands.APP_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
     requests = [];
     sinon.stub(request, 'get').resolves({ "CorporateCatalogUrl": "https://contoso.sharepoint.com/sites/apps" });
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       request.get,
       fs.readFileSync
@@ -59,11 +59,15 @@ describe(commands.APP_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.APP_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.APP_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['UniqueId']);
   });
 
   it('adds new app to the tenant app catalog', (done) => {
@@ -73,7 +77,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.resolve('{"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}');
         }
       }
@@ -83,9 +87,9 @@ describe(commands.APP_ADD, () => {
 
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: false, filePath: 'spfx.sppkg' } }, () => {
+    command.action(logger, { options: { debug: false, filePath: 'spfx.sppkg' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith('bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e'));
+        assert(loggerLogSpy.calledWith({"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}));
         done();
       }
       catch (e) {
@@ -103,7 +107,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.resolve('{"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}');
         }
       }
@@ -112,14 +116,14 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: true, filePath: 'spfx.sppkg' } }, () => {
+    command.action(logger, { options: { debug: true, filePath: 'spfx.sppkg' } }, () => {
       let correctRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf(`/_api/web/tenantappcatalog/Add(overwrite=false, url='spfx.sppkg')`) > -1 &&
           r.headers.accept &&
           r.headers.accept.indexOf('application/json') === 0 &&
           r.headers.binaryStringRequestBody &&
-          r.body) {
+          r.data) {
           correctRequestIssued = true;
         }
       });
@@ -149,7 +153,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.resolve('{"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}');
         }
       }
@@ -158,14 +162,14 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: true, filePath: 'spfx.sppkg', scope: 'sitecollection', appCatalogUrl: 'https://contoso.sharepoint.com' } }, () => {
+    command.action(logger, { options: { debug: true, filePath: 'spfx.sppkg', scope: 'sitecollection', appCatalogUrl: 'https://contoso.sharepoint.com' } }, () => {
       let correctRequestIssued = false;
       requests.forEach(r => {
         if (r.url.indexOf(`/_api/web/sitecollectionappcatalog/Add(overwrite=false, url='spfx.sppkg')`) > -1 &&
           r.headers.accept &&
           r.headers.accept.indexOf('application/json') === 0 &&
           r.headers.binaryStringRequestBody &&
-          r.body) {
+          r.data) {
           correctRequestIssued = true;
         }
       });
@@ -195,7 +199,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.resolve('{"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}');
         }
       }
@@ -204,9 +208,9 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: false, filePath: 'spfx.sppkg', output: 'json' } }, () => {
+    command.action(logger, { options: { debug: false, filePath: 'spfx.sppkg', output: 'json' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(JSON.parse('{"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}')));
+        assert(loggerLogSpy.calledWith(JSON.parse('{"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}')));
         done();
       }
       catch (e) {
@@ -230,7 +234,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.reject({
             error: JSON.stringify({ "odata.error": { "code": "-2130575257, Microsoft.SharePoint.SPException", "message": { "lang": "en-US", "value": "A file with the name AppCatalog/spfx.sppkg already exists. It was last modified by i:0#.f|membership|admin@contoso.onmi on 24 Nov 2017 12:50:43 -0800." } } })
           });
@@ -241,9 +245,9 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: true, filePath: 'spfx.sppkg' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, filePath: 'spfx.sppkg' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('A file with the name AppCatalog/spfx.sppkg already exists. It was last modified by i:0#.f|membership|admin@contoso.onmi on 24 Nov 2017 12:50:43 -0800.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('A file with the name AppCatalog/spfx.sppkg already exists. It was last modified by i:0#.f|membership|admin@contoso.onmi on 24 Nov 2017 12:50:43 -0800.')));
         done();
       }
       catch (e) {
@@ -267,7 +271,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.reject({
             error: JSON.stringify({ "odata.error": { "code": "-2130575257, Microsoft.SharePoint.SPException", "message": { "lang": "en-US", "value": "A file with the name AppCatalog/spfx.sppkg already exists. It was last modified by i:0#.f|membership|admin@contoso.onmi on 24 Nov 2017 12:50:43 -0800." } } })
           });
@@ -278,9 +282,9 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: true, filePath: 'spfx.sppkg', scope: 'sitecollection', appCatalogUrl: 'https://contoso.sharepoint.com' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, filePath: 'spfx.sppkg', scope: 'sitecollection', appCatalogUrl: 'https://contoso.sharepoint.com' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('A file with the name AppCatalog/spfx.sppkg already exists. It was last modified by i:0#.f|membership|admin@contoso.onmi on 24 Nov 2017 12:50:43 -0800.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('A file with the name AppCatalog/spfx.sppkg already exists. It was last modified by i:0#.f|membership|admin@contoso.onmi on 24 Nov 2017 12:50:43 -0800.')));
         done();
       }
       catch (e) {
@@ -304,7 +308,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.reject({ error: 'An error has occurred' });
         }
       }
@@ -313,9 +317,9 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: true, filePath: 'spfx.sppkg' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, filePath: 'spfx.sppkg' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -339,7 +343,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.reject({ error: 'An error has occurred' });
         }
       }
@@ -348,9 +352,9 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: true, filePath: 'spfx.sppkg', scope: 'sitecollection', appCatalogUrl: 'https://contoso.sharepoint.com' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, filePath: 'spfx.sppkg', scope: 'sitecollection', appCatalogUrl: 'https://contoso.sharepoint.com' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -374,7 +378,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.reject('An error has occurred');
         }
       }
@@ -383,9 +387,9 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: true, filePath: 'spfx.sppkg' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, filePath: 'spfx.sppkg' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -409,7 +413,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.reject('An error has occurred');
         }
       }
@@ -418,9 +422,9 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { debug: true, filePath: 'spfx.sppkg', scope: 'sitecollection', appCatalogUrl: 'https://contoso.sharepoint.com' } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, filePath: 'spfx.sppkg', scope: 'sitecollection', appCatalogUrl: 'https://contoso.sharepoint.com' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -441,13 +445,13 @@ describe(commands.APP_ADD, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true, filePath: 'spfx.sppkg'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -479,13 +483,13 @@ describe(commands.APP_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true, filePath: 'spfx.sppkg'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -495,7 +499,7 @@ describe(commands.APP_ADD, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsdebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -506,8 +510,8 @@ describe(commands.APP_ADD, () => {
   });
 
   it('fails validation on invalid scope', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { scope: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { scope: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation on valid \'tenant\' scope', () => {
@@ -516,12 +520,12 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { scope: 'tenant', filePath: 'abc' } });
+    const actual = command.validate({ options: { scope: 'tenant', filePath: 'abc' } });
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation on valid \'Tenant\' scope', () => {
@@ -530,12 +534,12 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { scope: 'Tenant', filePath: 'abc' } });
+    const actual = command.validate({ options: { scope: 'Tenant', filePath: 'abc' } });
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation on valid \'SiteCollection\' scope', () => {
@@ -544,12 +548,12 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { scope: 'SiteCollection', appCatalogUrl: 'https://contoso.sharepoint.com', filePath: 'abc' } });
+    const actual = command.validate({ options: { scope: 'SiteCollection', appCatalogUrl: 'https://contoso.sharepoint.com', filePath: 'abc' } });
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('submits to tenant app catalog when scope not specified', (done) => {
@@ -562,7 +566,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.resolve('{"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}');
         }
       }
@@ -571,7 +575,7 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { filePath: 'spfx.sppkg' } }, () => {
+    command.action(logger, { options: { filePath: 'spfx.sppkg' } }, () => {
       let correctAppCatalogUsed = false;
       requests.forEach(r => {
         if (r.url.indexOf('/tenantappcatalog/') > -1) {
@@ -604,7 +608,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.resolve('{"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}');
         }
       }
@@ -613,7 +617,7 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { scope: 'tenant', filePath: 'spfx.sppkg' } }, () => {
+    command.action(logger, { options: { scope: 'tenant', filePath: 'spfx.sppkg' } }, () => {
       let correctAppCatalogUsed = false;
       requests.forEach(r => {
         if (r.url.indexOf('/tenantappcatalog/') > -1) {
@@ -646,7 +650,7 @@ describe(commands.APP_ADD, () => {
           opts.headers.accept &&
           opts.headers.accept.indexOf('application/json') === 0 &&
           opts.headers.binaryStringRequestBody &&
-          opts.body) {
+          opts.data) {
           return Promise.resolve('{"CheckInComment":"","CheckOutType":2,"ContentTag":"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4,3","CustomizedPageStatus":0,"ETag":"\\"{BDA5CE2F-9AC7-4A6F-A98B-7AE1C168519E},4\\"","Exists":true,"IrmEnabled":false,"Length":"3752","Level":1,"LinkingUri":null,"LinkingUrl":"","MajorVersion":3,"MinorVersion":0,"Name":"spfx-01.sppkg","ServerRelativeUrl":"/sites/apps/AppCatalog/spfx.sppkg","TimeCreated":"2018-05-25T06:59:20Z","TimeLastModified":"2018-05-25T08:23:18Z","Title":"spfx-01-client-side-solution","UIVersion":1536,"UIVersionLabel":"3.0","UniqueId":"bda5ce2f-9ac7-4a6f-a98b-7ae1c168519e"}');
         }
       }
@@ -655,7 +659,7 @@ describe(commands.APP_ADD, () => {
     });
     sinon.stub(fs, 'readFileSync').callsFake(() => '123');
 
-    cmdInstance.action({ options: { scope: 'sitecollection', filePath: 'spfx.sppkg', appCatalogUrl: 'https://contoso.sharepoint.com' } }, () => {
+    command.action(logger, { options: { scope: 'sitecollection', filePath: 'spfx.sppkg', appCatalogUrl: 'https://contoso.sharepoint.com' } }, () => {
       let correctAppCatalogUsed = false;
       requests.forEach(r => {
         if (r.url.indexOf('/sitecollectionappcatalog/') > -1) {
@@ -678,16 +682,11 @@ describe(commands.APP_ADD, () => {
     });
   });
 
-  it('fails validation if file path not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if file path doesn\'t exist', () => {
     sinon.stub(fs, 'existsSync').callsFake(() => false);
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc' } });
+    const actual = command.validate({ options: { filePath: 'abc' } });
     Utils.restore(fs.existsSync);
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if file path points to a directory', () => {
@@ -695,12 +694,12 @@ describe(commands.APP_ADD, () => {
     sinon.stub(stats, 'isDirectory').callsFake(() => true);
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc' } });
+    const actual = command.validate({ options: { filePath: 'abc' } });
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation when invalid scope is specified', () => {
@@ -709,13 +708,13 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc', scope: 'foo' } });
+    const actual = command.validate({ options: { filePath: 'abc', scope: 'foo' } });
 
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when path points to a valid file', () => {
@@ -724,13 +723,13 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc' } });
+    const actual = command.validate({ options: { filePath: 'abc' } });
 
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when no scope is specified', () => {
@@ -739,13 +738,13 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc' } });
+    const actual = command.validate({ options: { filePath: 'abc' } });
 
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the scope is specified with \'tenant\'', () => {
@@ -754,13 +753,13 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc', scope: 'tenant' } });
+    const actual = command.validate({ options: { filePath: 'abc', scope: 'tenant' } });
 
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
 
@@ -770,13 +769,13 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc' } });
+    const actual = command.validate({ options: { filePath: 'abc' } });
 
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the scope is specified with \'tenant\'', () => {
@@ -785,13 +784,13 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc', scope: 'tenant' } });
+    const actual = command.validate({ options: { filePath: 'abc', scope: 'tenant' } });
 
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('should fail when \'sitecollection\' scope, but no appCatalogUrl specified', () => {
@@ -800,13 +799,13 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc', scope: 'sitecollection' } });
+    const actual = command.validate({ options: { filePath: 'abc', scope: 'sitecollection' } });
 
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('should not fail when \'tenant\' scope, but also appCatalogUrl specified', () => {
@@ -815,13 +814,13 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc', scope: 'tenant', appCatalogUrl: 'https://contoso.sharepoint.com' } });
+    const actual = command.validate({ options: { filePath: 'abc', scope: 'tenant', appCatalogUrl: 'https://contoso.sharepoint.com' } });
 
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('should fail when \'sitecollection\' scope, but bad appCatalogUrl format specified', () => {
@@ -830,46 +829,12 @@ describe(commands.APP_ADD, () => {
     sinon.stub(fs, 'existsSync').callsFake(() => true);
     sinon.stub(fs, 'lstatSync').callsFake(() => stats);
 
-    const actual = (command.validate() as CommandValidate)({ options: { filePath: 'abc', scope: 'sitecollection', appCatalogUrl: 'contoso.sharepoint.com' } });
+    const actual = command.validate({ options: { filePath: 'abc', scope: 'sitecollection', appCatalogUrl: 'contoso.sharepoint.com' } });
 
     Utils.restore([
       fs.existsSync,
       fs.lstatSync
     ]);
-    assert.notEqual(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.APP_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.notStrictEqual(actual, true);
   });
 });

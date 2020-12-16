@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { Logger } from '../../cli';
 import AadCommand from './AadCommand';
 
 class MockCommand extends AadCommand {
@@ -10,7 +11,7 @@ class MockCommand extends AadCommand {
     return 'Mock command';
   }
 
-  public commandAction(cmd: CommandInstance, args: {}, cb: () => void): void {
+  public commandAction(logger: Logger, args: {}, cb: () => void): void {
   }
 
   public commandHelp(args: any, log: (message: string) => void): void {

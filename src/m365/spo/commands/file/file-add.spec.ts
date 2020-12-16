@@ -1,20 +1,21 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
+import * as fs from 'fs';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./file-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import * as fs from 'fs';
+import commands from '../../commands';
 import { FolderExtensions } from '../../FolderExtensions';
+const command: Command = require('./file-add');
 
 describe(commands.FILE_ADD, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let ensureFolderStub: sinon.SinonStub;
 
   let stubPostResponses: any = (
@@ -157,18 +158,20 @@ describe(commands.FILE_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     sinon.stub(fs, 'statSync').returns({ size: 1234 } as any);
     sinon.stub(fs, 'openSync').returns(3);
     sinon.stub(fs, 'readSync').returns(10485760);
@@ -177,7 +180,6 @@ describe(commands.FILE_ADD, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       request.get,
       fs.existsSync,
@@ -200,16 +202,16 @@ describe(commands.FILE_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name, commands.FILE_ADD);
+    assert.strictEqual(command.name, commands.FILE_ADD);
   });
 
   it('allows unknown options', () => {
     const actual = command.allowUnknownOptions();
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('should call ensure folder when folder not found', (done) => {
@@ -220,7 +222,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses(getFolderByServerRelativeUrlResp);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -230,7 +232,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(ensureFolderStub.called, true);
+        assert.strictEqual(ensureFolderStub.called, true);
         done();
       }
       catch (e) {
@@ -247,7 +249,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses(null, fileNotFoundResp);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -256,7 +258,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.notCalled, true);
+        assert.strictEqual(loggerLogSpy.notCalled, true);
         done();
       }
       catch (e) {
@@ -273,7 +275,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses(checkoutResp);
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -284,7 +286,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
 
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
         done();
       }
       catch (e) {
@@ -301,7 +303,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses(null, fileAddResp);
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -312,7 +314,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
 
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
         done();
       }
       catch (e) {
@@ -329,7 +331,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses(null, null, listResp);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -340,7 +342,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
 
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
         done();
       }
       catch (e) {
@@ -357,7 +359,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses(null, null, null, contentTypeResp);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -368,7 +370,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
 
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
         done();
       }
       catch (e) {
@@ -383,7 +385,7 @@ describe(commands.FILE_ADD, () => {
 
     const folderServerRelativePath: string = '/sites/project-x/Shared%20Documents/t1';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: folderServerRelativePath,
@@ -394,7 +396,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
 
       try {
-        assert.equal(cmdInstanceLogSpy.calledWith(`folder path: ${folderServerRelativePath}...`), true);
+        assert.strictEqual(loggerLogToStderrSpy.calledWith(`folder path: ${folderServerRelativePath}...`), true);
         done();
       }
       catch (e) {
@@ -409,7 +411,7 @@ describe(commands.FILE_ADD, () => {
 
     const unsafePath: string = '/Users/user/Projects/TEST\'FOLDER/TEST\'FILE.txt';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -420,7 +422,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
 
       try {
-        assert.equal(cmdInstanceLogSpy.calledWith(`file name: TEST''FILE.txt...`), true);
+        assert.strictEqual(loggerLogToStderrSpy.calledWith(`file name: TEST''FILE.txt...`), true);
         done();
       }
       catch (e) {
@@ -433,7 +435,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -444,7 +446,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
 
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Specified content type \'abc\' doesn\'t exist on the target list')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Specified content type \'abc\' doesn\'t exist on the target list')));
         done();
       }
       catch (e) {
@@ -461,7 +463,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses(null, null, validateUpdateListItemResp);
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -472,7 +474,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
 
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
         done();
       }
       catch (e) {
@@ -489,7 +491,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses(null, null, validateUpdateListItemResp);
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -500,7 +502,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
       try {
         const error: string = `Update field value error: ${JSON.stringify(expectedResult.value)}`;
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(error)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(error)));
         done();
       }
       catch (e) {
@@ -517,7 +519,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses(null, null, null, null, null, null, checkinResp);
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -529,7 +531,7 @@ describe(commands.FILE_ADD, () => {
     }, (err: any) => {
 
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
         done();
       }
       catch (e) {
@@ -546,7 +548,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses(null, null, null, aproveResp);
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -557,7 +559,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
         done();
       }
       catch (e) {
@@ -574,7 +576,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses(null, null, null, null, publishResp);
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -585,7 +587,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedError)));
         done();
       }
       catch (e) {
@@ -602,7 +604,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses(null, null, listSettingsResp);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -611,7 +613,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('The file cannot be published without approval. Moderation for this list is enabled. Use the --approve option instead of --publish to approve and publish the file')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('The file cannot be published without approval. Moderation for this list is enabled. Use the --approve option instead of --publish to approve and publish the file')));
         done();
       }
       catch (e) {
@@ -624,7 +626,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -634,7 +636,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0], 'DONE');
+        assert.strictEqual(loggerLogToStderrSpy.lastCall.args[0], 'DONE');
         done();
       }
       catch (e) {
@@ -643,11 +645,11 @@ describe(commands.FILE_ADD, () => {
     });
   });
 
-  it('ignores global options when creating request body', (done) => {
+  it('ignores global options when creating request data', (done) => {
     const postRequests: sinon.SinonStub = stubPostResponses();
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -661,7 +663,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, () => {
       try {
-        assert.deepEqual(postRequests.secondCall.args[0].body, {
+        assert.deepEqual(postRequests.secondCall.args[0].data, {
           bNewDocumentUpdate: true,
           checkInComment: '',
           formValues: [{ FieldName: 'Title', FieldValue: 'abc' }, { FieldName: 'ContentType', FieldValue: 'Picture' }]
@@ -681,7 +683,7 @@ describe(commands.FILE_ADD, () => {
     Utils.restore([fs.statSync]);
     sinon.stub(fs, 'statSync').returns({ size: 250 * 1024 * 1024 } as any); // 250 MB
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -691,7 +693,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, () => {
       try {
-        assert.notEqual(postRequests.lastCall.args[0].url.indexOf(`/GetFolderByServerRelativeUrl('%2Fsites%2Fproject-x%2FShared%2520Documents%2Ft1')/Files/Add`), -1);
+        assert.notStrictEqual(postRequests.lastCall.args[0].url.indexOf(`/GetFolderByServerRelativeUrl('%2Fsites%2Fproject-x%2FShared%2520Documents%2Ft1')/Files/Add`), -1);
         done();
       }
       catch (e) {
@@ -707,7 +709,7 @@ describe(commands.FILE_ADD, () => {
     Utils.restore([fs.statSync]);
     sinon.stub(fs, 'statSync').returns({ size: 251 * 1024 * 1024 } as any); // 250 MB
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -717,9 +719,9 @@ describe(commands.FILE_ADD, () => {
       }
     }, () => {
       try {
-        assert.notEqual(postRequests.firstCall.args[0].url.indexOf('/StartUpload'), -1);
-        assert.notEqual(postRequests.getCalls()[2].args[0].url.indexOf('/ContinueUpload'), -1);
-        assert.notEqual(postRequests.lastCall.args[0].url.indexOf('/FinishUpload'), -1);
+        assert.notStrictEqual(postRequests.firstCall.args[0].url.indexOf('/StartUpload'), -1);
+        assert.notStrictEqual(postRequests.getCalls()[2].args[0].url.indexOf('/ContinueUpload'), -1);
+        assert.notStrictEqual(postRequests.lastCall.args[0].url.indexOf('/FinishUpload'), -1);
         done();
       }
       catch (e) {
@@ -752,7 +754,7 @@ describe(commands.FILE_ADD, () => {
     Utils.restore([fs.statSync]);
     sinon.stub(fs, 'statSync').returns({ size: 251 * 1024 * 1024 } as any); // 250 MB
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -760,9 +762,9 @@ describe(commands.FILE_ADD, () => {
         debug: true,
         verbose: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(err.message, '123');
+        assert.strictEqual(err.message, '123');
         done();
       }
       catch (e) {
@@ -779,7 +781,7 @@ describe(commands.FILE_ADD, () => {
     sinon.stub(fs, 'statSync').returns({ size: 251 * 1024 * 1024 } as any); // 250 MB
     sinon.stub(fs, 'openSync').throws(new Error('openSync error'));
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -787,9 +789,9 @@ describe(commands.FILE_ADD, () => {
         debug: true,
         verbose: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(err.message, 'openSync error');
+        assert.strictEqual(err.message, 'openSync error');
         done();
       }
       catch (e) {
@@ -808,7 +810,7 @@ describe(commands.FILE_ADD, () => {
     sinon.stub(fs, 'readSync').throws(new Error('readSync error'));
     sinon.stub(fs, 'closeSync').throws(new Error('failed to closeSync'));
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -816,9 +818,9 @@ describe(commands.FILE_ADD, () => {
         debug: true,
         verbose: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(err.message, 'readSync error');
+        assert.strictEqual(err.message, 'readSync error');
         done();
       }
       catch (e) {
@@ -831,7 +833,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -844,7 +846,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0], 'DONE');
+        assert.strictEqual(loggerLogToStderrSpy.lastCall.args[0], 'DONE');
         done();
       }
       catch (e) {
@@ -857,7 +859,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -868,7 +870,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.notCalled, true);
+        assert.strictEqual(loggerLogSpy.notCalled, true);
         done();
       }
       catch (e) {
@@ -888,7 +890,7 @@ describe(commands.FILE_ADD, () => {
           return Promise.resolve({ "CheckInComment": "", "CheckOutType": 0, "ContentTag": "{B0BC16BB-C8D9-4A24-BC04-FB52045F8BEF},428,159", "CustomizedPageStatus": 0, "ETag": "\"{B0BC16BB-C8D9-4A24-BC04-FB52045F8BEF},428\"", "Exists": true, "IrmEnabled": false, "Length": "165114", "Level": 255, "LinkingUri": null, "LinkingUrl": "", "MajorVersion": 51, "MinorVersion": 15, "Name": "MS365.jpg", "ServerRelativeUrl": "/sites/VelinDev/Shared Documents/t1/MS365.jpg", "TimeCreated": "2018-10-21T21:46:08Z", "TimeLastModified": "2018-10-25T23:49:52Z", "Title": "title4", "UIVersion": 26127, "UIVersionLabel": "51.15", "UniqueId": "b0bc16bb-c8d9-4a24-bc04-fb52045f8bef" });
         }
         else if ((opts.url as string).indexOf('ValidateUpdateListItem') > -1) {
-          if (opts.body.formValues.filter((f: any) => f.FieldName === 'Folder').length > 0) {
+          if (opts.data.formValues.filter((f: any) => f.FieldName === 'Folder').length > 0) {
             return Promise.resolve({ "value": [{ "ErrorMessage": null, "FieldName": "Title", "FieldValue": "title4", "HasException": false, "ItemId": 212 }] });
           }
           else {
@@ -911,7 +913,7 @@ describe(commands.FILE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -921,7 +923,7 @@ describe(commands.FILE_ADD, () => {
         Folder: 'Folder',
         publish: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert.strictEqual(typeof err, 'undefined');
         done();
@@ -936,7 +938,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -945,7 +947,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, (err: any) => {
       try {
-        assert.equal(cmdInstanceLogSpy.notCalled, true);
+        assert.strictEqual(loggerLogSpy.notCalled, true);
         done();
       }
       catch (e) {
@@ -958,7 +960,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses();
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -967,7 +969,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, (err: any) => {
       try {
-        assert.equal(cmdInstanceLogSpy.notCalled, true);
+        assert.strictEqual(loggerLogSpy.notCalled, true);
         done();
       }
       catch (e) {
@@ -990,7 +992,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses(null, fileAddResp, null, null, null, rollbackCheckoutResp);
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -1001,7 +1003,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedFileAddError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedFileAddError)));
         done();
       }
       catch (e) {
@@ -1024,7 +1026,7 @@ describe(commands.FILE_ADD, () => {
     stubPostResponses(null, fileAddResp, null, null, null, rollbackCheckoutResp);
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com/sites/project-x',
         folder: 'Shared%20Documents/t1',
@@ -1033,7 +1035,7 @@ describe(commands.FILE_ADD, () => {
       }
     }, (err: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(expectedFileAddError)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(expectedFileAddError)));
         done();
       }
       catch (e) {
@@ -1042,41 +1044,26 @@ describe(commands.FILE_ADD, () => {
     });
   });
 
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the webUrl option not valid url', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'abc' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the path option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', folder: 'abc' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the folder option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', path: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the wrong path option specified', () => {
     sinon.stub(fs, 'existsSync').returns(false);
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         folder: 'abc',
         path: 'abc'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if --approveComment specified, but not --approve', () => {
     sinon.stub(fs, 'existsSync').returns(true);
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         folder: 'abc',
@@ -1084,12 +1071,12 @@ describe(commands.FILE_ADD, () => {
         approveComment: 'abc'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if --publishComment specified, but not --publish', () => {
     sinon.stub(fs, 'existsSync').returns(true);
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         folder: 'abc',
@@ -1097,23 +1084,23 @@ describe(commands.FILE_ADD, () => {
         publishComment: 'abc'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passed validation if options correct', () => {
     sinon.stub(fs, 'existsSync').returns(true);
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         folder: 'abc',
         path: 'abc'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -1124,7 +1111,7 @@ describe(commands.FILE_ADD, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -1132,39 +1119,5 @@ describe(commands.FILE_ADD, () => {
       }
     });
     assert(containsTypeOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FILE_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

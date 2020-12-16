@@ -5,19 +5,15 @@ Sets up command completion for PowerShell
 ## Usage
 
 ```sh
-cli completion pwsh setup [options]
+m365 cli completion pwsh setup [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-p, --profile <profile>`|Path to the PowerShell profile file
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-p, --profile <profile>`
+: Path to the PowerShell profile file
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 

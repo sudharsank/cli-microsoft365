@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./sitescript-set');
-import * as assert from 'assert';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import auth from '../../../../Auth';
+import commands from '../../commands';
+const command: Command = require('./sitescript-set');
 
 describe(commands.SITESCRIPT_SET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -23,23 +23,23 @@ describe(commands.SITESCRIPT_SET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -55,17 +55,17 @@ describe(commands.SITESCRIPT_SET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SITESCRIPT_SET), true);
+    assert.strictEqual(command.name.startsWith(commands.SITESCRIPT_SET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('updates title of an existing site script', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.UpdateSiteScript`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           updateInfo: {
             'Id': '0f27a016-d277-4bb4-b3c3-b5b040c9559b',
             'Title': 'Contoso'
@@ -83,9 +83,9 @@ describe(commands.SITESCRIPT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', title: 'Contoso' } }, () => {
+    command.action(logger, { options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', title: 'Contoso' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Content": JSON.stringify({}),
           "Description": "My contoso script",
           "Id": "0f27a016-d277-4bb4-b3c3-b5b040c9559b",
@@ -103,7 +103,7 @@ describe(commands.SITESCRIPT_SET, () => {
   it('updates title of an existing site script (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.UpdateSiteScript`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           updateInfo: {
             'Id': '0f27a016-d277-4bb4-b3c3-b5b040c9559b',
             'Title': 'Contoso'
@@ -121,9 +121,9 @@ describe(commands.SITESCRIPT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', title: 'Contoso' } }, () => {
+    command.action(logger, { options: { debug: true, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', title: 'Contoso' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Content": JSON.stringify({}),
           "Description": "My contoso script",
           "Id": "0f27a016-d277-4bb4-b3c3-b5b040c9559b",
@@ -141,7 +141,7 @@ describe(commands.SITESCRIPT_SET, () => {
   it('updates description of an existing site script', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.UpdateSiteScript`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           updateInfo: {
             'Id': '0f27a016-d277-4bb4-b3c3-b5b040c9559b',
             'Description': 'My contoso script'
@@ -159,9 +159,9 @@ describe(commands.SITESCRIPT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', description: 'My contoso script' } }, () => {
+    command.action(logger, { options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', description: 'My contoso script' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Content": JSON.stringify({}),
           "Description": "My contoso script",
           "Id": "0f27a016-d277-4bb4-b3c3-b5b040c9559b",
@@ -179,7 +179,7 @@ describe(commands.SITESCRIPT_SET, () => {
   it('updates version of an existing site script', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.UpdateSiteScript`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           updateInfo: {
             'Id': '0f27a016-d277-4bb4-b3c3-b5b040c9559b',
             'Version': 1
@@ -197,9 +197,9 @@ describe(commands.SITESCRIPT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', version: '1' } }, () => {
+    command.action(logger, { options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', version: '1' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Content": JSON.stringify({}),
           "Description": "My contoso script",
           "Id": "0f27a016-d277-4bb4-b3c3-b5b040c9559b",
@@ -217,7 +217,7 @@ describe(commands.SITESCRIPT_SET, () => {
   it('updates content of an existing site script', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.UpdateSiteScript`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           updateInfo: {
             'Id': '0f27a016-d277-4bb4-b3c3-b5b040c9559b',
             'Content': JSON.stringify({})
@@ -235,9 +235,9 @@ describe(commands.SITESCRIPT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', content: JSON.stringify({}) } }, () => {
+    command.action(logger, { options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', content: JSON.stringify({}) } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Content": JSON.stringify({}),
           "Description": "My contoso script",
           "Id": "0f27a016-d277-4bb4-b3c3-b5b040c9559b",
@@ -255,7 +255,7 @@ describe(commands.SITESCRIPT_SET, () => {
   it('updates all properties of an existing site script', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.UpdateSiteScript`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           updateInfo: {
             Id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b',
             Title: 'Contoso',
@@ -276,9 +276,9 @@ describe(commands.SITESCRIPT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', title: 'Contoso', description: 'My contoso script', version: '1', content: JSON.stringify({}) } }, () => {
+    command.action(logger, { options: { debug: false, id: '0f27a016-d277-4bb4-b3c3-b5b040c9559b', title: 'Contoso', description: 'My contoso script', version: '1', content: JSON.stringify({}) } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "Content": JSON.stringify({}),
           "Description": "My contoso script",
           "Id": "0f27a016-d277-4bb4-b3c3-b5b040c9559b",
@@ -298,9 +298,9 @@ describe(commands.SITESCRIPT_SET, () => {
       return Promise.reject({ error: { 'odata.error': { message: { value: 'An error has occurred' } } } });
     });
 
-    cmdInstance.action({ options: { debug: false, id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', title: 'Contoso' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', title: 'Contoso' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -310,7 +310,7 @@ describe(commands.SITESCRIPT_SET, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -321,7 +321,7 @@ describe(commands.SITESCRIPT_SET, () => {
   });
 
   it('supports specifying id', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--id') > -1) {
@@ -332,7 +332,7 @@ describe(commands.SITESCRIPT_SET, () => {
   });
 
   it('supports specifying title', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--title') > -1) {
@@ -343,7 +343,7 @@ describe(commands.SITESCRIPT_SET, () => {
   });
 
   it('supports specifying description', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--description') > -1) {
@@ -354,7 +354,7 @@ describe(commands.SITESCRIPT_SET, () => {
   });
 
   it('supports specifying script content', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--content') > -1) {
@@ -365,7 +365,7 @@ describe(commands.SITESCRIPT_SET, () => {
   });
 
   it('supports specifying version', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--version') > -1) {
@@ -375,72 +375,33 @@ describe(commands.SITESCRIPT_SET, () => {
     assert(containsOption);
   });
 
-  it('fails validation if id not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if id is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if version is not a valid number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', version: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', version: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if script content is not a valid JSON string', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', content: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', content: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when id specified and valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when id and version specified and version is a number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', version: 1 } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', version: 1 } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when id and content specified and content is valid JSON', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', content: JSON.stringify({}) } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SITESCRIPT_SET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { id: '449c0c6d-5380-4df2-b84b-622e0ac8ec24', content: JSON.stringify({}) } });
+    assert.strictEqual(actual, true);
   });
 });

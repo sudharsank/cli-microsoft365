@@ -5,22 +5,24 @@ Adds an app to the specified SharePoint Online app catalog
 ## Usage
 
 ```sh
-spo app add [options]
+m365 spo app add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-p, --filePath <filePath>`|Absolute or relative path to the solution package file to add to the app catalog
-`--overwrite`|Set to overwrite the existing package file
-`-s, --scope [scope]`|Scope of the app catalog: `tenant,sitecollection`. Default `tenant`
-`-u, --appCatalogUrl [appCatalogUrl]`|The URL of the app catalog where the solution package will be added. It must be specified when the scope is `sitecollection`
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-p, --filePath <filePath>`
+: Absolute or relative path to the solution package file to add to the app catalog
+
+`--overwrite`
+: Set to overwrite the existing package file
+
+`-s, --scope [scope]`
+: Scope of the app catalog: `tenant,sitecollection`. Default `tenant`
+
+`-u, --appCatalogUrl [appCatalogUrl]`
+: The URL of the app catalog where the solution package will be added. It must be specified when the scope is `sitecollection`
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -37,19 +39,19 @@ If you try to upload a package that already exists in the app catalog without sp
 Add the _spfx.sppkg_ package to the tenant app catalog
 
 ```sh
-spo app add --filePath /Users/pnp/spfx/sharepoint/solution/spfx.sppkg
+m365 spo app add --filePath /Users/pnp/spfx/sharepoint/solution/spfx.sppkg
 ```
 
 Overwrite the _spfx.sppkg_ package in the tenant app catalog with the newer version
 
 ```sh
-spo app add --filePath sharepoint/solution/spfx.sppkg --overwrite
+m365 spo app add --filePath sharepoint/solution/spfx.sppkg --overwrite
 ```
 
 Add the _spfx.sppkg_ package to the site collection app catalog of site _https://contoso.sharepoint.com/sites/site1_
 
 ```sh
-spo app add --filePath c:\spfx.sppkg --scope sitecollection --appCatalogUrl https://contoso.sharepoint.com/sites/site1
+m365 spo app add --filePath c:\spfx.sppkg --scope sitecollection --appCatalogUrl https://contoso.sharepoint.com/sites/site1
 ```
 
 ## More information

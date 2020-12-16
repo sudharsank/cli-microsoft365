@@ -1,15 +1,15 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import { ContextInfo } from '../../spo';
 import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 import { SiteDesignPrincipal } from './SiteDesignPrincipal';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -28,11 +28,11 @@ class SpoSiteDesignRightsListCommand extends SpoCommand {
     return 'Gets a list of principals that have access to a site design';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let spoUrl: string = '';
 
     this
-      .getSpoUrl(cmd, this.debug)
+      .getSpoUrl(logger, this.debug)
       .then((_spoUrl: string): Promise<ContextInfo> => {
         spoUrl = _spoUrl;
         return this.getRequestDigest(spoUrl);
@@ -45,24 +45,24 @@ class SpoSiteDesignRightsListCommand extends SpoCommand {
             'content-type': 'application/json;charset=utf-8',
             accept: 'application/json;odata=nometadata'
           },
-          body: { id: args.options.id },
-          json: true
+          data: { id: args.options.id },
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((res: { value: SiteDesignPrincipal[] }): void => {
-        cmd.log(res.value.map(p => {
+        logger.log(res.value.map(p => {
           p.Rights = p.Rights === "1" ? "View" : p.Rights;
           return p;
         }));
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -77,43 +77,12 @@ class SpoSiteDesignRightsListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('id')} doesn't refer to an existing site design, you will get
-    a ${chalk.grey('File not found')} error.
-
-    If no permissions are listed, it means that the particular site design is
-    visible to everyone.
-
-  Examples:
-  
-    Get information about rights granted for the site design with ID
-    ${chalk.grey('2c1ba4c4-cd9b-4417-832f-92a34bc34b2a')}
-      ${this.name} --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-`);
+    return true;
   }
 }
 

@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./folder-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./folder-get');
 
 describe(commands.FOLDER_GET, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
   let stubGetResponses: any;
 
   before(() => {
@@ -36,23 +36,23 @@ describe(commands.FOLDER_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -66,24 +66,24 @@ describe(commands.FOLDER_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FOLDER_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.FOLDER_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('should correctly handle folder get reject request', (done) => {
     stubGetResponses(new Promise((resolve, reject) => { reject('error1'); }));
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         folderUrl: '/Shared Documents',
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('error1')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('error1')));
         done();
       }
       catch (e) {
@@ -95,14 +95,14 @@ describe(commands.FOLDER_GET, () => {
   it('should show tip when folder get rejects with error code 500', (done) => {
     sinon.stub(request, 'get').rejects({ statusCode: 500 });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: 'https://contoso.sharepoint.com',
         folderUrl: '/Shared Documents',
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Please check the folder URL. Folder might not exist on the specified URL')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Please check the folder URL. Folder might not exist on the specified URL')));
         done();
       }
       catch (e) {
@@ -114,7 +114,7 @@ describe(commands.FOLDER_GET, () => {
   it('should correctly handle folder get success request', (done) => {
     stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         webUrl: 'https://contoso.sharepoint.com',
@@ -122,7 +122,7 @@ describe(commands.FOLDER_GET, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.lastCall.calledWith({ "Exists": true, "IsWOPIEnabled": false, "ItemCount": 0, "Name": "test1", "ProgID": null, "ServerRelativeUrl": "/sites/test1/Shared Documents/test1", "TimeCreated": "2018-05-02T23:21:45Z", "TimeLastModified": "2018-05-02T23:21:45Z", "UniqueId": "0ac3da45-cacf-4c31-9b38-9ef3697d5a66", "WelcomePage": "" }));
+        assert(loggerLogSpy.lastCall.calledWith({ "Exists": true, "IsWOPIEnabled": false, "ItemCount": 0, "Name": "test1", "ProgID": null, "ServerRelativeUrl": "/sites/test1/Shared Documents/test1", "TimeCreated": "2018-05-02T23:21:45Z", "TimeLastModified": "2018-05-02T23:21:45Z", "UniqueId": "0ac3da45-cacf-4c31-9b38-9ef3697d5a66", "WelcomePage": "" }));
         done();
       }
       catch (e) {
@@ -134,7 +134,7 @@ describe(commands.FOLDER_GET, () => {
   it('should pass the correct url params to request', (done) => {
     const request = stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         output: 'json',
@@ -144,7 +144,7 @@ describe(commands.FOLDER_GET, () => {
     }, () => {
       try {
         const lastCall: any = request.lastCall.args[0];
-        assert.equal(lastCall.url, 'https://contoso.sharepoint.com/_api/web/GetFolderByServerRelativeUrl(\'%2FShared%20Documents\')');
+        assert.strictEqual(lastCall.url, 'https://contoso.sharepoint.com/_api/web/GetFolderByServerRelativeUrl(\'%2FShared%20Documents\')');
         done();
       }
       catch (e) {
@@ -156,7 +156,7 @@ describe(commands.FOLDER_GET, () => {
   it('should pass the correct url params to request (sites/test1)', (done) => {
     const request = stubGetResponses();
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         output: 'json',
@@ -166,7 +166,7 @@ describe(commands.FOLDER_GET, () => {
     }, () => {
       try {
         const lastCall: any = request.lastCall.args[0];
-        assert.equal(lastCall.url, 'https://contoso.sharepoint.com/sites/test1/_api/web/GetFolderByServerRelativeUrl(\'%2Fsites%2Ftest1%2FShared%20Documents\')');
+        assert.strictEqual(lastCall.url, 'https://contoso.sharepoint.com/sites/test1/_api/web/GetFolderByServerRelativeUrl(\'%2Fsites%2Ftest1%2FShared%20Documents\')');
         done();
       }
       catch (e) {
@@ -176,7 +176,7 @@ describe(commands.FOLDER_GET, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -187,7 +187,7 @@ describe(commands.FOLDER_GET, () => {
   });
 
   it('supports specifying URL', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsTypeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('<webUrl>') > -1) {
@@ -197,57 +197,13 @@ describe(commands.FOLDER_GET, () => {
     assert(containsTypeOption);
   });
 
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { folderUrl: '/Shared Documents' } });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the webUrl option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo', folderUrl: '/Shared Documents' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo', folderUrl: '/Shared Documents' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the webUrl option is a valid SharePoint site URL and folderUrl specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', folderUrl: '/Shared Documents' } });
-    assert.equal(actual, true);
-  });
-
-  it('fails validation if the folderUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FOLDER_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', folderUrl: '/Shared Documents' } });
+    assert.strictEqual(actual, true);
   });
 });

@@ -1,20 +1,18 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import config from '../../../../config';
-import request from '../../../../request';
 import { v4 } from 'uuid';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
   CommandError,
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-import { TermStore } from './TermStore';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 import { TermGroup } from './TermGroup';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { TermStore } from './TermStore';
 
 interface CommandArgs {
   options: Options;
@@ -42,13 +40,13 @@ class SpoTermGroupAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let formDigest: string = '';
     let termGroup: TermGroup;
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
         return this.getRequestDigest(spoAdminUrl);
@@ -57,7 +55,7 @@ class SpoTermGroupAddCommand extends SpoCommand {
         formDigest = res.FormDigestValue;
 
         if (this.verbose) {
-          cmd.log(`Getting taxonomy term store...`);
+          logger.logToStderr(`Getting taxonomy term store...`);
         }
 
         const requestOptions: any = {
@@ -65,7 +63,7 @@ class SpoTermGroupAddCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectIdentityQuery Id="5" ObjectPathId="3" /><ObjectPath Id="7" ObjectPathId="6" /><ObjectIdentityQuery Id="8" ObjectPathId="6" /><Query Id="9" ObjectPathId="6"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="3" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="6" ParentId="3" Name="GetDefaultSiteCollectionTermStore" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectIdentityQuery Id="5" ObjectPathId="3" /><ObjectPath Id="7" ObjectPathId="6" /><ObjectIdentityQuery Id="8" ObjectPathId="6" /><Query Id="9" ObjectPathId="6"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="3" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="6" ParentId="3" Name="GetDefaultSiteCollectionTermStore" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -81,7 +79,7 @@ class SpoTermGroupAddCommand extends SpoCommand {
         const termGroupId: string = args.options.id || v4();
 
         if (this.verbose) {
-          cmd.log(`Adding taxonomy term group...`);
+          logger.logToStderr(`Adding taxonomy term group...`);
         }
 
         const requestOptions: any = {
@@ -89,7 +87,7 @@ class SpoTermGroupAddCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': formDigest
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="14" ObjectPathId="13" /><ObjectIdentityQuery Id="15" ObjectPathId="13" /><Query Id="16" ObjectPathId="13"><Query SelectAllProperties="false"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /><Property Name="Description" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Method Id="13" ParentId="6" Name="CreateGroup"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.name)}</Parameter><Parameter Type="Guid">{${termGroupId}}</Parameter></Parameters></Method><Identity Id="6" Name="${termStore._ObjectIdentity_}" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="14" ObjectPathId="13" /><ObjectIdentityQuery Id="15" ObjectPathId="13" /><Query Id="16" ObjectPathId="13"><Query SelectAllProperties="false"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /><Property Name="Description" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Method Id="13" ParentId="6" Name="CreateGroup"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.name)}</Parameter><Parameter Type="Guid">{${termGroupId}}</Parameter></Parameters></Method><Identity Id="6" Name="${termStore._ObjectIdentity_}" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -108,7 +106,7 @@ class SpoTermGroupAddCommand extends SpoCommand {
         }
 
         if (this.verbose) {
-          cmd.log(`Setting taxonomy term group description...`);
+          logger.logToStderr(`Setting taxonomy term group description...`);
         }
 
         const requestOptions: any = {
@@ -116,7 +114,7 @@ class SpoTermGroupAddCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': formDigest
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="51" ObjectPathId="45" Name="Description"><Parameter Type="String">${Utils.escapeXml(args.options.description)}</Parameter></SetProperty></Actions><ObjectPaths><Identity Id="45" Name="${termGroup._ObjectIdentity_}" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="51" ObjectPathId="45" Name="Description"><Parameter Type="String">${Utils.escapeXml(args.options.description)}</Parameter></SetProperty></Actions><ObjectPaths><Identity Id="45" Name="${termGroup._ObjectIdentity_}" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -135,9 +133,9 @@ class SpoTermGroupAddCommand extends SpoCommand {
         delete termGroup._ObjectType_;
         termGroup.Id = termGroup.Id.replace('/Guid(', '').replace(')/', '');
         termGroup.Description = args.options.description || '';
-        cmd.log(termGroup);
+        logger.log(termGroup);
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -160,40 +158,14 @@ class SpoTermGroupAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required option name missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.id) {
+      if (!Utils.isValidGuid(args.options.id)) {
+        return `${args.options.id} is not a valid GUID`;
       }
+    }
 
-      if (args.options.id) {
-        if (!Utils.isValidGuid(args.options.id)) {
-          return `${args.options.id} is not a valid GUID`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.TERM_GROUP_ADD).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-  
-  Examples:
-  
-    Add a new taxonomy term group with the specified name
-      ${commands.TERM_GROUP_ADD} --name PnPTermSets
-
-    Add a new taxonomy term group with the specified name and id
-      ${commands.TERM_GROUP_ADD} --name PnPTermSets --id 0e8f395e-ff58-4d45-9ff7-e331ab728beb
-
-    Add a new taxonomy term group with the specified name and description
-      ${commands.TERM_GROUP_ADD} --name PnPTermSets --description 'Term sets for PnP'
-`);
+    return true;
   }
 }
 

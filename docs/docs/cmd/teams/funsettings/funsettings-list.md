@@ -5,24 +5,20 @@ Lists fun settings for the specified Microsoft Teams team
 ## Usage
 
 ```sh
-teams funsettings list [options]
+m365 teams funsettings list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --teamId <teamId>`|The ID of the team for which to list fun settings
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --teamId <teamId>`
+: The ID of the team for which to list fun settings
+
+--8<-- "docs/cmd/_global.md"
 
 ## Examples
 
 List fun settings of a Microsoft Teams team
 
 ```sh
-teams funsettings list --teamId 83cece1e-938d-44a1-8b86-918cf6151957
+m365 teams funsettings list --teamId 83cece1e-938d-44a1-8b86-918cf6151957
 ```

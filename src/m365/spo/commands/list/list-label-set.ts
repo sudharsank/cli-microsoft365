@@ -1,15 +1,14 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { ListInstance } from './ListInstance';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -46,7 +45,7 @@ class SpoListLabelSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     ((): Promise<string> => {
       let listRestUrl: string = '';
 
@@ -67,7 +66,7 @@ class SpoListLabelSetCommand extends SpoCommand {
         headers: {
           'accept': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       return request
@@ -84,25 +83,25 @@ class SpoListLabelSetCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          body: {
+          data: {
             listUrl: listAbsoluteUrl,
             complianceTagValue: args.options.label,
             blockDelete: args.options.blockDelete || false,
             blockEdit: args.options.blockEdit || false,
             syncToItems: args.options.syncToItems || false
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -145,43 +144,16 @@ class SpoListLabelSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.label) {
-        return 'Required parameter label missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.listId && !args.options.listTitle && !args.options.listUrl) {
+      return `Specify listId or listTitle or listUrl.`;
+    }
 
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+    if (args.options.listId && !Utils.isValidGuid(args.options.listId)) {
+      return `${args.options.listId} is not a valid GUID`;
+    }
 
-      if (!args.options.listId && !args.options.listTitle && !args.options.listUrl) {
-        return `Specify listId or listTitle or listUrl.`;
-      }
-
-      if (args.options.listId && !Utils.isValidGuid(args.options.listId)) {
-        return `${args.options.listId} is not a valid GUID`;
-      }
-
-      return SpoCommand.isValidSharePointUrl(args.options.webUrl);
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Sets classification label "Confidential" for list ${chalk.grey('Shared Documents')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_LABEL_SET} --webUrl https://contoso.sharepoint.com/sites/project-x --listUrl 'Shared Documents' --label 'Confidential'
-
-    Sets classification label "Confidential" and disables editing and deleting
-    items on the list and all existing items for list ${chalk.grey('Documents')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_LABEL_SET} --webUrl https://contoso.sharepoint.com/sites/project-x --listTitle 'Documents' --label 'Confidential' --blockEdit --blockDelete --syncToItems
-`);
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

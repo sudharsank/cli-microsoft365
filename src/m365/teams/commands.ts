@@ -12,6 +12,7 @@ export default {
   TEAMS_CHANNEL_LIST: `${prefix} channel list`,
   TEAMS_CHANNEL_REMOVE: `${prefix} channel remove`,
   TEAMS_CHANNEL_SET: `${prefix} channel set`,
+  TEAMS_CONVERSATIONMEMBER_LIST: `${prefix} conversationmember list`,
   TEAMS_FUNSETTINGS_LIST: `${prefix} funsettings list`,
   TEAMS_FUNSETTINGS_SET: `${prefix} funsettings set`,
   TEAMS_GUESTSETTINGS_LIST: `${prefix} guestsettings list`,
@@ -30,6 +31,7 @@ export default {
   TEAMS_REPORT_USERACTIVITYUSERCOUNTS: `${prefix} report useractivityusercounts`,
   TEAMS_REPORT_USERACTIVITYUSERDETAIL: `${prefix} report useractivityuserdetail`,
   TEAMS_TAB_ADD: `${prefix} tab add`,
+  TEAMS_TAB_GET: `${prefix} tab get`,
   TEAMS_TAB_LIST: `${prefix} tab list`,
   TEAMS_TAB_REMOVE: `${prefix} tab remove`,
   TEAMS_TEAM_ADD: `${prefix} team add`,
@@ -44,5 +46,6 @@ export default {
   TEAMS_USER_REMOVE: `${prefix} user remove`,
   TEAMS_USER_SET: `${prefix} user set`,
   TEAMS_USER_APP_ADD: `${prefix} user app add`,
+  TEAMS_USER_APP_LIST: `${prefix} user app list`,
   TEAMS_USER_APP_REMOVE: `${prefix} user app remove`
 };

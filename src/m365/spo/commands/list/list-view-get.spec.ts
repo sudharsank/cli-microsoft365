@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./list-view-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./list-view-get');
 
 describe(commands.LIST_VIEW_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.LIST_VIEW_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +51,11 @@ describe(commands.LIST_VIEW_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.LIST_VIEW_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.LIST_VIEW_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('correctly handles error when the specified list doesn\'t exist', (done) => {
@@ -73,9 +73,9 @@ describe(commands.LIST_VIEW_GET, () => {
       })
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com', listTitle: 'List', viewTitle: 'All items' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com', listTitle: 'List', viewTitle: 'All items' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("List does not exist.\n\nThe page you selected contains a list that does not exist. It may have been deleted by another user.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("List does not exist.\n\nThe page you selected contains a list that does not exist. It may have been deleted by another user.")));
         done();
       }
       catch (e) {
@@ -99,9 +99,9 @@ describe(commands.LIST_VIEW_GET, () => {
       })
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com', listTitle: 'List', viewTitle: 'All Items' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com', listTitle: 'List', viewTitle: 'All Items' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("The specified view is invalid.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("The specified view is invalid.")));
         done();
       }
       catch (e) {
@@ -124,9 +124,9 @@ describe(commands.LIST_VIEW_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1', viewId: 'ba84217c-8561-4234-aa95-265081e74be9' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1', viewId: 'ba84217c-8561-4234-aa95-265081e74be9' } }, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0].Id, 'ba84217c-8561-4234-aa95-265081e74be9');
+        assert.strictEqual(loggerLogSpy.lastCall.args[0].Id, 'ba84217c-8561-4234-aa95-265081e74be9');
         done();
       }
       catch (e) {
@@ -148,9 +148,9 @@ describe(commands.LIST_VIEW_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com', listUrl: 'lists/List1', viewTitle: 'All Items' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com', listUrl: 'lists/List1', viewTitle: 'All Items' } }, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0].Title, 'All Items');
+        assert.strictEqual(loggerLogSpy.lastCall.args[0].Title, 'All Items');
         done();
       }
       catch (e) {
@@ -172,9 +172,9 @@ describe(commands.LIST_VIEW_GET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, webUrl: 'https://contoso.sharepoint.com', listId: 'dac05e4a-5f6c-41dd-bba3-2be1104c711e', viewId: 'ba84217c-8561-4234-aa95-265081e74be9' } }, () => {
+    command.action(logger, { options: { debug: true, webUrl: 'https://contoso.sharepoint.com', listId: 'dac05e4a-5f6c-41dd-bba3-2be1104c711e', viewId: 'ba84217c-8561-4234-aa95-265081e74be9' } }, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0].Title, 'All Items');
+        assert.strictEqual(loggerLogSpy.lastCall.args[0].Title, 'All Items');
         done();
       }
       catch (e) {
@@ -184,7 +184,7 @@ describe(commands.LIST_VIEW_GET, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -194,87 +194,48 @@ describe(commands.LIST_VIEW_GET, () => {
     assert(containsDebugOption);
   });
 
-  it('fails validation if webUrl is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { listTitle: 'List 1', viewTitle: 'All items' } });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if webUrl is not a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'invalid', listTitle: 'List 1', viewTitle: 'All items' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'invalid', listTitle: 'List 1', viewTitle: 'All items' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if neither listId nor listTitle nor listUrl specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', viewTitle: 'All items' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', viewTitle: 'All items' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if listId is not a GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: 'invalid', viewTitle: 'All items' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: 'invalid', viewTitle: 'All items' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if neither viewId nor viewTitle specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both viewId and viewTitle specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1', viewId: '330f29c5-5c4c-465f-9f4b-7903020ae1ce', viewTitle: 'All items' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1', viewId: '330f29c5-5c4c-465f-9f4b-7903020ae1ce', viewTitle: 'All items' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if viewId is not a GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1', viewId: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1', viewId: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when viewTitle and listTitle specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1', viewTitle: 'All items' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listTitle: 'List 1', viewTitle: 'All items' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when viewId and listId specified and valid GUIDs', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '330f29c5-5c4c-465f-9f4b-7903020ae1ce', viewId: '330f29c5-5c4c-465f-9f4b-7903020ae1cf' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '330f29c5-5c4c-465f-9f4b-7903020ae1ce', viewId: '330f29c5-5c4c-465f-9f4b-7903020ae1cf' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when viewId and listUrl specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listUrl: 'lists/list1', viewId: '330f29c5-5c4c-465f-9f4b-7903020ae1cf' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.LIST_VIEW_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listUrl: 'lists/list1', viewId: '330f29c5-5c4c-465f-9f4b-7903020ae1cf' } });
+    assert.strictEqual(actual, true);
   });
 });

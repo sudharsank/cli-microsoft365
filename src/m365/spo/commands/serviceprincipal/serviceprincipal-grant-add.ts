@@ -1,16 +1,16 @@
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandError, CommandOption, CommandValidate
+    CommandError, CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import { SPOWebAppServicePrincipalPermissionGrant } from './SPOWebAppServicePrincipalPermissionGrant';
+import config from '../../../../config';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
+import { SPOWebAppServicePrincipalPermissionGrant } from './SPOWebAppServicePrincipalPermissionGrant';
 
 interface CommandArgs {
   options: Options;
@@ -34,16 +34,16 @@ class SpoServicePrincipalGrantAddCommand extends SpoCommand {
     return [commands.SP_GRANT_ADD];
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoAdminUrl: string = '';
 
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<ContextInfo> => {
         spoAdminUrl = _spoAdminUrl;
 
         if (this.verbose) {
-          cmd.log(`Retrieving request digest...`);
+          logger.logToStderr(`Retrieving request digest...`);
         }
 
         return this.getRequestDigest(spoAdminUrl);
@@ -54,7 +54,7 @@ class SpoServicePrincipalGrantAddCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectPath Id="6" ObjectPathId="5" /><ObjectPath Id="8" ObjectPathId="7" /><Query Id="9" ObjectPathId="7"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Constructor Id="3" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="5" ParentId="3" Name="PermissionRequests" /><Method Id="7" ParentId="5" Name="Approve"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.resource)}</Parameter><Parameter Type="String">${Utils.escapeXml(args.options.scope)}</Parameter></Parameters></Method></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectPath Id="6" ObjectPathId="5" /><ObjectPath Id="8" ObjectPathId="7" /><Query Id="9" ObjectPathId="7"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><Constructor Id="3" TypeId="{104e8f06-1e00-4675-99c6-1b9b504ed8d8}" /><Property Id="5" ParentId="3" Name="PermissionRequests" /><Method Id="7" ParentId="5" Name="Approve"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.resource)}</Parameter><Parameter Type="String">${Utils.escapeXml(args.options.scope)}</Parameter></Parameters></Method></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -69,14 +69,14 @@ class SpoServicePrincipalGrantAddCommand extends SpoCommand {
         else {
           const result: SPOWebAppServicePrincipalPermissionGrant = json[json.length - 1];
           delete result._ObjectType_;
-          cmd.log(result);
+          logger.log(result);
 
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -93,38 +93,6 @@ class SpoServicePrincipalGrantAddCommand extends SpoCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.resource) {
-        return 'Required parameter resource missing';
-      }
-
-      if (!args.options.scope) {
-        return 'Required parameter scope missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.SERVICEPRINCIPAL_GRANT_ADD).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-        
-  Examples:
-  
-    Grant the service principal permission to read email using the Microsoft
-    Graph
-      ${commands.SERVICEPRINCIPAL_GRANT_ADD} --resource 'Microsoft Graph' --scope 'Mail.Read'
-
-    Grant the service principal permission to a custom API
-      ${commands.SERVICEPRINCIPAL_GRANT_ADD} --resource 'contoso-api' --scope 'user_impersonation'
-`);
   }
 }
 

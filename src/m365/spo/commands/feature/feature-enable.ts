@@ -1,14 +1,13 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
   CommandOption,
-  CommandValidate,
-  CommandTypes,
+  CommandTypes
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -37,7 +36,7 @@ class SpoFeatureEnableCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let scope: string | undefined = args.options.scope;
     let force: boolean = args.options.force;
 
@@ -49,7 +48,7 @@ class SpoFeatureEnableCommand extends SpoCommand {
     }
 
     if (this.verbose) {
-      cmd.log(`Enabling feature '${args.options.featureId}' on scope '${scope}' for url '${args.options.url}' (force='${force}')...`);
+      logger.logToStderr(`Enabling feature '${args.options.featureId}' on scope '${scope}' for url '${args.options.url}' (force='${force}')...`);
     }
 
     const url: string = `${args.options.url}/_api/${scope}/features/add(featureId=guid'${args.options.featureId}',force=${force})`;
@@ -64,10 +63,10 @@ class SpoFeatureEnableCommand extends SpoCommand {
       .post(requestOptions)
       .then((res: any): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public types(): CommandTypes {
@@ -101,43 +100,14 @@ class SpoFeatureEnableCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.url) {
-        return 'Required parameter url missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.scope) {
+      if (['site', 'web'].indexOf(args.options.scope.toLowerCase()) < 0) {
+        return `${args.options.scope} is not a valid Feature scope. Allowed values are Site|Web`;
       }
+    }
 
-      if (!args.options.featureId) {
-        return 'Required parameter featureId missing';
-      }
-
-      if (args.options.scope) {
-        if (['site', 'web'].indexOf(args.options.scope.toLowerCase()) < 0){
-          return `${args.options.scope} is not a valid Feature scope. Allowed values are Site|Web`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.FEATURE_ENABLE).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('url')} doesn't refer to an existing site collection,
-    you will get a ${chalk.grey('"404 FILE NOT FOUND"')} error.
-      
-  Examples:
-  
-    Enable site feature
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --featureId 915c240e-a6cc-49b8-8b2c-0bff8b553ed3 --scope Site
-
-    Enable web feature (with force to overwrite feature with same id)
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --featureId 00bfea71-5932-4f9c-ad71-1557e5751100 --scope Web --force
-    `);
+    return SpoCommand.isValidSharePointUrl(args.options.url);
   }
 }
 

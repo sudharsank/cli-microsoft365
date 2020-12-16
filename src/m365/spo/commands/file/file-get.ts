@@ -1,17 +1,15 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { FileProperties } from './FileProperties';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -47,9 +45,9 @@ class SpoFileGetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving file from site ${args.options.webUrl}...`);
+      logger.logToStderr(`Retrieving file from site ${args.options.webUrl}...`);
     }
 
     let requestUrl: string = '';
@@ -85,35 +83,51 @@ class SpoFileGetCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      encoding: null, // Set encoding to null, otherwise binary data will be encoded to utf8 and binary data is corrupt 
-      json: true
+      // Set responseType to arraybuffer, otherwise binary data will be encoded
+      // to utf8 and binary data is corrupt
+      responseType: args.options.asFile ? 'stream' : 'json'
     };
 
-    request
-      .get<string>(requestOptions)
-      .then((file: string): void => {
-        if (args.options.asString) {
-          cmd.log(file.toString());
-        }
-        else if (args.options.asListItem) {
-          const fileProperties: FileProperties = JSON.parse(JSON.stringify(file));
-          cmd.log(fileProperties.ListItemAllFields)
-        }
-        else if (args.options.asFile) {
-          if (args.options.path) {
-            fs.writeFileSync(args.options.path, file);
-            if (this.verbose) {
-              cmd.log(`File saved to path ${args.options.path}`);
-            }
-          }
-        }
-        else {
-          const fileProperties: FileProperties = JSON.parse(JSON.stringify(file));
-          cmd.log(fileProperties);
-        }
+    if (args.options.asFile && args.options.path) {
+      request
+        .get<any>(requestOptions)
+        .then((file: any): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const writer = fs.createWriteStream(args.options.path as string);
 
-        cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+            file.data.pipe(writer);
+
+            writer.on('error', err => {
+              reject(err);
+            });
+            writer.on('close', () => {
+              resolve(args.options.path as string);
+            });
+          });
+        })
+        .then((file: string): void => {
+          if (this.verbose) {
+            logger.logToStderr(`File saved to path ${file}`);
+          }
+          cb();
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
+    }
+    else {
+      request
+        .get<string>(requestOptions)
+        .then((file: string): void => {
+          if (args.options.asString) {
+            logger.log(file.toString());
+          }
+          else {
+            const fileProperties: FileProperties = JSON.parse(JSON.stringify(file));
+            logger.log(args.options.asListItem ? fileProperties.ListItemAllFields : fileProperties);
+          }
+
+          cb();
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
+    }
+
   }
 
   public options(): CommandOption[] {
@@ -152,99 +166,47 @@ class SpoFileGetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
+
+    if (args.options.id) {
+      if (!Utils.isValidGuid(args.options.id)) {
+        return `${args.options.id} is not a valid GUID`;
       }
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
+    if (args.options.id && args.options.url) {
+      return 'Specify id or url, but not both';
+    }
+
+    if (!args.options.id && !args.options.url) {
+      return 'Specify id or url, one is required';
+    }
+
+    if (args.options.asFile && !args.options.path) {
+      return 'The path should be specified when the --asFile option is used';
+    }
+
+    if (args.options.path && !fs.existsSync(path.dirname(args.options.path))) {
+      return 'Specified path where to save the file does not exits';
+    }
+
+    if (args.options.asFile) {
+      if (args.options.asListItem || args.options.asString) {
+        return 'Specify to retrieve the file either as file, list item or string but not multiple';
       }
+    }
 
-      if (args.options.id) {
-        if (!Utils.isValidGuid(args.options.id)) {
-          return `${args.options.id} is not a valid GUID`;
-        }
+    if (args.options.asListItem) {
+      if (args.options.asFile || args.options.asString) {
+        return 'Specify to retrieve the file either as file, list item or string but not multiple';
       }
+    }
 
-      if (args.options.id && args.options.url) {
-        return 'Specify id or url, but not both';
-      }
-
-      if (!args.options.id && !args.options.url) {
-        return 'Specify id or url, one is required';
-      }
-
-      if (args.options.asFile && !args.options.path) {
-        return 'The path should be specified when the --asFile option is used';
-      }
-
-      if (args.options.path && !fs.existsSync(path.dirname(args.options.path))) {
-        return 'Specified path where to save the file does not exits';
-      }
-
-      if (args.options.asFile) {
-        if (args.options.asListItem || args.options.asString) {
-          return 'Specify to retrieve the file either as file, list item or string but not multiple';
-        }
-      }
-
-      if (args.options.asListItem) {
-        if (args.options.asFile || args.options.asString) {
-          return 'Specify to retrieve the file either as file, list item or string but not multiple';
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Get file properties for file with id (UniqueId) ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531d6')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --id 'b2307a39-e878-458b-bc90-03bc578531d6'
-
-    Get contents of the file with id (UniqueId) ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531d6')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --id 'b2307a39-e878-458b-bc90-03bc578531d6' --asString
-
-    Get list item properties for file with id (UniqueId)
-    ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531d6')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --id 'b2307a39-e878-458b-bc90-03bc578531d6' --asListItem   
-
-    Save file with id (UniqueId) ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531d6')} located
-    in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} to local file
-    ${chalk.grey('/Users/user/documents/SavedAsTest1.docx')}
-      ${commands.FILE_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --id 'b2307a39-e878-458b-bc90-03bc578531d6' --asFile --path /Users/user/documents/SavedAsTest1.docx
-    
-    Return file properties for file with server-relative url
-    ${chalk.grey('/sites/project-x/documents/Test1.docx')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --url '/sites/project-x/documents/Test1.docx'
-
-    Return file as string for file with server-relative url
-    ${chalk.grey('/sites/project-x/documents/Test1.docx')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --url '/sites/project-x/documents/Test1.docx' --asString
-
-    Return list item properties for file with server-relative url
-    ${chalk.grey('/sites/project-x/documents/Test1.docx')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --url '/sites/project-x/documents/Test1.docx' --asListItem   
-
-    Save file with server-relative url ${chalk.grey('/sites/project-x/documents/Test1.docx')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-    to local file ${chalk.grey('/Users/user/documentsSavedAsTest1.docx')}
-      ${commands.FILE_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --url '/sites/project-x/documents/Test1.docx' --asFile --path /Users/user/documents/SavedAsTest1.docx
-      `);
+    return true;
   }
 }
 

@@ -1,16 +1,13 @@
 import * as fs from "fs";
 import * as path from 'path';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import Command, {
-  CommandOption,
-  CommandValidate,
-  CommandAction,
-  CommandError
+import { Logger } from "../../../../cli";
+import {
+  CommandError, CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import AnonymousCommand from "../../../base/AnonymousCommand";
 import CdsProjectMutator from "../../cds-project-mutator";
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -25,7 +22,7 @@ interface Options extends GlobalOptions {
  * Version: 1.0.6
  * Class: bolt.module.solution.verbs.SolutionAddReferenceVerb
  */
-class PaSolutionReferenceAddCommand extends Command {
+class PaSolutionReferenceAddCommand extends AnonymousCommand {
   public get name(): string {
     return commands.SOLUTION_REFERENCE_ADD;
   }
@@ -34,16 +31,7 @@ class PaSolutionReferenceAddCommand extends Command {
     return 'Adds a project reference to the solution in the current directory';
   }
 
-  public action(): CommandAction {
-    const cmd: Command = this;
-    return function (this: CommandInstance, args: CommandArgs, cb: (err?: any) => void) {
-      args = (cmd as any).processArgs(args);
-      (cmd as any).initAction(args, this);
-      cmd.commandAction(this, args, cb);
-    }
-  }
-
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     try {
       const referencedProjectFilePath: string = this.getSupportedProjectFiles(args.options.path)[0];
       const relativeReferencedProjectFilePath: string = path.relative(process.cwd(), referencedProjectFilePath);
@@ -53,7 +41,7 @@ class PaSolutionReferenceAddCommand extends Command {
       const cdsProjectMutator = new CdsProjectMutator(cdsProjectFileContent);
       cdsProjectMutator.addProjectReference(relativeReferencedProjectFilePath);
 
-      fs.writeFileSync(cdsProjectFilePath, cdsProjectMutator.cdsProjectDocument);
+      fs.writeFileSync(cdsProjectFilePath, cdsProjectMutator.cdsProjectDocument as any);
 
       cb();
     }
@@ -74,44 +62,42 @@ class PaSolutionReferenceAddCommand extends Command {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      const existingCdsProjects: string[] = this.getCdsProjectFile(process.cwd());
+  public validate(args: CommandArgs): boolean | string {
+    const existingCdsProjects: string[] = this.getCdsProjectFile(process.cwd());
 
-      if (existingCdsProjects.length === 0) {
-        return 'CDS solution project file with extension cdsproj was not found in the current directory.';
-      }
+    if (existingCdsProjects.length === 0) {
+      return 'CDS solution project file with extension cdsproj was not found in the current directory.';
+    }
 
-      if (existingCdsProjects.length > 1) {
-        return 'Multiple CDS solution project files with extension cdsproj were found in the current directory.';
-      }
+    if (existingCdsProjects.length > 1) {
+      return 'Multiple CDS solution project files with extension cdsproj were found in the current directory.';
+    }
 
-      if (!args.options.path) {
-        return 'Missing required option path.';
-      }
+    if (!args.options.path) {
+      return 'Missing required option path.';
+    }
 
-      if (!fs.existsSync(args.options.path)) {
-        return `Path ${args.options.path} is not a valid path.`;
-      }
+    if (!fs.existsSync(args.options.path)) {
+      return `Path ${args.options.path} is not a valid path.`;
+    }
 
-      const existingSupportedProjects: string[] = this.getSupportedProjectFiles(args.options.path);
-      if (existingSupportedProjects.length === 0) {
-        return `No supported project type found in path ${args.options.path}.`;
-      }
+    const existingSupportedProjects: string[] = this.getSupportedProjectFiles(args.options.path);
+    if (existingSupportedProjects.length === 0) {
+      return `No supported project type found in path ${args.options.path}.`;
+    }
 
-      if (existingSupportedProjects.length !== 1) {
-        return `More than one supported project type found in path ${args.options.path}.`;
-      }
+    if (existingSupportedProjects.length !== 1) {
+      return `More than one supported project type found in path ${args.options.path}.`;
+    }
 
-      const cdsProjectName: string = path.parse(path.basename(existingCdsProjects[0])).name;
-      const pcfProjectName: string = path.parse(path.basename(existingSupportedProjects[0])).name;
+    const cdsProjectName: string = path.parse(path.basename(existingCdsProjects[0])).name;
+    const pcfProjectName: string = path.parse(path.basename(existingSupportedProjects[0])).name;
 
-      if (cdsProjectName === pcfProjectName) {
-        return `Not able to add reference to a project with same name as CDS project with name: ${pcfProjectName}.`;
-      }
+    if (cdsProjectName === pcfProjectName) {
+      return `Not able to add reference to a project with same name as CDS project with name: ${pcfProjectName}.`;
+    }
 
-      return true;
-    };
+    return true;
   }
 
   private getCdsProjectFile(rootPath: string): string[] {
@@ -125,31 +111,6 @@ class PaSolutionReferenceAddCommand extends Command {
       const ext: string = path.extname(fn).toLowerCase();
       return ext === '.pcfproj' || ext === '.csproj';
     }).map(entry => path.join(rootPath, entry));
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.SOLUTION_REFERENCE_ADD).helpInformation());
-    log(
-      `  Remarks:
-
-    This commands expects a CDS solution project in the current directory, and
-    references a PowerApps component framework project.
-    
-    The CDS solution project and the PowerApps component framework project
-    cannot have the same name.
-
-  Examples:
-
-    Adds a reference inside the CDS Solution project in the current directory
-    to the PowerApps component framework project at ${chalk.grey('./projects/ExampleProject')}
-      ${commands.SOLUTION_REFERENCE_ADD} --path ./projects/ExampleProject
-
-  More information:
-
-    Create and build a custom component
-      https://docs.microsoft.com/en-us/powerapps/developer/component-framework/create-custom-controls-using-pcf
-`);
   }
 }
 

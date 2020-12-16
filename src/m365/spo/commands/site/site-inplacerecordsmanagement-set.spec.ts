@@ -1,17 +1,17 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./site-inplacerecordsmanagement-set');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./site-inplacerecordsmanagement-set');
 
 describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
+  let logger: Logger;
   
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -20,14 +20,15 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -35,7 +36,6 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -49,11 +49,11 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SITE_INPLACERECORDSMANAGEMENT_SET), true);
+    assert.strictEqual(command.name.startsWith(commands.SITE_INPLACERECORDSMANAGEMENT_SET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('correctly handles error when in-place records management already activated', (done) => {
@@ -76,9 +76,9 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'true' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'true' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("Feature 'InPlaceRecords' (ID: da2e115b-07e4-49d9-bb2c-35e93bb9fca9) is already activated at scope 'https://contoso.sharepoint.com/sites/team-a'.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("Feature 'InPlaceRecords' (ID: da2e115b-07e4-49d9-bb2c-35e93bb9fca9) is already activated at scope 'https://contoso.sharepoint.com/sites/team-a'.")));
         done();
       }
       catch (e) {
@@ -107,9 +107,9 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'false' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'false' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("Feature 'da2e115b-07e4-49d9-bb2c-35e93bb9fca9' is not activated at this scope.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("Feature 'da2e115b-07e4-49d9-bb2c-35e93bb9fca9' is not activated at this scope.")));
         done();
       }
       catch (e) {
@@ -128,11 +128,11 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, verbose: true, siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'false' } }, () => {
+    command.action(logger, { options: { debug: true, verbose: true, siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'false' } }, () => {
       try {
-        assert.equal(requestStub.lastCall.args[0].url, 'https://contoso.sharepoint.com/sites/team-a/_api/site/features/remove');
-        assert.equal(requestStub.lastCall.args[0].body.featureId, 'da2e115b-07e4-49d9-bb2c-35e93bb9fca9');
-        assert.equal(requestStub.lastCall.args[0].body.force, true);
+        assert.strictEqual(requestStub.lastCall.args[0].url, 'https://contoso.sharepoint.com/sites/team-a/_api/site/features/remove');
+        assert.strictEqual(requestStub.lastCall.args[0].data.featureId, 'da2e115b-07e4-49d9-bb2c-35e93bb9fca9');
+        assert.strictEqual(requestStub.lastCall.args[0].data.force, true);
 
         done();
       }
@@ -152,11 +152,11 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { verbose: true, siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'true' } }, () => {
+    command.action(logger, { options: { verbose: true, siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'true' } }, () => {
       try {
-        assert.equal(requestStub.lastCall.args[0].url, 'https://contoso.sharepoint.com/sites/team-a/_api/site/features/add');
-        assert.equal(requestStub.lastCall.args[0].body.featureId, 'da2e115b-07e4-49d9-bb2c-35e93bb9fca9');
-        assert.equal(requestStub.lastCall.args[0].body.force, true);
+        assert.strictEqual(requestStub.lastCall.args[0].url, 'https://contoso.sharepoint.com/sites/team-a/_api/site/features/add');
+        assert.strictEqual(requestStub.lastCall.args[0].data.featureId, 'da2e115b-07e4-49d9-bb2c-35e93bb9fca9');
+        assert.strictEqual(requestStub.lastCall.args[0].data.force, true);
         done();
       }
       catch (e) {
@@ -175,11 +175,11 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'true' } }, () => {
+    command.action(logger, { options: { siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'true' } }, () => {
       try {
-        assert.equal(requestStub.lastCall.args[0].url, 'https://contoso.sharepoint.com/sites/team-a/_api/site/features/add');
-        assert.equal(requestStub.lastCall.args[0].body.featureId, 'da2e115b-07e4-49d9-bb2c-35e93bb9fca9');
-        assert.equal(requestStub.lastCall.args[0].body.force, true);
+        assert.strictEqual(requestStub.lastCall.args[0].url, 'https://contoso.sharepoint.com/sites/team-a/_api/site/features/add');
+        assert.strictEqual(requestStub.lastCall.args[0].data.featureId, 'da2e115b-07e4-49d9-bb2c-35e93bb9fca9');
+        assert.strictEqual(requestStub.lastCall.args[0].data.force, true);
         done();
       }
       catch (e) {
@@ -189,7 +189,7 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -200,7 +200,7 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
   });
 
   it('supports specifying siteUrl', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--siteUrl') > -1) {
@@ -211,7 +211,7 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
   });
 
   it('supports specifying enabled', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--enabled') > -1) {
@@ -221,67 +221,23 @@ describe(commands.SITE_INPLACERECORDSMANAGEMENT_SET, () => {
     assert(containsOption);
   });
 
-  it('fails validation if siteUrl not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { enabled: 'true' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if enabled option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { siteUrl: 'https://contoso.sharepoint.com/sites/team-a' } });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if enabled option not "true" or "false"', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'abc' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'abc' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if siteUrl is not a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { siteUrl: 'abc', enabled: 'true' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { siteUrl: 'abc', enabled: 'true' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the siteUrl is a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'true' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'true' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the siteUrl is a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'false' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SITE_INPLACERECORDSMANAGEMENT_SET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { siteUrl: 'https://contoso.sharepoint.com/sites/team-a', enabled: 'false' } });
+    assert.strictEqual(actual, true);
   });
 });

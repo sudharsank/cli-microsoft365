@@ -1,16 +1,14 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import Utils from '../../../../Utils';
-import AadCommand from '../../../base/AadCommand';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
+import GraphCommand from '../../../base/GraphCommand';
+import commands from '../../commands';
 import { AppRoleAssignment } from './AppRoleAssignment';
-import { ServicePrincipal, AppRole } from './ServicePrincipal';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import { AppRole, ServicePrincipal } from './ServicePrincipal';
 
 interface CommandArgs {
   options: Options;
@@ -22,7 +20,7 @@ interface Options extends GlobalOptions {
   objectId?: string;
 }
 
-class AadAppRoleAssignmentListCommand extends AadCommand {
+class AadAppRoleAssignmentListCommand extends GraphCommand {
   public get name(): string {
     return commands.APPROLEASSIGNMENT_LIST;
   }
@@ -39,7 +37,11 @@ class AadAppRoleAssignmentListCommand extends AadCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['resourceDisplayName', 'roleName'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let sp: ServicePrincipal;
 
     // get the service principal associated with the appId
@@ -48,7 +50,7 @@ class AadAppRoleAssignmentListCommand extends AadCommand {
       spMatchQuery = `appId eq '${encodeURIComponent(args.options.appId)}'`;
     }
     else if (args.options.objectId) {
-      spMatchQuery = `objectId eq '${encodeURIComponent(args.options.objectId)}'`;
+      spMatchQuery = `id eq '${encodeURIComponent(args.options.objectId)}'`;
     }
     else {
       spMatchQuery = `displayName eq '${encodeURIComponent(args.options.displayName as string)}'`;
@@ -80,14 +82,14 @@ class AadAppRoleAssignmentListCommand extends AadCommand {
         // and lookup the appRole.Id in the resources[resourceId].appRoles array...
         const results: any[] = [];
         sp.appRoleAssignments.map((appRoleAssignment: AppRoleAssignment) => {
-          const resource: ServicePrincipal | undefined = resources.find((r: any) => r.objectId === appRoleAssignment.resourceId);
+          const resource: ServicePrincipal | undefined = resources.find((r: any) => r.id === appRoleAssignment.resourceId);
 
           if (resource) {
-            const appRole: AppRole | undefined = resource.appRoles.find((r: any) => r.id === appRoleAssignment.id);
+            const appRole: AppRole | undefined = resource.appRoles.find((r: any) => r.id === appRoleAssignment.appRoleId);
 
             if (appRole) {
               results.push({
-                appRoleId: appRoleAssignment.id,
+                appRoleId: appRoleAssignment.appRoleId,
                 resourceDisplayName: appRoleAssignment.resourceDisplayName,
                 resourceId: appRoleAssignment.resourceId,
                 roleId: appRole.id,
@@ -97,41 +99,30 @@ class AadAppRoleAssignmentListCommand extends AadCommand {
           }
         });
 
-        if (args.options.output === 'json') {
-          cmd.log(results);
-        }
-        else {
-          cmd.log(results.map((r: any) => {
-            return {
-              resourceDisplayName: r.resourceDisplayName,
-              roleName: r.roleName
-            }
-          }));
-        }
-
+        logger.log(results);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   private getServicePrincipalForApp(filterParam: string): Promise<{ value: ServicePrincipal[] }> {
     const spRequestOptions: any = {
-      url: `${this.resource}/myorganization/servicePrincipals?api-version=1.6&$expand=appRoleAssignments&$filter=${filterParam}`,
+      url: `${this.resource}/v1.0/servicePrincipals?$expand=appRoleAssignments&$filter=${filterParam}`,
       headers: {
         accept: 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.get<{ value: ServicePrincipal[] }>(spRequestOptions);
   }
 
-  private getServicePrincipal(spId: string): Promise<ServicePrincipal> {
+  private  getServicePrincipal(spId: string): Promise<ServicePrincipal> {
     const spRequestOptions: any = {
-      url: `${this.resource}/myorganization/servicePrincipals/${spId}?api-version=1.6`,
+      url: `${this.resource}/v1.0/servicePrincipals/${spId}`,
       headers: {
         accept: 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.get<ServicePrincipal>(spRequestOptions);
@@ -157,62 +148,28 @@ class AadAppRoleAssignmentListCommand extends AadCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.appId && !args.options.displayName && !args.options.objectId) {
-        return 'Specify either appId, objectId or displayName';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.appId && !args.options.displayName && !args.options.objectId) {
+      return 'Specify either appId, objectId or displayName';
+    }
 
-      if (args.options.appId && !Utils.isValidGuid(args.options.appId)) {
-        return `${args.options.appId} is not a valid GUID`;
-      }
+    if (args.options.appId && !Utils.isValidGuid(args.options.appId)) {
+      return `${args.options.appId} is not a valid GUID`;
+    }
 
-      if (args.options.objectId && !Utils.isValidGuid(args.options.objectId)) {
-        return `${args.options.objectId} is not a valid GUID`;
-      }
+    if (args.options.objectId && !Utils.isValidGuid(args.options.objectId)) {
+      return `${args.options.objectId} is not a valid GUID`;
+    }
 
-      let optionsSpecified: number = 0;
-      optionsSpecified += args.options.appId ? 1 : 0;
-      optionsSpecified += args.options.displayName ? 1 : 0;
-      optionsSpecified += args.options.objectId ? 1 : 0;
-      if (optionsSpecified > 1) {
-        return 'Specify either appId, objectId or displayName';
-      }
+    let optionsSpecified: number = 0;
+    optionsSpecified += args.options.appId ? 1 : 0;
+    optionsSpecified += args.options.displayName ? 1 : 0;
+    optionsSpecified += args.options.objectId ? 1 : 0;
+    if (optionsSpecified > 1) {
+      return 'Specify either appId, objectId or displayName';
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.APPROLEASSIGNMENT_LIST).helpInformation());
-    log(
-      `  Remarks:
-  
-    Specify either the ${chalk.grey('appId')}, ${chalk.grey('objectId')} or ${chalk.grey('displayName')}. 
-    If you specify more than one option value, the command will fail
-    with an error.
-   
-  Examples:
-  
-    List app roles assigned to service principal with Application (client) ID
-    ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531d6')}.
-      ${commands.APPROLEASSIGNMENT_LIST} --appId b2307a39-e878-458b-bc90-03bc578531d6
-
-    List app roles assigned to service principal with Application display name
-    ${chalk.grey('MyAppName')}.
-      ${commands.APPROLEASSIGNMENT_LIST} --displayName 'MyAppName'
-
-    List app roles assigned to service principal with ObjectId
-    ${chalk.grey('b2307a39-e878-458b-bc90-03bc578531dd')}.
-      ${commands.APPROLEASSIGNMENT_LIST} --objectId b2307a39-e878-458b-bc90-03bc578531dd
-
-  More information:
-  
-    Application and service principal objects in Azure Active Directory
-    (Azure AD): 
-      https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-application-objects
-`);
+    return true;
   }
 }
 

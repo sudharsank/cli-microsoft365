@@ -1,10 +1,10 @@
 import * as assert from 'assert';
-import * as sinon from 'sinon';
-import { Finding } from '../Finding';
-import { Project, ScssFile } from '../../model';
-import { FN022002_SCSS_add_fabric_react } from './FN022002_SCSS_add_fabric_react';
 import * as fs from 'fs';
-import { Utils }  from '../';
+import * as sinon from 'sinon';
+import { Utils } from '../';
+import { Project, ScssFile } from '../../model';
+import { Finding } from '../Finding';
+import { FN022002_SCSS_add_fabric_react } from './FN022002_SCSS_add_fabric_react';
 
 describe('FN022002_SCSS_add_fabric_react', () => {
   let findings: Finding[];
@@ -33,7 +33,7 @@ describe('FN022002_SCSS_add_fabric_react', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('returns notifications if import is missing and no condition', () => {
@@ -46,7 +46,7 @@ describe('FN022002_SCSS_add_fabric_react', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1);
+    assert.strictEqual(findings.length, 1);
   });
 
   it('doesn\'t return notifications if import is missing but condition is not met', () => {
@@ -60,7 +60,7 @@ describe('FN022002_SCSS_add_fabric_react', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('returns notifications if import is missing and condition is met', () => {
@@ -73,7 +73,7 @@ describe('FN022002_SCSS_add_fabric_react', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1);
+    assert.strictEqual(findings.length, 1);
   });
 
   it('doesn\'t return notifications if scss is not in react web part', () => {
@@ -90,7 +90,7 @@ describe('FN022002_SCSS_add_fabric_react', () => {
       ]
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notifications if no scss files', () => {
@@ -102,7 +102,7 @@ describe('FN022002_SCSS_add_fabric_react', () => {
       scssFiles: []
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('rule file name is empty', () => {
@@ -114,6 +114,6 @@ describe('FN022002_SCSS_add_fabric_react', () => {
       scssFiles: []
     };
     rule.visit(project, findings);
-    assert.equal(rule.file, '');
+    assert.strictEqual(rule.file, '');
   });
 });

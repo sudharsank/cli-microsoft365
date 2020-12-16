@@ -1,18 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./web-clientsidewebpart-list');
-import * as assert from 'assert';
+import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import auth from '../../../../Auth';
+import commands from '../../commands';
+const command: Command = require('./web-clientsidewebpart-list');
 
 describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +22,24 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,37 +53,15 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.WEB_CLIENTSIDEWEBPART_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.WEB_CLIENTSIDEWEBPART_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -91,32 +71,23 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
     assert(containsDebugOption);
   });
 
-  it('fails validation if the webUrl option is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-
-      }
-    });
-    assert.notEqual(actual, true);
-  });
-
   it('should fail validation if the webUrl option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         webUrl: 'foo'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if all required options are specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         webUrl: "https://contoso.sharepoint.com/subsite"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('handles error when calling client side webparts', (done) => {
@@ -127,15 +98,15 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
       return Promise.resolve('abc');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         output: 'json',
         debug: false,
         webUrl: 'https://contoso.sharepoint.com'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Error')));
         done();
       }
       catch (e) {
@@ -173,7 +144,7 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
       return Promise.resolve('abc');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         output: 'json',
         debug: false,
@@ -182,7 +153,7 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
     }, () => {
 
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -221,7 +192,7 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
       return Promise.resolve('abc');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         output: 'json',
         debug: true,
@@ -230,7 +201,7 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
     }, () => {
 
       try {
-        assert(cmdInstanceLogSpy.calledWith("No client-side web parts available for this site"));
+        assert(loggerLogToStderrSpy.calledWith("No client-side web parts available for this site"));
         done();
       }
       catch (e) {
@@ -268,7 +239,7 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
       return Promise.resolve('abc');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         output: 'json',
         debug: true,
@@ -293,7 +264,7 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
             }
           }
         );
-        assert(cmdInstanceLogSpy.calledWith(expectedClientSideWebparts));
+        assert(loggerLogSpy.calledWith(expectedClientSideWebparts));
         done();
       }
       catch (e) {
@@ -331,7 +302,7 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
       return Promise.resolve('abc');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         output: 'json',
         debug: true,
@@ -355,7 +326,7 @@ describe(commands.WEB_CLIENTSIDEWEBPART_LIST, () => {
             }
           }
         );
-        assert(cmdInstanceLogSpy.calledWith(expectedClientSideWebparts));
+        assert(loggerLogSpy.calledWith(expectedClientSideWebparts));
         done();
       }
       catch (e) {

@@ -1,13 +1,12 @@
-import config from '../../../../config';
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+    CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -32,10 +31,10 @@ class GraphSchemaExtensionRemoveCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeSchemaExtension: () => void = (): void => {
         if (this.verbose) {
-          cmd.log(`Removes specified Microsoft Graph schema extension with id '${args.options.id}'...`);
+          logger.logToStderr(`Removes specified Microsoft Graph schema extension with id '${args.options.id}'...`);
         }
 
         const requestOptions: any = {
@@ -44,23 +43,23 @@ class GraphSchemaExtensionRemoveCommand extends GraphCommand {
             accept: 'application/json;odata.metadata=none',
             'content-type': 'application/json'
           },
-          json: true
+          responseType: 'json'
         };
 
       request.delete(requestOptions)
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   };
   if (args.options.confirm) {
     removeSchemaExtension();
   }
   else {
-    cmd.prompt({
+    Cli.prompt({
       type: 'confirm',
       name: 'continue',
       default: false,
@@ -90,35 +89,6 @@ class GraphSchemaExtensionRemoveCommand extends GraphCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required option id is missing';
-      }
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    To remove specified schema extension definition, you have to pass the ID of the schema
-    extension. 
-
-  Examples:
-  
-    Removes specified Microsoft Graph schema extension with ID domain_myExtension. Will prompt for confirmation
-        ${chalk.grey(config.delimiter)} ${this.name} --id domain_myExtension
-    
-    Removes specified Microsoft Graph schema extension with ID domain_myExtension without prompt for confirmation
-        ${chalk.grey(config.delimiter)} ${this.name} --id domain_myExtension --confirm
-    `
-    );    
   }
 }
 module.exports = new GraphSchemaExtensionRemoveCommand();

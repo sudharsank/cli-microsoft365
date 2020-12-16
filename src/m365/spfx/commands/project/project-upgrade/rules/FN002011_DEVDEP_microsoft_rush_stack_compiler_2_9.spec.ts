@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN002011_DEVDEP_microsoft_rush_stack_compiler_2_9 } from './FN002011_DEVDEP_microsoft_rush_stack_compiler_2_9';
 
 describe('FN002011_DEVDEP_microsoft_rush_stack_compiler_2_9', () => {
@@ -22,6 +22,6 @@ describe('FN002011_DEVDEP_microsoft_rush_stack_compiler_2_9', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

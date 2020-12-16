@@ -5,22 +5,24 @@ Adds a new Microsoft Teams team
 ## Usage
 
 ```sh
-teams team add [options]
+m365 teams team add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-n, --name [name]`|Display name for the Microsoft Teams team. Required if `templatePath` not supplied
-`-d, --description [description]`|Description for the Microsoft Teams team. Required if `templatePath` not supplied
-`--templatePath [templatePath]`|Local path to the file containing the template. If `name` or `description` are supplied, these take precedence over the template values
-`--wait`|Wait for the team to be provisioned before completing the command
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-n, --name [name]`
+: Display name for the Microsoft Teams team. Required if `templatePath` not supplied
+
+`-d, --description [description]`
+: Description for the Microsoft Teams team. Required if `templatePath` not supplied
+
+`--templatePath [templatePath]`
+: Local path to the file containing the template. If `name` or `description` are supplied, these take precedence over the template values
+
+`--wait`
+: Wait for the team to be provisioned before completing the command
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -36,19 +38,19 @@ This command will return different responses based on the presence of the `--wai
 Add a new Microsoft Teams team
 
 ```sh
-teams team add --name 'Architecture' --description 'Architecture Discussion'
+m365 teams team add --name 'Architecture' --description 'Architecture Discussion'
 ```
 
 Add a new Microsoft Teams team using a template
 
 ```sh
-teams team add --name 'Architecture' --description 'Architecture Discussion' --templatePath 'template.json'
+m365 teams team add --name 'Architecture' --description 'Architecture Discussion' --templatePath 'template.json'
 ```
 
 Add a new Microsoft Teams team using a template and wait for the team to be provisioned
 
 ```sh
-teams team add --name 'Architecture' --description 'Architecture Discussion' --templatePath 'template.json' --wait
+m365 teams team add --name 'Architecture' --description 'Architecture Discussion' --templatePath 'template.json' --wait
 ```
 
 ## More information

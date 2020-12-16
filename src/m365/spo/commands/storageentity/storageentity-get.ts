@@ -1,13 +1,12 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption
+    CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { TenantProperty } from './TenantProperty';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -26,16 +25,16 @@ class SpoStorageEntityGetCommand extends SpoCommand {
     return 'Get details for the specified tenant property';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this
-      .getSpoUrl(cmd, this.debug)
+      .getSpoUrl(logger, this.debug)
       .then((spoUrl: string): Promise<TenantProperty> => {
         const requestOptions: any = {
           url: `${spoUrl}/_api/web/GetStorageEntity('${encodeURIComponent(args.options.key)}')`,
           headers: {
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
@@ -43,11 +42,11 @@ class SpoStorageEntityGetCommand extends SpoCommand {
       .then((property: TenantProperty): void => {
         if (property["odata.null"] === true) {
           if (this.verbose) {
-            cmd.log(`Property with key ${args.options.key} not found`);
+            logger.logToStderr(`Property with key ${args.options.key} not found`);
           }
         }
         else {
-          cmd.log({
+          logger.log({
             Key: args.options.key,
             Value: property.Value,
             Description: property.Description,
@@ -55,7 +54,7 @@ class SpoStorageEntityGetCommand extends SpoCommand {
           });
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -66,29 +65,6 @@ class SpoStorageEntityGetCommand extends SpoCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.STORAGEENTITY_GET).helpInformation());
-    log(
-      `  Remarks:
-
-    Tenant properties are stored in the app catalog site associated with
-    the site to which you are currently logged in. When retrieving the specified
-    tenant property, SharePoint will automatically find the associated app
-    catalog and try to retrieve the property from it.
-
-  Examples:
-  
-    Show the value, description and comment of the ${chalk.grey('AnalyticsId')} tenant property
-      ${commands.STORAGEENTITY_GET} --key AnalyticsId
-
-  More information:
-
-    SharePoint Framework Tenant Properties
-      https://docs.microsoft.com/en-us/sharepoint/dev/spfx/tenant-properties
-`);
   }
 }
 

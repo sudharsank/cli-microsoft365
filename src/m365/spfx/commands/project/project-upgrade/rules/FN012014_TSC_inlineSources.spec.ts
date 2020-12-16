@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN012014_TSC_inlineSources } from './FN012014_TSC_inlineSources';
 
 describe('FN012014_TSC_inlineSources', () => {
@@ -22,7 +22,7 @@ describe('FN012014_TSC_inlineSources', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if object is missing', () => {
@@ -31,7 +31,7 @@ describe('FN012014_TSC_inlineSources', () => {
       tsConfigJson: undefined
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('returns notification if inlineSources has the wrong value', () => {
@@ -44,7 +44,7 @@ describe('FN012014_TSC_inlineSources', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1);
+    assert.strictEqual(findings.length, 1);
   });
 
   it('returns notification if inlineSources is missing', () => {
@@ -56,6 +56,6 @@ describe('FN012014_TSC_inlineSources', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1);
+    assert.strictEqual(findings.length, 1);
   });
 });

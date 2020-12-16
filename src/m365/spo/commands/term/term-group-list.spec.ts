@@ -1,19 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./term-group-list');
-import * as assert from 'assert';
-import request from '../../../../request';
-import config from '../../../../config';
-import Utils from '../../../../Utils';
 import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
+import config from '../../../../config';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./term-group-list');
 
 describe(commands.TERM_GROUP_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -24,23 +24,23 @@ describe(commands.TERM_GROUP_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -56,11 +56,15 @@ describe(commands.TERM_GROUP_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TERM_GROUP_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.TERM_GROUP_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['Id', 'Name']);
   });
 
   it('lists taxonomy term groups (debug)', (done) => {
@@ -68,7 +72,7 @@ describe(commands.TERM_GROUP_LIST, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectIdentityQuery Id="5" ObjectPathId="3" /><ObjectPath Id="7" ObjectPathId="6" /><ObjectIdentityQuery Id="8" ObjectPathId="6" /><ObjectPath Id="10" ObjectPathId="9" /><Query Id="11" ObjectPathId="9"><Query SelectAllProperties="false"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></ChildItemQuery></Query></Actions><ObjectPaths><StaticMethod Id="3" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="6" ParentId="3" Name="GetDefaultSiteCollectionTermStore" /><Property Id="9" ParentId="6" Name="Groups" /></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectIdentityQuery Id="5" ObjectPathId="3" /><ObjectPath Id="7" ObjectPathId="6" /><ObjectIdentityQuery Id="8" ObjectPathId="6" /><ObjectPath Id="10" ObjectPathId="9" /><Query Id="11" ObjectPathId="9"><Query SelectAllProperties="false"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></ChildItemQuery></Query></Actions><ObjectPaths><StaticMethod Id="3" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="6" ParentId="3" Name="GetDefaultSiteCollectionTermStore" /><Property Id="9" ParentId="6" Name="Groups" /></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0",
@@ -206,19 +210,107 @@ describe(commands.TERM_GROUP_LIST, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: true } }, () => {
+    command.action(logger, { options: { debug: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
-          { "Id": "36a62501-17ea-455a-bed4-eff862242def", "Name": "People" },
-          { "Id": "0e8f395e-ff58-4d45-9ff7-e331ab728beb", "Name": "PnPTermSets" },
-          { "Id": "d87b6a37-c801-4a36-9046-6296d4779c87", "Name": "Search Dictionaries" },
-          { "Id": "b16ae5da-a017-4d6b-bb32-01dc0e73643a", "Name": "Site Collection - m365x035040.sharepoint.com-search" },
-          { "Id": "d5996106-7273-45dd-8fa3-006a52756877", "Name": "Site Collection - m365x035040.sharepoint.com-sites-Analytics" },
-          { "Id": "d5d21ae0-7d75-4fef-a716-415dcdb56987", "Name": "Site Collection - m365x035040.sharepoint.com-sites-hr" },
-          { "Id": "82c7ae54-ef9a-4b87-ae7f-1b98256e4e9d", "Name": "Site Collection - m365x035040.sharepoint.com-sites-Marketing" },
-          { "Id": "883abc10-d86e-45ae-a0bc-d62642c2cccd", "Name": "Site Collection - m365x035040.sharepoint.com-sites-portal" },
-          { "Id": "fa978985-1faf-4f98-adf3-35464e273535", "Name": "System" }
-        ]));
+        assert(loggerLogSpy.calledWith([{
+          "_ObjectType_": "SP.Taxonomy.TermGroup",
+          "_ObjectIdentity_": "40bc8e9e-c0f3-0000-2b65-64d3c82fb3d9|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUQElpjbqF1pFvtTv+GIkLe8=",
+          "CreatedDate": "2018-06-20T07:23:21.033Z",
+          "Id": "36a62501-17ea-455a-bed4-eff862242def",
+          "LastModifiedDate": "2018-06-20T07:23:21.033Z",
+          "Name": "People",
+          "Description": "",
+          "IsSiteCollectionGroup": false,
+          "IsSystemGroup": false
+        },
+        {
+          "_ObjectType_": "SP.Taxonomy.TermGroup",
+          "_ObjectIdentity_": "40bc8e9e-c0f3-0000-2b65-64d3c82fb3d9|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUV45jw5Y/0VNn/fjMatyi+s=",
+          "CreatedDate": "2018-09-13T11:52:53.117Z",
+          "Id": "0e8f395e-ff58-4d45-9ff7-e331ab728beb",
+          "LastModifiedDate": "2018-09-13T11:52:53.117Z",
+          "Name": "PnPTermSets",
+          "Description": "",
+          "IsSiteCollectionGroup": false,
+          "IsSystemGroup": false
+        },
+        {
+          "_ObjectType_": "SP.Taxonomy.TermGroup",
+          "_ObjectIdentity_": "40bc8e9e-c0f3-0000-2b65-64d3c82fb3d9|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUTdqe9gByDZKkEZiltR3nIc=",
+          "CreatedDate": "2018-06-20T07:23:21.063Z",
+          "Id": "d87b6a37-c801-4a36-9046-6296d4779c87",
+          "LastModifiedDate": "2018-06-20T07:23:21.063Z",
+          "Name": "Search Dictionaries",
+          "Description": "",
+          "IsSiteCollectionGroup": false,
+          "IsSystemGroup": false
+        },
+        {
+          "_ObjectType_": "SP.Taxonomy.TermGroup",
+          "_ObjectIdentity_": "40bc8e9e-c0f3-0000-2b65-64d3c82fb3d9|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUdrlarEXoGtNuzIB3A5zZDo=",
+          "CreatedDate": "2018-06-20T07:23:20.770Z",
+          "Id": "b16ae5da-a017-4d6b-bb32-01dc0e73643a",
+          "LastModifiedDate": "2018-06-20T07:23:20.770Z",
+          "Name": "Site Collection - m365x035040.sharepoint.com-search",
+          "Description": "",
+          "IsSiteCollectionGroup": true,
+          "IsSystemGroup": false
+        },
+        {
+          "_ObjectType_": "SP.Taxonomy.TermGroup",
+          "_ObjectIdentity_": "40bc8e9e-c0f3-0000-2b65-64d3c82fb3d9|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUQZhmdVzct1Fj6MAalJ1aHc=",
+          "CreatedDate": "2018-06-20T11:50:06.027Z",
+          "Id": "d5996106-7273-45dd-8fa3-006a52756877",
+          "LastModifiedDate": "2018-06-20T11:50:06.027Z",
+          "Name": "Site Collection - m365x035040.sharepoint.com-sites-Analytics",
+          "Description": "",
+          "IsSiteCollectionGroup": true,
+          "IsSystemGroup": false
+        },
+        {
+          "_ObjectType_": "SP.Taxonomy.TermGroup",
+          "_ObjectIdentity_": "40bc8e9e-c0f3-0000-2b65-64d3c82fb3d9|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUeAa0tV1fe9PpxZBXc21aYc=",
+          "CreatedDate": "2018-09-12T12:20:31.887Z",
+          "Id": "d5d21ae0-7d75-4fef-a716-415dcdb56987",
+          "LastModifiedDate": "2018-09-12T12:20:31.887Z",
+          "Name": "Site Collection - m365x035040.sharepoint.com-sites-hr",
+          "Description": "",
+          "IsSiteCollectionGroup": true,
+          "IsSystemGroup": false
+        },
+        {
+          "_ObjectType_": "SP.Taxonomy.TermGroup",
+          "_ObjectIdentity_": "40bc8e9e-c0f3-0000-2b65-64d3c82fb3d9|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUVSux4Ka74dLrn8bmCVuTp0=",
+          "CreatedDate": "2018-09-12T12:20:43.060Z",
+          "Id": "82c7ae54-ef9a-4b87-ae7f-1b98256e4e9d",
+          "LastModifiedDate": "2018-09-12T12:20:43.060Z",
+          "Name": "Site Collection - m365x035040.sharepoint.com-sites-Marketing",
+          "Description": "",
+          "IsSiteCollectionGroup": true,
+          "IsSystemGroup": false
+        },
+        {
+          "_ObjectType_": "SP.Taxonomy.TermGroup",
+          "_ObjectIdentity_": "40bc8e9e-c0f3-0000-2b65-64d3c82fb3d9|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpURC8Oohu2K5FoLzWJkLCzM0=",
+          "CreatedDate": "2018-09-12T12:11:44.210Z",
+          "Id": "883abc10-d86e-45ae-a0bc-d62642c2cccd",
+          "LastModifiedDate": "2018-09-12T12:11:44.210Z",
+          "Name": "Site Collection - m365x035040.sharepoint.com-sites-portal",
+          "Description": "",
+          "IsSiteCollectionGroup": true,
+          "IsSystemGroup": false
+        },
+        {
+          "_ObjectType_": "SP.Taxonomy.TermGroup",
+          "_ObjectIdentity_": "40bc8e9e-c0f3-0000-2b65-64d3c82fb3d9|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUYWJl/qvH5hPrfM1Rk4nNTU=",
+          "CreatedDate": "2018-06-20T07:19:15.453Z",
+          "Id": "fa978985-1faf-4f98-adf3-35464e273535",
+          "LastModifiedDate": "2018-06-20T07:19:15.453Z",
+          "Name": "System",
+          "Description": "These term sets are used by the system itself.",
+          "IsSiteCollectionGroup": false,
+          "IsSystemGroup": true
+        }]));
         done();
       }
       catch (e) {
@@ -232,7 +324,7 @@ describe(commands.TERM_GROUP_LIST, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectIdentityQuery Id="5" ObjectPathId="3" /><ObjectPath Id="7" ObjectPathId="6" /><ObjectIdentityQuery Id="8" ObjectPathId="6" /><ObjectPath Id="10" ObjectPathId="9" /><Query Id="11" ObjectPathId="9"><Query SelectAllProperties="false"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></ChildItemQuery></Query></Actions><ObjectPaths><StaticMethod Id="3" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="6" ParentId="3" Name="GetDefaultSiteCollectionTermStore" /><Property Id="9" ParentId="6" Name="Groups" /></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectIdentityQuery Id="5" ObjectPathId="3" /><ObjectPath Id="7" ObjectPathId="6" /><ObjectIdentityQuery Id="8" ObjectPathId="6" /><ObjectPath Id="10" ObjectPathId="9" /><Query Id="11" ObjectPathId="9"><Query SelectAllProperties="false"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></ChildItemQuery></Query></Actions><ObjectPaths><StaticMethod Id="3" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="6" ParentId="3" Name="GetDefaultSiteCollectionTermStore" /><Property Id="9" ParentId="6" Name="Groups" /></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0",
@@ -370,9 +462,9 @@ describe(commands.TERM_GROUP_LIST, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { output: 'json' } }, () => {
+    command.action(logger, { options: { output: 'json' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([{ "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUQElpjbqF1pFvtTv+GIkLe8=", "CreatedDate": "2018-06-20T07:23:21.033Z", "Id": "36a62501-17ea-455a-bed4-eff862242def", "LastModifiedDate": "2018-06-20T07:23:21.033Z", "Name": "People", "Description": "", "IsSiteCollectionGroup": false, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUV45jw5Y/0VNn/fjMatyi+s=", "CreatedDate": "2018-09-13T11:52:53.117Z", "Id": "0e8f395e-ff58-4d45-9ff7-e331ab728beb", "LastModifiedDate": "2018-09-13T11:52:53.117Z", "Name": "PnPTermSets", "Description": "", "IsSiteCollectionGroup": false, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUTdqe9gByDZKkEZiltR3nIc=", "CreatedDate": "2018-06-20T07:23:21.063Z", "Id": "d87b6a37-c801-4a36-9046-6296d4779c87", "LastModifiedDate": "2018-06-20T07:23:21.063Z", "Name": "Search Dictionaries", "Description": "", "IsSiteCollectionGroup": false, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUdrlarEXoGtNuzIB3A5zZDo=", "CreatedDate": "2018-06-20T07:23:20.770Z", "Id": "b16ae5da-a017-4d6b-bb32-01dc0e73643a", "LastModifiedDate": "2018-06-20T07:23:20.770Z", "Name": "Site Collection - m365x035040.sharepoint.com-search", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUQZhmdVzct1Fj6MAalJ1aHc=", "CreatedDate": "2018-06-20T11:50:06.027Z", "Id": "d5996106-7273-45dd-8fa3-006a52756877", "LastModifiedDate": "2018-06-20T11:50:06.027Z", "Name": "Site Collection - m365x035040.sharepoint.com-sites-Analytics", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUeAa0tV1fe9PpxZBXc21aYc=", "CreatedDate": "2018-09-12T12:20:31.887Z", "Id": "d5d21ae0-7d75-4fef-a716-415dcdb56987", "LastModifiedDate": "2018-09-12T12:20:31.887Z", "Name": "Site Collection - m365x035040.sharepoint.com-sites-hr", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUVSux4Ka74dLrn8bmCVuTp0=", "CreatedDate": "2018-09-12T12:20:43.060Z", "Id": "82c7ae54-ef9a-4b87-ae7f-1b98256e4e9d", "LastModifiedDate": "2018-09-12T12:20:43.060Z", "Name": "Site Collection - m365x035040.sharepoint.com-sites-Marketing", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpURC8Oohu2K5FoLzWJkLCzM0=", "CreatedDate": "2018-09-12T12:11:44.210Z", "Id": "883abc10-d86e-45ae-a0bc-d62642c2cccd", "LastModifiedDate": "2018-09-12T12:11:44.210Z", "Name": "Site Collection - m365x035040.sharepoint.com-sites-portal", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUYWJl/qvH5hPrfM1Rk4nNTU=", "CreatedDate": "2018-06-20T07:19:15.453Z", "Id": "fa978985-1faf-4f98-adf3-35464e273535", "LastModifiedDate": "2018-06-20T07:19:15.453Z", "Name": "System", "Description": "These term sets are used by the system itself.", "IsSiteCollectionGroup": false, "IsSystemGroup": true }]));
+        assert(loggerLogSpy.calledWith([{ "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUQElpjbqF1pFvtTv+GIkLe8=", "CreatedDate": "2018-06-20T07:23:21.033Z", "Id": "36a62501-17ea-455a-bed4-eff862242def", "LastModifiedDate": "2018-06-20T07:23:21.033Z", "Name": "People", "Description": "", "IsSiteCollectionGroup": false, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUV45jw5Y/0VNn/fjMatyi+s=", "CreatedDate": "2018-09-13T11:52:53.117Z", "Id": "0e8f395e-ff58-4d45-9ff7-e331ab728beb", "LastModifiedDate": "2018-09-13T11:52:53.117Z", "Name": "PnPTermSets", "Description": "", "IsSiteCollectionGroup": false, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUTdqe9gByDZKkEZiltR3nIc=", "CreatedDate": "2018-06-20T07:23:21.063Z", "Id": "d87b6a37-c801-4a36-9046-6296d4779c87", "LastModifiedDate": "2018-06-20T07:23:21.063Z", "Name": "Search Dictionaries", "Description": "", "IsSiteCollectionGroup": false, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUdrlarEXoGtNuzIB3A5zZDo=", "CreatedDate": "2018-06-20T07:23:20.770Z", "Id": "b16ae5da-a017-4d6b-bb32-01dc0e73643a", "LastModifiedDate": "2018-06-20T07:23:20.770Z", "Name": "Site Collection - m365x035040.sharepoint.com-search", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUQZhmdVzct1Fj6MAalJ1aHc=", "CreatedDate": "2018-06-20T11:50:06.027Z", "Id": "d5996106-7273-45dd-8fa3-006a52756877", "LastModifiedDate": "2018-06-20T11:50:06.027Z", "Name": "Site Collection - m365x035040.sharepoint.com-sites-Analytics", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUeAa0tV1fe9PpxZBXc21aYc=", "CreatedDate": "2018-09-12T12:20:31.887Z", "Id": "d5d21ae0-7d75-4fef-a716-415dcdb56987", "LastModifiedDate": "2018-09-12T12:20:31.887Z", "Name": "Site Collection - m365x035040.sharepoint.com-sites-hr", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUVSux4Ka74dLrn8bmCVuTp0=", "CreatedDate": "2018-09-12T12:20:43.060Z", "Id": "82c7ae54-ef9a-4b87-ae7f-1b98256e4e9d", "LastModifiedDate": "2018-09-12T12:20:43.060Z", "Name": "Site Collection - m365x035040.sharepoint.com-sites-Marketing", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpURC8Oohu2K5FoLzWJkLCzM0=", "CreatedDate": "2018-09-12T12:11:44.210Z", "Id": "883abc10-d86e-45ae-a0bc-d62642c2cccd", "LastModifiedDate": "2018-09-12T12:11:44.210Z", "Name": "Site Collection - m365x035040.sharepoint.com-sites-portal", "Description": "", "IsSiteCollectionGroup": true, "IsSystemGroup": false }, { "_ObjectType_": "SP.Taxonomy.TermGroup", "_ObjectIdentity_": "dfa8909e-402d-0000-2cdb-e7b0f4389f1c|fec14c62-7c3b-481b-851b-c80d7802b224:gr:YU1+cBy9wUuh/fzgFZGpUYWJl/qvH5hPrfM1Rk4nNTU=", "CreatedDate": "2018-06-20T07:19:15.453Z", "Id": "fa978985-1faf-4f98-adf3-35464e273535", "LastModifiedDate": "2018-06-20T07:19:15.453Z", "Name": "System", "Description": "These term sets are used by the system itself.", "IsSiteCollectionGroup": false, "IsSystemGroup": true }]));
         done();
       }
       catch (e) {
@@ -386,7 +478,7 @@ describe(commands.TERM_GROUP_LIST, () => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1 &&
         opts.headers &&
         opts.headers['X-RequestDigest'] &&
-        opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectIdentityQuery Id="5" ObjectPathId="3" /><ObjectPath Id="7" ObjectPathId="6" /><ObjectIdentityQuery Id="8" ObjectPathId="6" /><ObjectPath Id="10" ObjectPathId="9" /><Query Id="11" ObjectPathId="9"><Query SelectAllProperties="false"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></ChildItemQuery></Query></Actions><ObjectPaths><StaticMethod Id="3" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="6" ParentId="3" Name="GetDefaultSiteCollectionTermStore" /><Property Id="9" ParentId="6" Name="Groups" /></ObjectPaths></Request>`) {
+        opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="4" ObjectPathId="3" /><ObjectIdentityQuery Id="5" ObjectPathId="3" /><ObjectPath Id="7" ObjectPathId="6" /><ObjectIdentityQuery Id="8" ObjectPathId="6" /><ObjectPath Id="10" ObjectPathId="9" /><Query Id="11" ObjectPathId="9"><Query SelectAllProperties="false"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties><Property Name="Name" ScalarProperty="true" /><Property Name="Id" ScalarProperty="true" /></Properties></ChildItemQuery></Query></Actions><ObjectPaths><StaticMethod Id="3" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="6" ParentId="3" Name="GetDefaultSiteCollectionTermStore" /><Property Id="9" ParentId="6" Name="Groups" /></ObjectPaths></Request>`) {
         return Promise.resolve(JSON.stringify([
           {
             "SchemaVersion": "15.0.0.0",
@@ -424,9 +516,9 @@ describe(commands.TERM_GROUP_LIST, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false } }, () => {
+    command.action(logger, { options: { debug: false } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -445,9 +537,9 @@ describe(commands.TERM_GROUP_LIST, () => {
         }
       ]));
     });
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('File Not Found.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('File Not Found.')));
         done();
       }
       catch (e) {
@@ -457,7 +549,7 @@ describe(commands.TERM_GROUP_LIST, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -467,49 +559,15 @@ describe(commands.TERM_GROUP_LIST, () => {
     assert(containsOption);
   });
 
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TERM_GROUP_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
-  });
-
   it('handles promise rejection', (done) => {
     Utils.restore((command as any).getRequestDigest);
     sinon.stub(command as any, 'getRequestDigest').callsFake(() => Promise.reject('getRequestDigest error'));
     
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('getRequestDigest error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('getRequestDigest error')));
         done();
       }
       catch (e) {

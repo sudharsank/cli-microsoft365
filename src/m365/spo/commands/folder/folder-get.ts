@@ -1,12 +1,11 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import { CommandError, CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import { CommandOption, CommandValidate, CommandError } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { FolderProperties } from './FolderProperties';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -26,9 +25,9 @@ class SpoFolderGetCommand extends SpoCommand {
     return 'Gets information about the specified folder';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving folder from site ${args.options.webUrl}...`);
+      logger.logToStderr(`Retrieving folder from site ${args.options.webUrl}...`);
     }
 
     const serverRelativeUrl: string = Utils.getServerRelativePath(args.options.webUrl, args.options.folderUrl);
@@ -38,13 +37,13 @@ class SpoFolderGetCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get<FolderProperties>(requestOptions)
       .then((folder: FolderProperties): void => {
-        cmd.log(folder);
+        logger.log(folder);
 
         cb();
       }, (err: any): void => {
@@ -53,7 +52,7 @@ class SpoFolderGetCommand extends SpoCommand {
           return;
         }
 
-        this.handleRejectedODataJsonPromise(err, cmd, cb);
+        this.handleRejectedODataJsonPromise(err, logger, cb);
       });
   }
 
@@ -73,42 +72,8 @@ class SpoFolderGetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      if (!args.options.folderUrl) {
-        return 'Required parameter folderUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-  
-    If no folder exists at the specified URL, you will get a
-    ${chalk.grey(`Please check the folder URL. Folder might not exist on the specified URL`)}
-    error.
-        
-  Examples:
-  
-    Get folder properties for folder with site-relative url
-    ${chalk.grey('/Shared Documents')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FOLDER_GET} --webUrl https://contoso.sharepoint.com/sites/project-x --folderUrl '/Shared Documents'
-    `);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

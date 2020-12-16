@@ -1,14 +1,14 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import { ContextInfo } from '../../spo';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -28,7 +28,7 @@ class SpoHubSiteConnectCommand extends SpoCommand {
     return 'Connects the specified site collection to the given hub site';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this
       .getRequestDigest(args.options.url)
       .then((res: ContextInfo): Promise<void> => {
@@ -38,18 +38,18 @@ class SpoHubSiteConnectCommand extends SpoCommand {
             'X-RequestDigest': res.FormDigestValue,
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -68,57 +68,17 @@ class SpoHubSiteConnectCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.url) {
-        return 'Required parameter url missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (!Utils.isValidGuid(args.options.hubSiteId)) {
+      return `${args.options.hubSiteId} is not a valid GUID`;
+    }
 
-      if (!args.options.hubSiteId) {
-        return 'Required parameter hubSiteId missing';
-      }
-
-      if (!Utils.isValidGuid(args.options.hubSiteId)) {
-        return `${args.options.hubSiteId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on a SharePoint API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-
-    If the specified site collection is already connected to a hub site,
-    it will be disconnected and connected to the newly specified hub site.
-
-    If the specified ${chalk.grey('hubSiteId')} doesn't point to a valid hub
-    site, you will get a ${chalk.grey('ResourceNotFoundException')} error.
-
-  Examples:
-  
-    Connect the site collection with URL
-    ${chalk.grey('https://contoso.sharepoint.com/sites/contoso-sales')} to the hub site
-    with ID ${chalk.grey('255a50b2-527f-4413-8485-57f4c17a24d1')}
-      ${this.name} --url https://contoso.sharepoint.com/sites/contoso-sales --hubSiteId 255a50b2-527f-4413-8485-57f4c17a24d1
-
-  More information:
-
-    SharePoint hub sites new in Microsoft 365
-      https://techcommunity.microsoft.com/t5/SharePoint-Blog/SharePoint-hub-sites-new-in-Office-365/ba-p/109547
-`);
+    return true;
   }
 }
 

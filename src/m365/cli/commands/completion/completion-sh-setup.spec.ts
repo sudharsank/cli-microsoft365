@@ -1,17 +1,18 @@
-import commands from '../../commands';
-import Command from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./completion-sh-setup');
-import * as assert from 'assert';
-import Utils from '../../../../Utils';
 import { autocomplete } from '../../../../autocomplete';
+import { Logger } from '../../../../cli';
+import Command from '../../../../Command';
+import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./completion-sh-setup');
 
 describe(commands.COMPLETION_SH_SETUP, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let generateShCompletionStub: sinon.SinonStub;
   let setupShCompletionStub: sinon.SinonStub;
 
@@ -22,24 +23,22 @@ describe(commands.COMPLETION_SH_SETUP, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
-    Utils.restore([
-      vorpal.find
-    ]);
     generateShCompletionStub.reset();
     setupShCompletionStub.reset();
   });
@@ -53,15 +52,15 @@ describe(commands.COMPLETION_SH_SETUP, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.COMPLETION_SH_SETUP), true);
+    assert.strictEqual(command.name.startsWith(commands.COMPLETION_SH_SETUP), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('generates file with commands info', (done) => {
-    cmdInstance.action({ options: { debug: false } }, () => {
+    command.action(logger, { options: { debug: false } }, () => {
       try {
         assert(generateShCompletionStub.called);
         done();
@@ -73,7 +72,7 @@ describe(commands.COMPLETION_SH_SETUP, () => {
   });
 
   it('sets up command completion in the shell', (done) => {
-    cmdInstance.action({ options: { debug: false } }, () => {
+    command.action(logger, { options: { debug: false } }, () => {
       try {
         assert(setupShCompletionStub.called);
         done();
@@ -85,9 +84,9 @@ describe(commands.COMPLETION_SH_SETUP, () => {
   });
 
   it('writes output in verbose mode', (done) => {
-    cmdInstance.action({ options: { verbose: true } }, () => {
+    command.action(logger, { options: { verbose: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -97,48 +96,14 @@ describe(commands.COMPLETION_SH_SETUP, () => {
   });
 
   it('writes additional info in debug mode', (done) => {
-    cmdInstance.action({ options: { debug: true } }, () => {
+    command.action(logger, { options: { debug: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith('Generating command completion...'));
+        assert(loggerLogToStderrSpy.calledWith('Generating command completion...'));
         done();
       }
       catch (e) {
         done(e);
       }
     });
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.COMPLETION_SH_SETUP));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

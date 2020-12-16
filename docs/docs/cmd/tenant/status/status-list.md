@@ -5,25 +5,28 @@ Gets health status of the different services in Microsoft 365
 ## Usage
 
 ```sh
-tenant status list [options]
+m365 tenant status list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json|text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-w, --workload [workload]`
+: Retrieve service status for the specified service. If not provided, will list the current service status of all services
+
+--8<-- "docs/cmd/_global.md"
 
 ## Examples
 
-Get health status of the different services in Microsoft 365
+Gets health status of the different services in Microsoft 365
 
 ```sh
-tenant status list
+m365 tenant status list
+```
+
+Gets health status for SharePoint Online
+
+```sh
+m365 tenant status list --workload "SharePoint"
 ```
 
 ## More information

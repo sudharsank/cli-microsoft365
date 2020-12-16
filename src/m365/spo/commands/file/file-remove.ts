@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Cli, Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -40,10 +38,10 @@ class SpoFileRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeFile: () => void = (): void => {
       if (this.verbose) {
-        cmd.log(`Removing file in site at ${args.options.webUrl}...`);
+        logger.logToStderr(`Removing file in site at ${args.options.webUrl}...`);
       }
 
       let requestUrl: string = '';
@@ -79,7 +77,7 @@ class SpoFileRemoveCommand extends SpoCommand {
           'If-Match': '*',
           'accept': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -87,14 +85,14 @@ class SpoFileRemoveCommand extends SpoCommand {
         .then((): void => {
           // REST post call doesn't return anything
           cb();
-        }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
       removeFile();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -138,53 +136,26 @@ class SpoFileRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.id &&
+      !Utils.isValidGuid(args.options.id as string)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (args.options.id &&
-        !Utils.isValidGuid(args.options.id as string)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
+    if (args.options.id && args.options.url) {
+      return 'Specify id or url, but not both';
+    }
 
-      if (args.options.id && args.options.url) {
-        return 'Specify id or url, but not both';
-      }
+    if (!args.options.id && !args.options.url) {
+      return 'Specify id or url';
+    }
 
-      if (!args.options.id && !args.options.url) {
-        return 'Specify id or url';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Remove the file with ID ${chalk.grey('0cd891ef-afce-4e55-b836-fce03286cccf')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_REMOVE} --webUrl https://contoso.sharepoint.com/sites/project-x --id 0cd891ef-afce-4e55-b836-fce03286cccf
-
-    Remove the file with site-relative URL ${chalk.grey('SharedDocuments/Test.docx')} located in
-    site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.FILE_REMOVE} --webUrl https://contoso.sharepoint.com/sites/project-x --url SharedDocuments/Test.docx
-
-    Move the file with server-relative URL ${chalk.grey('/sites/project-x/SharedDocuments/Test.docx')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-    to the recycle bin
-      ${commands.FILE_REMOVE} --webUrl https://contoso.sharepoint.com/sites/project-x --url /sites/project-x/SharedDocuments/Test.docx --recycle
-      `);
+    return true;
   }
 }
 

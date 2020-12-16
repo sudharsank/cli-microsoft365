@@ -1,14 +1,14 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
 import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { SiteDesignRun } from './SiteDesignRun';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -34,10 +34,14 @@ class SpoSiteDesignRunListCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const body: any = {};
+  public defaultProperties(): string[] | undefined {
+    return ['ID', 'SiteDesignID', 'SiteDesignTitle', 'StartTime'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const data: any = {};
     if (args.options.siteDesignId) {
-      body.siteDesignId = args.options.siteDesignId;
+      data.siteDesignId = args.options.siteDesignId;
     }
 
     const requestOptions: any = {
@@ -46,32 +50,25 @@ class SpoSiteDesignRunListCommand extends SpoCommand {
         accept: 'application/json;odata=nometadata',
         'content-type': 'application/json;odata=nometadata'
       },
-      body: body,
-      json: true
+      data: data,
+      responseType: 'json'
     };
 
     request.post<{ value: SiteDesignRun[] }>(requestOptions)
       .then((res: { value: SiteDesignRun[] }): void => {
-        if (args.options.output === 'json') {
-          cmd.log(res.value);
+        if (args.options.output !== 'json') {
+          res.value.forEach(d => {
+            d.StartTime = new Date(parseInt(d.StartTime)).toLocaleString();
+          });
         }
-        else {
-          cmd.log(res.value.map(d => {
-            return {
-              ID: d.ID,
-              SiteDesignID: d.SiteDesignID,
-              SiteDesignTitle: d.SiteDesignTitle,
-              StartTime: new Date(parseInt(d.StartTime)).toLocaleString()
-            };
-          }));
-        }
+        logger.log(res.value);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -90,44 +87,19 @@ class SpoSiteDesignRunListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
+
+    if (args.options.siteDesignId) {
+      if (!Utils.isValidGuid(args.options.siteDesignId)) {
+        return `${args.options.siteDesignId} is not a valid GUID`;
       }
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      if (args.options.siteDesignId) {
-        if (!Utils.isValidGuid(args.options.siteDesignId)) {
-          return `${args.options.siteDesignId} is not a valid GUID`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    List site designs applied to the specified site
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a
-
-    List information about the specified site design applied to the specified
-    site
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/team-a --siteDesignId 6ec3ca5b-d04b-4381-b169-61378556d76e
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-`);
+    return true;
   }
 }
 

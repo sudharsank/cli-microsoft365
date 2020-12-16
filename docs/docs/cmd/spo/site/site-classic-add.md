@@ -5,30 +5,48 @@ Creates new classic site.
 ## Usage
 
 ```sh
-spo site classic add [options]
+m365 spo site classic add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|The absolute site url
-`-t, --title <title>`|The site title
-`--owner <owner>`|The account name of the site owner
-`-z, --timeZone <timeZone>`|Integer representing time zone to use for the site
-`-l, --lcid [lcid]`|Integer representing time zone to use for the site
-`-w, --webTemplate [webTemplate]`|Template to use for creating the site. Default `STS#0`
-`--resourceQuota [resourceQuota]`|The quota for this site collection in Sandboxed Solutions units. Default `0`
-`--resourceQuotaWarningLevel [resourceQuotaWarningLevel]`|The warning level for the resource quota. Default `0`
-`--storageQuota [storageQuota]`|The storage quota for this site collection in megabytes. Default `100`
-`--storageQuotaWarningLevel [storageQuotaWarningLevel]`|The warning level for the storage quota in megabytes. Default `100`
-`--removeDeletedSite`|Set, to remove existing deleted site with the same URL from the Recycle Bin
-`--wait`|Wait for the site to be provisioned before completing the command
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: The absolute site url
+
+`-t, --title <title>`
+: The site title
+
+`--owner <owner>`
+: The account name of the site owner
+
+`-z, --timeZone <timeZone>`
+: Integer representing time zone to use for the site
+
+`-l, --lcid [lcid]`
+: Integer representing time zone to use for the site
+
+`-w, --webTemplate [webTemplate]`
+: Template to use for creating the site. Default `STS#0`
+
+`--resourceQuota [resourceQuota]`
+: The quota for this site collection in Sandboxed Solutions units. Default `0`
+
+`--resourceQuotaWarningLevel [resourceQuotaWarningLevel]`
+: The warning level for the resource quota. Default `0`
+
+`--storageQuota [storageQuota]`
+: The storage quota for this site collection in megabytes. Default `100`
+
+`--storageQuotaWarningLevel [storageQuotaWarningLevel]`
+: The warning level for the storage quota in megabytes. Default `100`
+
+`--removeDeletedSite`
+: Set, to remove existing deleted site with the same URL from the Recycle Bin
+
+`--wait`
+: Wait for the site to be provisioned before completing the command
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -59,17 +77,17 @@ Deleting and creating classic site collections is by default asynchronous and de
 Create new classic site collection using the Team site template. Set time zone to `UTC+01:00`. Don't wait for the site provisioning to complete
 
 ```sh
-spo site classic add --url https://contoso.sharepoint.com/sites/team --title Team --owner admin@contoso.onmicrosoft.com --timeZone 4
+m365 spo site classic add --url https://contoso.sharepoint.com/sites/team --title Team --owner admin@contoso.onmicrosoft.com --timeZone 4
 ```
 
 Create new classic site collection using the Team site template. Set time zone to `UTC+01:00`. Wait for the site provisioning to complete
 
 ```sh
-spo site classic add --url https://contoso.sharepoint.com/sites/team --title Team --owner admin@contoso.onmicrosoft.com --timeZone 4 --webTemplate STS#0 --wait
+m365 spo site classic add --url https://contoso.sharepoint.com/sites/team --title Team --owner admin@contoso.onmicrosoft.com --timeZone 4 --webTemplate STS#0 --wait
 ```
 
 Create new classic site collection using the Team site template. Set time zone to `UTC+01:00`. If a site with the same URL is in the recycle bin, delete it. Wait for the site provisioning to complete
 
 ```sh
-spo site classic add --url https://contoso.sharepoint.com/sites/team --title Team --owner admin@contoso.onmicrosoft.com --timeZone 4 --webTemplate STS#0 --removeDeletedSite --wait
+m365 spo site classic add --url https://contoso.sharepoint.com/sites/team --title Team --owner admin@contoso.onmicrosoft.com --timeZone 4 --webTemplate STS#0 --removeDeletedSite --wait
 ```

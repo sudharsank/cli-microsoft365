@@ -5,22 +5,24 @@ Moves a folder to another location
 ## Usage
 
 ```sh
-spo folder move [options]
+m365 spo folder move [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|The URL of the site where the folder is located
-`-s, --sourceUrl <sourceUrl>`|Site-relative URL of the folder to move
-`-t, --targetUrl <targetUrl>`|Server-relative URL where to move the folder
-`--allowSchemaMismatch`|Ignores any missing fields in the target destination and moves the folder anyway
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: The URL of the site where the folder is located
+
+`-s, --sourceUrl <sourceUrl>`
+: Site-relative URL of the folder to move
+
+`-t, --targetUrl <targetUrl>`
+: Server-relative URL where to move the folder
+
+`--allowSchemaMismatch`
+: Ignores any missing fields in the target destination and moves the folder anyway
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -31,19 +33,19 @@ When you move a folder using the `spo folder move` command, all of the document 
 Move folder to a document library in another site collection
 
 ```sh
-spo folder move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test2/Shared%20Documents/
+m365 spo folder move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test2/Shared%20Documents/
 ```
 
 Move folder to a document library in the same site collection
 
 ```sh
-spo folder move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test1/HRDocuments/
+m365 spo folder move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test1/HRDocuments/
 ```
 
 Move folder to a document library in another site collection. Allow for schema mismatch
 
 ```sh
-spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --allowSchemaMismatch
+m365 spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --allowSchemaMismatch
 ```
 
 ## More information

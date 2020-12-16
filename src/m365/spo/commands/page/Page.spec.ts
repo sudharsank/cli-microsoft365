@@ -1,18 +1,26 @@
+import * as assert from 'assert';
 import * as sinon from 'sinon';
+import { Logger } from '../../../../cli';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import { Page } from './Page';
+import { ClientSidePageProperties } from './ClientSidePageProperties';
 import { ClientSidePage } from './clientsidepages';
-import * as assert from 'assert';
+import { Page } from './Page';
 
 describe('Page', () => {
   let log: string[];
-  let cmdInstance: any;
+  let logger: Logger;
 
   beforeEach(() => {
     log = [];
-    cmdInstance = {
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
@@ -20,7 +28,8 @@ describe('Page', () => {
 
   afterEach(() => {
     Utils.restore([
-      request.get
+      request.get,
+      request.post
     ]);
   });
 
@@ -35,7 +44,7 @@ describe('Page', () => {
     });
 
     Page
-      .getPage('page.aspx', 'https://contoso.sharepoint.com', cmdInstance, false, false)
+      .getPage('page.aspx', 'https://contoso.sharepoint.com', logger, false, false)
       .then((page: ClientSidePage): void => {
         done(new Error('Parsing page didn\'t fail while expected'));
       }, (error: any): void => {
@@ -113,14 +122,14 @@ describe('Page', () => {
     });
 
     Page
-      .getPage('page.aspx', 'https://contoso.sharepoint.com', cmdInstance, false, false)
+      .getPage('page.aspx', 'https://contoso.sharepoint.com', logger, false, false)
       .then((page: ClientSidePage): void => {
         done();
       }, (error: any): void => {
         done();
       });
 
-      assert(getCallIssued)
+    assert(getCallIssued)
 
   });
 
@@ -194,13 +203,123 @@ describe('Page', () => {
     });
 
     Page
-      .getPage('page.aspx', 'https://contoso.sharepoint.com/sites/team-a', cmdInstance, false, false)
+      .getPage('page.aspx', 'https://contoso.sharepoint.com/sites/team-a', logger, false, false)
       .then((page: ClientSidePage): void => {
         done();
       }, (error: any): void => {
         done();
       });
-      assert(getCallIssued)
+    assert(getCallIssued)
+  });
+
+
+  it('correctly handles checking out modern page', (done) => {
+    sinon.stub(request, 'post').callsFake((opts) => {
+      return Promise.resolve({});
+    });
+
+    Page
+      .checkout('page.aspx', 'https://contoso.sharepoint.com', logger, false, false)
+      .then((page: ClientSidePageProperties): void => {
+        done();
+      }, (error: any): void => {
+        done();
+      });
+  });
+
+
+  it('correctly handles error when checking out modern page with no data returned', (done) => {
+    sinon.stub(request, 'post').callsFake((opts) => {
+      return Promise.resolve(null);
+    });
+
+    Page
+      .checkout('page.aspx', 'https://contoso.sharepoint.com', logger, false, false)
+      .then((page: ClientSidePageProperties): void => {
+        done(new Error('Parsing page didn\'t fail while expected'));
+      }, (error: any): void => {
+        done();
+      });
+  });
+
+
+  it('correctly handles error in checking out modern page request', (done) => {
+    let getCallIssued = false;
+
+    sinon.stub(request, 'post').callsFake((opts) => {
+      getCallIssued = true;
+      return Promise.reject(null);
+    });
+
+    Page
+      .checkout('page.aspx', 'https://contoso.sharepoint.com', logger, false, false)
+      .then((page: ClientSidePageProperties): void => {
+        done(new Error('Parsing page didn\'t fail while expected'));
+      }, (error: any): void => {
+        done();
+      });
+
+    assert(getCallIssued);
+  });
+
+
+  it('correctly handles error when saving page without canvas data', (done) => {
+    let getCallIssued = false;
+
+    sinon.stub(request, 'post').callsFake((opts) => {
+      getCallIssued = true;
+      return Promise.reject();
+    });
+
+    Page
+      .save('page.aspx', 'https://contoso.sharepoint.com', null, logger, false, false)
+      .then((): void => {
+        done(new Error('No canvas content provided'));
+      }, (error: any): void => {
+        done();
+      });
+
+    assert(!getCallIssued);
+  });
+
+
+  it('correctly handles error when saving modern page', (done) => {
+    let getCallIssued = false;
+
+    sinon.stub(request, 'post').callsFake((opts) => {
+      getCallIssued = true;
+      return Promise.reject();
+    });
+
+    Page
+      .save('page.aspx', 'https://contoso.sharepoint.com', {}, logger, false, false)
+      .then((): void => {
+        done();
+      }, (error: any): void => {
+        done();
+      });
+
+    assert(getCallIssued);
+  });
+
+
+  it('correctly handles saving modern page', (done) => {
+    let getCallIssued = false;
+
+    sinon.stub(request, 'post').callsFake((opts) => {
+      getCallIssued = true;
+      return Promise.resolve();
+    });
+
+    Page
+      .save('page.aspx', 'https://contoso.sharepoint.com', {}, logger, false, false)
+      .then((): void => {
+        done();
+      }, (error: any): void => {
+        done();
+      });
+
+    assert(getCallIssued);
   });
 
 });

@@ -1,16 +1,15 @@
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import config from '../../../../config';
-import commands from '../../commands';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-import { ContextInfo } from '../../spo';
+import SpoCommand from '../../../base/SpoCommand';
 import { ClientSvc, IdentityResponse } from '../../ClientSvc';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -39,8 +38,8 @@ class SpoListItemRecordUndeclareCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const clientSvcCommons: ClientSvc = new ClientSvc(cmd, this.debug);
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const clientSvcCommons: ClientSvc = new ClientSvc(logger, this.debug);
     const listIdArgument: string = args.options.listId || '';
     const listTitleArgument: string = args.options.listTitle || '';
     const listRestUrl: string = (args.options.listId ?
@@ -56,14 +55,14 @@ class SpoListItemRecordUndeclareCommand extends SpoCommand {
       }
 
       if (this.verbose) {
-        cmd.log(`Getting list id...`);
+        logger.logToStderr(`Getting list id...`);
       }
       const listRequestOptions: any = {
         url: `${listRestUrl}/id`,
         headers: {
           'accept': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       return request.get(listRequestOptions);
@@ -72,7 +71,7 @@ class SpoListItemRecordUndeclareCommand extends SpoCommand {
         environmentListId = res.value;
 
         if (this.debug) {
-          cmd.log(`getting request digest for request`);
+          logger.logToStderr(`getting request digest for request`);
         }
 
         return this.getRequestDigest(args.options.webUrl);
@@ -84,7 +83,7 @@ class SpoListItemRecordUndeclareCommand extends SpoCommand {
       })
       .then((objectIdentity: IdentityResponse): Promise<void> => {
         if (this.verbose) {
-          cmd.log(`Undeclare list item as a record in list ${args.options.listId || args.options.listTitle} in site ${args.options.webUrl}...`);
+          logger.logToStderr(`Undeclare list item as a record in list ${args.options.listId || args.options.listTitle} in site ${args.options.webUrl}...`);
         }
 
         const requestOptions: any = {
@@ -93,7 +92,7 @@ class SpoListItemRecordUndeclareCommand extends SpoCommand {
             'Content-Type': 'text/xml',
             'X-RequestDigest': formDigestValue,
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><StaticMethod TypeId="{ea8e1356-5910-4e69-bc05-d0c30ed657fc}" Name="UndeclareItemAsRecord" Id="53"><Parameters><Parameter ObjectPathId="49" /></Parameters></StaticMethod></Actions><ObjectPaths><Identity Id="49" Name="${objectIdentity.objectIdentity}:list:${environmentListId}:item:${args.options.id},1" /></ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><StaticMethod TypeId="{ea8e1356-5910-4e69-bc05-d0c30ed657fc}" Name="UndeclareItemAsRecord" Id="53"><Parameters><Parameter ObjectPathId="49" /></Parameters></StaticMethod></Actions><ObjectPaths><Identity Id="49" Name="${objectIdentity.objectIdentity}:list:${environmentListId}:item:${args.options.id},1" /></ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -101,7 +100,7 @@ class SpoListItemRecordUndeclareCommand extends SpoCommand {
       .then((): void => {
         // REST post call doesn't return anything
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   };
 
   public options(): CommandOption[] {
@@ -128,58 +127,31 @@ class SpoListItemRecordUndeclareCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const id: number = parseInt(args.options.id);
+    if (isNaN(id)) {
+      return `${args.options.id} is not a valid list item ID`;
+    }
 
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const id: number = parseInt(args.options.id);
-      if (isNaN(id)) {
-        return `${args.options.id} is not a valid list item ID`;
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return `Specify listId or listTitle`;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return `Specify listId or listTitle but not both`;
+    }
 
-      if (!args.options.listId && !args.options.listTitle) {
-        return `Specify listId or listTitle`;
-      }
+    if (args.options.listId &&
+      !Utils.isValidGuid(args.options.listId)) {
+      return `${args.options.listId} in option listId is not a valid GUID`;
+    }
 
-      if (args.options.listId && args.options.listTitle) {
-        return `Specify listId or listTitle but not both`;
-      }
-
-      if (args.options.listId &&
-        !Utils.isValidGuid(args.options.listId)) {
-        return `${args.options.listId} in option listId is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-
-    Undeclare the list item as a record with ID ${chalk.grey(1)} from list with ID
-    ${chalk.grey('0cd891ef-afce-4e55-b836-fce03286cccf')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-      ${commands.LISTITEM_RECORD_UNDECLARE} --webUrl https://contoso.sharepoint.com/sites/project-x --listId 0cd891ef-afce-4e55-b836-fce03286cccf --id 1
-
-    Undeclare the list item as a record with ID ${chalk.grey(1)} from list with title
-    ${chalk.grey('List 1')} located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')} 
-      ${commands.LISTITEM_RECORD_UNDECLARE} --webUrl https://contoso.sharepoint.com/sites/project-x --listTitle 'List 1' --id 1
-     `);
+    return true;
   }
 }
 

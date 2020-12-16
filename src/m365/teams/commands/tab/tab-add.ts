@@ -1,13 +1,14 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import Utils from '../../../../Utils';
-import { Tab } from '../../Tab';
-import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import Utils from '../../../../Utils';
+import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
+import commands from '../../commands';
+import { Tab } from '../../Tab';
 
 interface CommandArgs {
   options: Options;
@@ -42,28 +43,28 @@ class TeamsTabAddCommand extends GraphItemsListCommand<Tab> {
     telemetryProps.websiteUrl = typeof args.options.websiteUrl !== 'undefined';
     return telemetryProps;
   }
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
 
-    const body: any = this.mapRequestBody(args.options);
+    const data: any = this.mapRequestBody(args.options);
     const requestOptions: any = {
       url: `${this.resource}/v1.0/teams/${encodeURIComponent(args.options.teamId)}/channels/${args.options.channelId}/tabs`,
       headers: {
         accept: 'application/json;odata.metadata=none',
         'content-type': 'application/json;odata=nometadata'
       },
-      body: body,
-      json: true
+      data: data,
+      responseType: 'json'
     };
     request
       .post(requestOptions)
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -106,32 +107,15 @@ class TeamsTabAddCommand extends GraphItemsListCommand<Tab> {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return 'Required parameter teamId missing';
-      }
-      if (!args.options.channelId) {
-        return 'Required parameter channelId missing';
-      }
-      if (!args.options.appId) {
-        return 'Required parameter appId missing';
-      }
-      if (!args.options.appName) {
-        return 'Required parameter appName missing';
-      }
-      if (!args.options.contentUrl) {
-        return 'Required parameter contentUrl missing';
-      }
-      if (!Utils.isValidGuid(args.options.teamId as string)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-      if (!Utils.isValidTeamsChannelId(args.options.channelId as string)) {
-        return `${args.options.channelId} is not a valid Teams ChannelId`;
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId as string)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
+    if (!Utils.isValidTeamsChannelId(args.options.channelId as string)) {
+      return `${args.options.channelId} is not a valid Teams ChannelId`;
+    }
 
-      return true;
-    };
+    return true;
   }
 
   private mapRequestBody(options: Options): any {
@@ -168,23 +152,6 @@ class TeamsTabAddCommand extends GraphItemsListCommand<Tab> {
       }
     });
     return requestBody;
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    The corresponding app must already be installed in the team.
-
-  Examples:
-  
-    Add teams tab for website
-      ${this.name} --teamId 00000000-0000-0000-0000-000000000000 --channelId 19:00000000000000000000000000000000@thread.skype --appId 06805b9e-77e3-4b93-ac81-525eb87513b8 --appName 'My Contoso Tab' --contentUrl 'https://www.contoso.com/Orders/2DCA2E6C7A10415CAF6B8AB6661B3154/tabView' 
-   
-    Add teams tab for website with additional configuration which is unknown
-      ${this.name} --teamId 00000000-0000-0000-0000-000000000000 --channelId 19:00000000000000000000000000000000@thread.skype --appId 06805b9e-77e3-4b93-ac81-525eb87513b8 --appName 'My Contoso Tab' --contentUrl 'https://www.contoso.com/Orders/2DCA2E6C7A10415CAF6B8AB6661B3154/tabView' --test1 'value for test1'
-  `);
   }
 }
 

@@ -5,23 +5,27 @@ Copies a file to another location
 ## Usage
 
 ```sh
-spo file copy [options]
+m365 spo file copy [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|The URL of the site where the file is located
-`-s, --sourceUrl <sourceUrl>`|Site-relative URL of the file to copy
-`-t, --targetUrl <targetUrl>`|Server-relative URL where to copy the file
-`--deleteIfAlreadyExists`|If a file already exists at the targetUrl, it will be moved to the recycle bin. If omitted, the copy operation will be canceled if the file already exists at the targetUrl location
-`--allowSchemaMismatch`|Ignores any missing fields in the target document library and copies the file anyway
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: The URL of the site where the file is located
+
+`-s, --sourceUrl <sourceUrl>`
+: Site-relative URL of the file to copy
+
+`-t, --targetUrl <targetUrl>`
+: Server-relative URL where to copy the file
+
+`--deleteIfAlreadyExists`
+: If a file already exists at the targetUrl, it will be moved to the recycle bin. If omitted, the copy operation will be canceled if the file already exists at the targetUrl location
+
+`--allowSchemaMismatch`
+: Ignores any missing fields in the target document library and copies the file anyway
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -32,25 +36,25 @@ When you copy a file using the `spo file copy` command, only the latest version 
 Copy file to a document library in another site collection
 
 ```sh
-spo file copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/
+m365 spo file copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/
 ```
 
 Copy file to a document library in the same site collection
 
 ```sh
-spo file copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test1/HRDocuments/
+m365 spo file copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test1/HRDocuments/
 ```
 
 Copy file to a document library in another site collection. If a file with the same name already exists in the target document library, move it to the recycle bin
 
 ```sh
-spo file copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --deleteIfAlreadyExists
+m365 spo file copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --deleteIfAlreadyExists
 ```
 
 Copy file to a document library in another site collection. Will ignore any missing fields in the target destination and copy anyway
 
 ```sh
-spo file copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --allowSchemaMismatch
+m365 spo file copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --allowSchemaMismatch
 ```
 
 ## More information

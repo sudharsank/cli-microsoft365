@@ -1,11 +1,11 @@
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import { CommandOption, CommandValidate } from '../../../../Command';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -31,7 +31,7 @@ class TeamsAppRemoveCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const { id: appId } = args.options;
 
     const removeApp: () => void = (): void => {
@@ -46,18 +46,18 @@ class TeamsAppRemoveCommand extends GraphCommand {
         .delete(requestOptions)
         .then((): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
-        }, (res: any): void => this.handleRejectedODataJsonPromise(res, cmd, cb));
+        }, (res: any): void => this.handleRejectedODataJsonPromise(res, logger, cb));
     };
 
     if (args.options.confirm) {
       removeApp();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -89,39 +89,12 @@ class TeamsAppRemoveCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    You can only remove a Teams app as a global administrator.
-
-  Examples:
-
-    Remove the Teams app with ID ${chalk.grey('83cece1e-938d-44a1-8b86-918cf6151957')} from
-    the organization's app catalog. Will prompt for confirmation before actually
-    removing the app.
-      ${this.name} --id 83cece1e-938d-44a1-8b86-918cf6151957
-
-    Remove the Teams app with ID ${chalk.grey('83cece1e-938d-44a1-8b86-918cf6151957')} from
-    the organization's app catalog. Don't prompt for confirmation.
-      ${this.name} --id 83cece1e-938d-44a1-8b86-918cf6151957 --confirm
-`);
+    return true;
   }
 }
 

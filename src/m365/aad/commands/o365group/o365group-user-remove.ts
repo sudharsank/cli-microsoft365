@@ -1,14 +1,14 @@
-import commands from '../../commands';
-import teamsCommands from '../../../teams/commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import Utils from '../../../../Utils';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import teamsCommands from '../../../teams/commands';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -42,7 +42,7 @@ class AadO365GroupUserRemoveCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let userId = '';
     const groupId: string = (typeof args.options.groupId !== 'undefined') ? args.options.groupId : args.options.teamId as string
 
@@ -52,7 +52,7 @@ class AadO365GroupUserRemoveCommand extends GraphCommand {
         headers: {
           accept: 'application/json;odata.metadata=none'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -65,7 +65,7 @@ class AadO365GroupUserRemoveCommand extends GraphCommand {
             headers: {
               accept: 'application/json;odata.metadata=none'
             },
-            json: true
+            responseType: 'json'
           };
 
           return request.get(requestOptions);
@@ -85,18 +85,18 @@ class AadO365GroupUserRemoveCommand extends GraphCommand {
         })
         .then((): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
-        }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
       removeUser();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -136,51 +136,24 @@ class AadO365GroupUserRemoveCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.groupId && !args.options.teamId) {
-        return 'Please provide one of the following parameters: groupId or teamId';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.groupId && !args.options.teamId) {
+      return 'Please provide one of the following parameters: groupId or teamId';
+    }
 
-      if (args.options.groupId && args.options.teamId) {
-        return 'You cannot provide both a groupId and teamId parameter, please provide only one';
-      }
+    if (args.options.groupId && args.options.teamId) {
+      return 'You cannot provide both a groupId and teamId parameter, please provide only one';
+    }
 
-      if (args.options.teamId && !Utils.isValidGuid(args.options.teamId as string)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
+    if (args.options.teamId && !Utils.isValidGuid(args.options.teamId as string)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (args.options.groupId && !Utils.isValidGuid(args.options.groupId as string)) {
-        return `${args.options.groupId} is not a valid GUID`;
-      }
+    if (args.options.groupId && !Utils.isValidGuid(args.options.groupId as string)) {
+      return `${args.options.groupId} is not a valid GUID`;
+    }
 
-      if (!args.options.userName) {
-        return 'Required parameter userName missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    You can remove users from a Microsoft 365 Group or Microsoft Teams team if you
-    are owner of that group or team.
-
-  Examples:
-
-    Removes user from the specified Microsoft 365 Group
-      ${this.name} --groupId '00000000-0000-0000-0000-000000000000' --userName 'anne.matthews@contoso.onmicrosoft.com'
-
-    Removes user from the specified Microsoft 365 Group without confirmation
-      ${this.name} --groupId '00000000-0000-0000-0000-000000000000' --userName 'anne.matthews@contoso.onmicrosoft.com' --confirm
-
-    Removes user from the specified Microsoft Teams team
-      ${(this.alias() as string[])[0]} --teamId '00000000-0000-0000-0000-000000000000' --userName 'anne.matthews@contoso.onmicrosoft.com'
-`);
+    return true;
   }
 }
 

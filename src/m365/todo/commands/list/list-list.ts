@@ -1,9 +1,9 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import GlobalOptions from '../../../../GlobalOptions';
 import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
+import commands from '../../commands';
 import { ToDoList } from '../../ToDoList';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -20,43 +20,22 @@ class TodoListListCommand extends GraphItemsListCommand<ToDoList> {
     return 'Returns a list of Microsoft To Do task lists';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['displayName', 'id'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     this
-      .getAllItems(`${this.resource}/beta/me/todo/lists`, cmd, true)
+      .getAllItems(`${this.resource}/beta/me/todo/lists`, logger, true)
       .then((): void => {
-        if (args.options.output === 'json') {
-          cmd.log(this.items);
-        }
-        else {
-          cmd.log(this.items.map(i => {
-            return {
-              displayName: i.displayName,
-              id: i.id
-            };
-          }));
-        }
+        logger.log(this.items);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(`  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently in preview
-    and is subject to change once the API reached general availability.
-    
-  Examples:
-
-    Get the list of Microsoft To Do task lists
-      ${this.name}
-`);
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 }
 

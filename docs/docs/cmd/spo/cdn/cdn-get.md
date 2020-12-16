@@ -5,19 +5,15 @@ View current status of the specified Microsoft 365 CDN
 ## Usage
 
 ```sh
-spo cdn get [options]
+m365 spo cdn get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-t, --type [type]`|Type of CDN to manage. `Public,Private`. Default `Public`
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-t, --type [type]`
+: Type of CDN to manage. `Public,Private`. Default `Public`
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -31,13 +27,13 @@ Using the `-t, --type` option you can choose whether you want to manage the sett
 Show if the Public CDN is currently enabled or not
 
 ```sh
-spo cdn get
+m365 spo cdn get
 ```
 
 Show if the Private CDN is currently enabled or not
 
 ```sh
-spo cdn get -t Private
+m365 spo cdn get -t Private
 ```
 
 ## More information

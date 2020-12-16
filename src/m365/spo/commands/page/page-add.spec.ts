@@ -1,18 +1,20 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./page-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./page-add');
 
 describe(commands.PAGE_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -22,23 +24,24 @@ describe(commands.PAGE_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -53,17 +56,17 @@ describe(commands.PAGE_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.PAGE_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.PAGE_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('creates new modern page', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -93,7 +96,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -114,9 +117,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -128,7 +131,7 @@ describe(commands.PAGE_ADD, () => {
   it('creates new modern page (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -158,7 +161,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -179,9 +182,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: true, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -193,7 +196,7 @@ describe(commands.PAGE_ADD, () => {
   it('creates new modern page on root of tenant (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -223,7 +226,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -244,9 +247,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com' } }, () => {
+    command.action(logger, { options: { debug: true, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -258,7 +261,7 @@ describe(commands.PAGE_ADD, () => {
   it('automatically appends the .aspx extension', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -288,7 +291,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -309,9 +312,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'page', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -323,7 +326,7 @@ describe(commands.PAGE_ADD, () => {
   it('sets page title when specified', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -353,7 +356,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'My page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -374,9 +377,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page.aspx', title: 'My page', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'page.aspx', title: 'My page', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -388,7 +391,7 @@ describe(commands.PAGE_ADD, () => {
   it('creates new modern page using the Home layout', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -418,7 +421,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -434,9 +437,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', layoutType: 'Home' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', layoutType: 'Home' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -448,7 +451,7 @@ describe(commands.PAGE_ADD, () => {
   it('creates new modern page and promotes it as NewsPage', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -478,7 +481,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -497,17 +500,17 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        opts.body.PromotedState === 2 &&
-        opts.body.FirstPublishedDate) {
+        opts.data.PromotedState === 2 &&
+        opts.data.FirstPublishedDate) {
         return Promise.resolve();
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', promoteAs: 'NewsPage' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', promoteAs: 'NewsPage' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -519,7 +522,7 @@ describe(commands.PAGE_ADD, () => {
   it('creates new modern page and promotes it as Template', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -549,7 +552,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -564,7 +567,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        !opts.body) {
+        !opts.data) {
         return Promise.resolve({ Id: '1' });
       }
 
@@ -583,9 +586,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', promoteAs: 'Template' } }, (res: { Id: string }) => {
+    command.action(logger, { options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', promoteAs: 'Template' } } as any, (res: { Id: string }) => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -597,7 +600,7 @@ describe(commands.PAGE_ADD, () => {
   it('creates new modern page using the Home layout and promotes it as HomePage (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -627,7 +630,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -641,16 +644,16 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf('_api/web/rootfolder') > -1 &&
-        opts.body.WelcomePage === 'SitePages/page.aspx') {
+        opts.data.WelcomePage === 'SitePages/page.aspx') {
         return Promise.resolve();
       }
 
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', layoutType: 'Home', promoteAs: 'HomePage' } }, () => {
+    command.action(logger, { options: { debug: true, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', layoutType: 'Home', promoteAs: 'HomePage' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -662,7 +665,7 @@ describe(commands.PAGE_ADD, () => {
   it('creates new modern page with comments enabled', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -692,7 +695,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -713,9 +716,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', commentsEnabled: true } }, () => {
+    command.action(logger, { options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', commentsEnabled: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -727,7 +730,7 @@ describe(commands.PAGE_ADD, () => {
   it('creates new modern page and publishes it', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -757,7 +760,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -782,9 +785,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', publish: true } }, () => {
+    command.action(logger, { options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', publish: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -796,7 +799,7 @@ describe(commands.PAGE_ADD, () => {
   it('creates new modern page and publishes it with a message (debug)', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -826,7 +829,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -851,9 +854,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', publish: true, publishMessage: 'Initial version' } }, () => {
+    command.action(logger, { options: { debug: true, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', publish: true, publishMessage: 'Initial version' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -865,7 +868,7 @@ describe(commands.PAGE_ADD, () => {
   it('escapes special characters in user input', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf(`/_api/web/getfolderbyserverrelativeurl('/sites/team-a/sitepages')/files/AddTemplateFile`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           urlOfFile: '/sites/team-a/sitepages/page.aspx',
           templateFileType: 3
         })) {
@@ -895,7 +898,7 @@ describe(commands.PAGE_ADD, () => {
       }
 
       if ((opts.url as string).indexOf(`/_api/web/getfilebyid('64201083-46ba-4966-8bc5-b0cb31e3456c')/ListItemAllFields`) > -1 &&
-        JSON.stringify(opts.body) === JSON.stringify({
+        JSON.stringify(opts.data) === JSON.stringify({
           ContentTypeId: '0x0101009D1CB255DA76424F860D91F20E6C4118',
           Title: 'page',
           ClientSideApplicationId: 'b6917cb1-93a0-4b97-a84d-7cf49975d4ec',
@@ -920,9 +923,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', publish: true, publishMessage: 'Don\'t tell' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a', publish: true, publishMessage: 'Don\'t tell' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -936,9 +939,9 @@ describe(commands.PAGE_ADD, () => {
       return Promise.reject({ error: { 'odata.error': { message: { value: 'An error has occurred' } } } });
     });
 
-    cmdInstance.action({ options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -948,7 +951,7 @@ describe(commands.PAGE_ADD, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -959,7 +962,7 @@ describe(commands.PAGE_ADD, () => {
   });
 
   it('supports specifying name', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--name') > -1) {
@@ -970,7 +973,7 @@ describe(commands.PAGE_ADD, () => {
   });
 
   it('supports specifying webUrl', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--webUrl') > -1) {
@@ -981,7 +984,7 @@ describe(commands.PAGE_ADD, () => {
   });
 
   it('supports specifying page layout', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--layoutType') > -1) {
@@ -992,7 +995,7 @@ describe(commands.PAGE_ADD, () => {
   });
 
   it('supports specifying page promote option', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--promoteAs') > -1) {
@@ -1003,7 +1006,7 @@ describe(commands.PAGE_ADD, () => {
   });
 
   it('supports specifying if comments should be enabled', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--commentsEnabled') > -1) {
@@ -1014,7 +1017,7 @@ describe(commands.PAGE_ADD, () => {
   });
 
   it('supports specifying if page should be published', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--publish') > -1) {
@@ -1025,7 +1028,7 @@ describe(commands.PAGE_ADD, () => {
   });
 
   it('supports specifying page publish message', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--publishMessage') > -1) {
@@ -1035,112 +1038,68 @@ describe(commands.PAGE_ADD, () => {
     assert(containsOption);
   });
 
-  it('fails validation if name not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if webUrl not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx' } });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if webUrl is not an absolute URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if webUrl is not a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'http://foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'http://foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when name and webURL specified and webUrl is a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when name has no extension', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page', webUrl: 'https://contoso.sharepoint.com' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'page', webUrl: 'https://contoso.sharepoint.com' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if layout type is invalid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', layoutType: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', layoutType: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if layout type is Home', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', layoutType: 'Home' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', layoutType: 'Home' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation if layout type is Article', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', layoutType: 'Article' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', layoutType: 'Article' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if promote type is invalid', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if promote type is HomePage', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'HomePage', layoutType: 'Home' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'HomePage', layoutType: 'Home' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation if promote type is NewsPage', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'NewsPage' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'NewsPage' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation if promote type is Template', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'Template' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'Template' } });
+    assert.strictEqual(actual, true);
   });
 
   it('fails validation if promote type is HomePage but layout type is not Home', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'HomePage', layoutType: 'Article' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'HomePage', layoutType: 'Article' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if promote type is NewsPage but layout type is not Article', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'NewsPage', layoutType: 'Home' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.PAGE_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { name: 'page.aspx', webUrl: 'https://contoso.sharepoint.com', promoteAs: 'NewsPage', layoutType: 'Home' } });
+    assert.notStrictEqual(actual, true);
   });
 });

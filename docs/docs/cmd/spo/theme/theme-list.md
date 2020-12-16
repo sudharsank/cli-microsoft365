@@ -5,18 +5,12 @@ Retrieves the list of custom themes
 ## Usage
 
 ```sh
-spo theme list [options]
+m365 spo theme list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -26,7 +20,7 @@ Option|Description
 List available themes
 
 ```sh
-spo theme list
+m365 spo theme list
 ```
 
 ## More information

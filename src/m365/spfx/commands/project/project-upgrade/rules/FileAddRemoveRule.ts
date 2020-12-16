@@ -1,8 +1,8 @@
-import * as path from "path";
 import * as fs from "fs";
-import { Rule } from "./Rule";
+import * as path from "path";
 import { Project } from "../../model";
 import { Finding } from "../Finding";
+import { Rule } from "./Rule";
 
 export abstract class FileAddRemoveRule extends Rule {
   constructor(protected filePath: string, protected add: boolean, private contents?: string) {
@@ -20,12 +20,12 @@ export abstract class FileAddRemoveRule extends Rule {
 
   get resolution(): string {
     if (this.add) {
-      return `add_cmd[BEFOREPATH]${this.filePath}[AFTERPATH][BEFORECONTENT]
+      return `add_cmd[BEFOREPATH]"${this.filePath}"[AFTERPATH][BEFORECONTENT]
 ${this.contents}
 [AFTERCONTENT]`;
     }
     else {
-      return `remove_cmd ${this.filePath}`;
+      return `remove_cmd "${this.filePath}"`;
     }
   }
 

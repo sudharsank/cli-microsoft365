@@ -1,11 +1,13 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import GlobalOptions from '../../../../GlobalOptions';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -33,32 +35,62 @@ class SpoAppPageAddCommand extends SpoCommand {
     return 'Creates a single-part app page';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const requestOptions: any = {
-      url: `${args.options.webUrl}/_api/sitepages/Pages/CreateFullPageApp`,
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const createPageRequestOptions: any = {
+      url: `${args.options.webUrl}/_api/sitepages/Pages/CreateAppPage`,
       headers: {
         'content-type': 'application/json;odata=nometadata',
         accept: 'application/json;odata=nometadata'
       },
-      json: true,
-      body: {
-        title: args.options.title,
-        addToQuickLaunch: args.options.addToQuickLaunch ? true : false,
+      responseType: 'json',
+      data: {
         webPartDataAsJson: args.options.webPartData
       }
     };
 
     request
-      .post(requestOptions)
+      .post<{ value: string }>(createPageRequestOptions)
+      .then((page: { value: string }): Promise<{ ListItemAllFields: { Id: string; }; }> => {
+        const pageUrl: string = page.value;
+
+        const requestOptions: any = {
+          url: `${args.options.webUrl}/_api/web/getfilebyserverrelativeurl('${Utils.getServerRelativeSiteUrl(args.options.webUrl)}/${pageUrl}')?$expand=ListItemAllFields`,
+          headers: {
+            'content-type': 'application/json;charset=utf-8',
+            accept: 'application/json;odata=nometadata'
+          },
+          responseType: 'json'
+        };
+
+        return request.get<{ ListItemAllFields: { Id: string; }; }>(requestOptions);
+      })
+      .then((file: { ListItemAllFields: { Id: string; }; }): Promise<any> => {
+        const requestOptions: any = {
+          url: `${args.options.webUrl}/_api/sitepages/Pages/UpdateAppPage`,
+          headers: {
+            'content-type': 'application/json;odata=nometadata',
+            accept: 'application/json;odata=nometadata'
+          },
+          responseType: 'json',
+          data: {
+            pageId: file.ListItemAllFields.Id,
+            webPartDataAsJson: args.options.webPartData,
+            title: args.options.title,
+            includeInNavigation: args.options.addToQuickLaunch
+          }
+        };
+
+        return request.post(requestOptions);
+      })
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -85,46 +117,15 @@ class SpoAppPageAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    try {
+      JSON.parse(args.options.webPartData);
+    }
+    catch (e) {
+      return `Specified webPartData is not a valid JSON string. Error: ${e}`;
+    }
 
-      if (!args.options.title) {
-        return 'Required parameter title missing';
-      }
-
-      if (!args.options.webPartData) {
-        return 'Required parameter webPartData missing';
-      }
-
-      try {
-        JSON.parse(args.options.webPartData);
-      }
-      catch (e) {
-        return `Specified webPartData is not a valid JSON string. Error: ${e}`;
-      }
-
-      return true;
-    };
-  }
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If you want to add the single-part app page to quick launch, use the
-    ${chalk.blue('addToQuickLaunch')} flag.
-
-  Examples:
-  
-    Create a single-part app page in a site with url
-    https://contoso.sharepoint.com, webpart data is stored in the
-    ${chalk.grey('$webPartData')} variable
-      ${this.name} --title "Contoso" --webUrl "https://contoso.sharepoint.com" --webPartData $webPartData --addToQuickLaunch 
-`);
+    return true;
   }
 }
 

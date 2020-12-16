@@ -1,19 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
-const command: Command = require('./term-set-add');
-import * as assert from 'assert';
-import request from '../../../../request';
-import config from '../../../../config';
-import Utils from '../../../../Utils';
 import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
+import config from '../../../../config';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./term-set-add');
 
 describe(commands.TERM_SET_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -24,23 +24,23 @@ describe(commands.TERM_SET_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -56,17 +56,17 @@ describe(commands.TERM_SET_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TERM_SET_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.TERM_SET_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('adds term set to term group specified with id', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -103,9 +103,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           CreatedDate: '2018-10-01T18:31:32.608Z',
           Id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301',
           LastModifiedDate: '2018-10-01T18:31:32.608Z',
@@ -131,7 +131,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('adds term set to term group specified with name', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -168,9 +168,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           CreatedDate: '2018-10-01T18:31:32.608Z',
           Id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301',
           LastModifiedDate: '2018-10-01T18:31:32.608Z',
@@ -196,7 +196,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('adds term set with a specified id to term group specified with id', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{b53f9aa1-1d35-4b39-8498-7e4705e57301}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{b53f9aa1-1d35-4b39-8498-7e4705e57301}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -233,9 +233,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           CreatedDate: '2018-10-01T18:31:32.608Z',
           Id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301',
           LastModifiedDate: '2018-10-01T18:31:32.608Z',
@@ -261,7 +261,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('adds term set with a specified description to term group specified with id', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -295,7 +295,7 @@ describe(commands.TERM_SET_ADD, () => {
           ]));
         }
 
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="127" ObjectPathId="117" Name="Description"><Parameter Type="String">List of organizations</Parameter></SetProperty><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="127" ObjectPathId="117" Name="Description"><Parameter Type="String">List of organizations</Parameter></SetProperty><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "1332949e-609b-0000-2cdb-e238bddae823"
@@ -306,9 +306,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: true, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', description: 'List of organizations' } }, () => {
+    command.action(logger, { options: { debug: true, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', description: 'List of organizations' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           CreatedDate: '2018-10-01T18:31:32.608Z',
           Id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301',
           LastModifiedDate: '2018-10-01T18:31:32.608Z',
@@ -334,7 +334,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('adds term set with custom properties to term group specified with id', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -368,7 +368,7 @@ describe(commands.TERM_SET_ADD, () => {
           ]));
         }
 
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetCustomProperty" Id="127" ObjectPathId="117"><Parameters><Parameter Type="String">Prop1</Parameter><Parameter Type="String">Value 1</Parameter></Parameters></Method><Method Name="SetCustomProperty" Id="128" ObjectPathId="117"><Parameters><Parameter Type="String">Prop2</Parameter><Parameter Type="String">Value 2</Parameter></Parameters></Method><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetCustomProperty" Id="127" ObjectPathId="117"><Parameters><Parameter Type="String">Prop1</Parameter><Parameter Type="String">Value 1</Parameter></Parameters></Method><Method Name="SetCustomProperty" Id="128" ObjectPathId="117"><Parameters><Parameter Type="String">Prop2</Parameter><Parameter Type="String">Value 2</Parameter></Parameters></Method><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "1332949e-609b-0000-2cdb-e238bddae823"
@@ -379,9 +379,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', customProperties: JSON.stringify({ Prop1: 'Value 1', Prop2: 'Value 2' }) } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', customProperties: JSON.stringify({ Prop1: 'Value 1', Prop2: 'Value 2' }) } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           CreatedDate: '2018-10-01T18:31:32.608Z',
           Id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301',
           LastModifiedDate: '2018-10-01T18:31:32.608Z',
@@ -410,7 +410,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly handles error when retrieving the term store', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8112.1217", "ErrorInfo": {
@@ -423,9 +423,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -437,7 +437,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly handles error when the term group specified by id doesn\'t exist', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8105.1217", "ErrorInfo": {
@@ -450,9 +450,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
         done();
       }
       catch (e) {
@@ -464,7 +464,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly handles error when the term group specified by name doesn\'t exist', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8105.1217", "ErrorInfo": {
@@ -477,9 +477,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Specified argument was out of the range of valid values.\r\nParameter name: index')));
         done();
       }
       catch (e) {
@@ -491,7 +491,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly handles error when the specified name already exists', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8105.1217", "ErrorInfo": {
@@ -504,9 +504,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('A term set already exists with the name specified.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('A term set already exists with the name specified.')));
         done();
       }
       catch (e) {
@@ -518,7 +518,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly handles error when the specified id already exists', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{aca21974-139c-44fd-813c-6bbe6f25e658}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{aca21974-139c-44fd-813c-6bbe6f25e658}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8105.1217", "ErrorInfo": {
@@ -531,9 +531,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', id: 'aca21974-139c-44fd-813c-6bbe6f25e658', termGroupName: 'PnPTermSets' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', id: 'aca21974-139c-44fd-813c-6bbe6f25e658', termGroupName: 'PnPTermSets' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Failed to read from or write to database. Refresh and try again. If the problem persists, please contact the administrator.')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Failed to read from or write to database. Refresh and try again. If the problem persists, please contact the administrator.')));
         done();
       }
       catch (e) {
@@ -545,7 +545,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly handles error when setting the description', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -579,7 +579,7 @@ describe(commands.TERM_SET_ADD, () => {
           ]));
         }
 
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="127" ObjectPathId="117" Name="Description"><Parameter Type="String">List of organizations</Parameter></SetProperty><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="127" ObjectPathId="117" Name="Description"><Parameter Type="String">List of organizations</Parameter></SetProperty><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8112.1217", "ErrorInfo": {
@@ -592,9 +592,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', description: 'List of organizations' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', description: 'List of organizations' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -606,7 +606,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly handles error when setting custom properties', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -640,7 +640,7 @@ describe(commands.TERM_SET_ADD, () => {
           ]));
         }
 
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetCustomProperty" Id="127" ObjectPathId="117"><Parameters><Parameter Type="String">Prop1</Parameter><Parameter Type="String">Value 1</Parameter></Parameters></Method><Method Name="SetCustomProperty" Id="128" ObjectPathId="117"><Parameters><Parameter Type="String">Prop2</Parameter><Parameter Type="String">Value 2</Parameter></Parameters></Method><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetCustomProperty" Id="127" ObjectPathId="117"><Parameters><Parameter Type="String">Prop1</Parameter><Parameter Type="String">Value 1</Parameter></Parameters></Method><Method Name="SetCustomProperty" Id="128" ObjectPathId="117"><Parameters><Parameter Type="String">Prop2</Parameter><Parameter Type="String">Value 2</Parameter></Parameters></Method><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8112.1217", "ErrorInfo": {
@@ -653,9 +653,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', customProperties: JSON.stringify({ Prop1: 'Value 1', Prop2: 'Value 2' }) } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', customProperties: JSON.stringify({ Prop1: 'Value 1', Prop2: 'Value 2' }) } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -667,7 +667,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly escapes XML in term group name', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets&gt;</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets&gt;</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -704,9 +704,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets>' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupName: 'PnPTermSets>' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           CreatedDate: '2018-10-01T18:31:32.608Z',
           Id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301',
           LastModifiedDate: '2018-10-01T18:31:32.608Z',
@@ -732,7 +732,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly escapes XML in term set name', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations&gt;</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetByName"><Parameters><Parameter Type="String">PnPTermSets</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations&gt;</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -769,9 +769,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations>', termGroupName: 'PnPTermSets' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations>', termGroupName: 'PnPTermSets' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           CreatedDate: '2018-10-01T18:31:32.608Z',
           Id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301',
           LastModifiedDate: '2018-10-01T18:31:32.608Z',
@@ -797,7 +797,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly escapes XML in term set description', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -831,7 +831,7 @@ describe(commands.TERM_SET_ADD, () => {
           ]));
         }
 
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="127" ObjectPathId="117" Name="Description"><Parameter Type="String">List of organizations&gt;</Parameter></SetProperty><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><SetProperty Id="127" ObjectPathId="117" Name="Description"><Parameter Type="String">List of organizations&gt;</Parameter></SetProperty><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "1332949e-609b-0000-2cdb-e238bddae823"
@@ -842,9 +842,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', description: 'List of organizations>' } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', description: 'List of organizations>' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           CreatedDate: '2018-10-01T18:31:32.608Z',
           Id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301',
           LastModifiedDate: '2018-10-01T18:31:32.608Z',
@@ -870,7 +870,7 @@ describe(commands.TERM_SET_ADD, () => {
   it('correctly escapes XML in term set custom properties', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if ((opts.url as string).indexOf('/_vti_bin/client.svc/ProcessQuery') > -1) {
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.body.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="35" ObjectPathId="34" /><ObjectIdentityQuery Id="36" ObjectPathId="34" /><ObjectPath Id="38" ObjectPathId="37" /><ObjectIdentityQuery Id="39" ObjectPathId="37" /><ObjectPath Id="41" ObjectPathId="40" /><ObjectPath Id="43" ObjectPathId="42" /><ObjectIdentityQuery Id="44" ObjectPathId="42" /><ObjectPath Id="46" ObjectPathId="45" /><ObjectIdentityQuery Id="47" ObjectPathId="45" /><Query Id="48" ObjectPathId="45"><Query SelectAllProperties="true"><Properties /></Query></Query></Actions><ObjectPaths><StaticMethod Id="34" Name="GetTaxonomySession" TypeId="{981cbc68-9edc-4f8d-872f-71146fcbb84f}" /><Method Id="37" ParentId="34" Name="GetDefaultSiteCollectionTermStore" /><Property Id="40" ParentId="37" Name="Groups" /><Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{0e8f395e-ff58-4d45-9ff7-e331ab728beb}</Parameter></Parameters></Method><Method Id="45" ParentId="42" Name="CreateTermSet"><Parameters><Parameter Type="String">PnP-Organizations</Parameter><Parameter Type="Guid">{`) > -1 && opts.data.indexOf(`}</Parameter><Parameter Type="Int32">1033</Parameter></Parameters></Method></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "3231949e-109d-0000-2cdb-ef525ee6aff1"
@@ -904,7 +904,7 @@ describe(commands.TERM_SET_ADD, () => {
           ]));
         }
 
-        if (opts.body.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetCustomProperty" Id="127" ObjectPathId="117"><Parameters><Parameter Type="String">Prop1</Parameter><Parameter Type="String">&lt;Value 1</Parameter></Parameters></Method><Method Name="SetCustomProperty" Id="128" ObjectPathId="117"><Parameters><Parameter Type="String">Prop2</Parameter><Parameter Type="String">Value 2&gt;</Parameter></Parameters></Method><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
+        if (opts.data.indexOf(`<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetCustomProperty" Id="127" ObjectPathId="117"><Parameters><Parameter Type="String">Prop1</Parameter><Parameter Type="String">&lt;Value 1</Parameter></Parameters></Method><Method Name="SetCustomProperty" Id="128" ObjectPathId="117"><Parameters><Parameter Type="String">Prop2</Parameter><Parameter Type="String">Value 2&gt;</Parameter></Parameters></Method><Method Name="CommitAll" Id="131" ObjectPathId="109" /></Actions><ObjectPaths><Identity Id="117" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:se:YU1+cBy9wUuh\u002ffzgFZGpUV45jw5Y\u002f0VNn\u002ffjMatyi+uhmj+1NR05S4SYfkcF5XMB" /><Identity Id="109" Name="3231949e-109d-0000-2cdb-ef525ee6aff1|fec14c62-7c3b-481b-851b-c80d7802b224:st:YU1+cBy9wUuh\u002ffzgFZGpUQ==" /></ObjectPaths></Request>`) > -1) {
           return Promise.resolve(JSON.stringify([
             {
               "SchemaVersion": "15.0.0.0", "LibraryVersion": "16.0.8119.1219", "ErrorInfo": null, "TraceCorrelationId": "1332949e-609b-0000-2cdb-e238bddae823"
@@ -915,9 +915,9 @@ describe(commands.TERM_SET_ADD, () => {
 
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', customProperties: JSON.stringify({ Prop1: '<Value 1', Prop2: 'Value 2>' }) } }, () => {
+    command.action(logger, { options: { debug: false, name: 'PnP-Organizations', termGroupId: '0e8f395e-ff58-4d45-9ff7-e331ab728beb', customProperties: JSON.stringify({ Prop1: '<Value 1', Prop2: 'Value 2>' }) } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           CreatedDate: '2018-10-01T18:31:32.608Z',
           Id: 'b53f9aa1-1d35-4b39-8498-7e4705e57301',
           LastModifiedDate: '2018-10-01T18:31:32.608Z',
@@ -943,63 +943,58 @@ describe(commands.TERM_SET_ADD, () => {
     });
   });
 
-  it('fails validation if name not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { termGroupName: 'PnPTermSets' } });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if id is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { termGroupName: 'PnPTermSets', name: 'PnP-Organizations', id: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { termGroupName: 'PnPTermSets', name: 'PnP-Organizations', id: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if neither termGroupId nor termGroupName specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'PnP-Organizations' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'PnP-Organizations' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both termGroupId and termGroupName specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'PnP-Organizations', termGroupName: 'PnPTermSets', termGroupId: 'aca21974-139c-44fd-813c-6bbe6f25e658' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'PnP-Organizations', termGroupName: 'PnPTermSets', termGroupId: 'aca21974-139c-44fd-813c-6bbe6f25e658' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if termGroupId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'PnP-Organizations', termGroupId: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'PnP-Organizations', termGroupId: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if custom properties is not a valid JSON string', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'PnP-Organizations', termGroupName: 'PnPTermSets', customProperties: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { name: 'PnP-Organizations', termGroupName: 'PnPTermSets', customProperties: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when id, name and termGroupId specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'PnP-Organizations', id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupId: '9e54299e-208a-4000-8546-cc4139091b27' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'PnP-Organizations', id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupId: '9e54299e-208a-4000-8546-cc4139091b27' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when id, name and termGroupName specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'PnP-Organizations', id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupName: 'PnPTermSets' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'PnP-Organizations', id: '9e54299e-208a-4000-8546-cc4139091b26', termGroupName: 'PnPTermSets' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when name and termGroupId specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'People', termGroupId: '9e54299e-208a-4000-8546-cc4139091b26' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'People', termGroupId: '9e54299e-208a-4000-8546-cc4139091b26' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when name and termGroupName specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'People', termGroupName: 'PnPTermSets' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'People', termGroupName: 'PnPTermSets' } });
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when custom properties is a valid JSON string', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { name: 'PnP-Organizations', termGroupName: 'PnPTermSets', customProperties: '{}' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { name: 'PnP-Organizations', termGroupName: 'PnPTermSets', customProperties: '{}' } });
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -1007,39 +1002,5 @@ describe(commands.TERM_SET_ADD, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TERM_SET_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

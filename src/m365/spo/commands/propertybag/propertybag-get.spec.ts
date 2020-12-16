@@ -1,20 +1,21 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./propertybag-get');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
+import config from '../../../../config';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
-import config from '../../../../config';
-import { IdentityResponse, ClientSvc } from '../../ClientSvc';
+import { ClientSvc, IdentityResponse } from '../../ClientSvc';
+import commands from '../../commands';
+const command: Command = require('./propertybag-get');
 
 describe(commands.PROPERTYBAG_GET, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let stubAllPostRequests: any = (
     requestObjectIdentityResp: any = null,
     getFolderPropertyBagResp: any = null,
@@ -22,7 +23,7 @@ describe(commands.PROPERTYBAG_GET, () => {
   ) => {
     return sinon.stub(request, 'post').callsFake((opts) => {
       // fake requestObjectIdentity
-      if (opts.body.indexOf('3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a') > -1) {
+      if (opts.data.indexOf('3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a') > -1) {
         if (requestObjectIdentityResp) {
           return requestObjectIdentityResp;
         } else {
@@ -40,7 +41,7 @@ describe(commands.PROPERTYBAG_GET, () => {
       }
 
       // fake getFolderPropertyBag
-      if (opts.body.indexOf('GetFolderByServerRelativeUrl') > -1) {
+      if (opts.data.indexOf('GetFolderByServerRelativeUrl') > -1) {
         if (getFolderPropertyBagResp) {
           return getFolderPropertyBagResp;
         } else {
@@ -61,7 +62,7 @@ describe(commands.PROPERTYBAG_GET, () => {
       }
 
       // fake getWebPropertyBag
-      if (opts.body.indexOf('Property Name="AllProperties" SelectAll="true"') > -1) {
+      if (opts.data.indexOf('Property Name="AllProperties" SelectAll="true"') > -1) {
         if (getWebPropertyBagResp) {
           return getWebPropertyBagResp;
         } else {
@@ -91,23 +92,24 @@ describe(commands.PROPERTYBAG_GET, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post,
       (command as any).getWebPropertyBag,
       (command as any).filterByKey,
@@ -125,11 +127,11 @@ describe(commands.PROPERTYBAG_GET, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.PROPERTYBAG_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.PROPERTYBAG_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('should call getWebPropertyBag when folder is not specified and site is /', (done) => {
@@ -144,10 +146,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       serverRelativeUrl: "\u002f"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
-        assert(getWebPropertyBagSpy.calledWith(objIdentity, 'https://contoso.sharepoint.com', cmdInstance));
+        assert(getWebPropertyBagSpy.calledWith(objIdentity, 'https://contoso.sharepoint.com', logger));
         assert(getWebPropertyBagSpy.calledOnce === true);
         done();
       }
@@ -179,10 +181,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       serverRelativeUrl: "\u002fsites\u002ftest"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
-        assert(getWebPropertyBagSpy.calledWith(objIdentity, 'https://contoso.sharepoint.com/sites/test', cmdInstance));
+        assert(getWebPropertyBagSpy.calledWith(objIdentity, 'https://contoso.sharepoint.com/sites/test', logger));
         assert(getWebPropertyBagSpy.calledOnce === true);
         done();
       }
@@ -205,10 +207,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       serverRelativeUrl: "\u002f"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
-        assert(getFolderPropertyBagSpy.calledWith(objIdentity, 'https://contoso.sharepoint.com', '/', cmdInstance));
+        assert(getFolderPropertyBagSpy.calledWith(objIdentity, 'https://contoso.sharepoint.com', '/', logger));
         assert(getFolderPropertyBagSpy.calledOnce === true);
         done();
       }
@@ -241,10 +243,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       serverRelativeUrl: "\u002fsites\u002ftest"
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
-        assert(getFolderPropertyBagSpy.calledWith(objIdentity, 'https://contoso.sharepoint.com/sites/test', '/', cmdInstance));
+        assert(getFolderPropertyBagSpy.calledWith(objIdentity, 'https://contoso.sharepoint.com/sites/test', '/', logger));
         assert(getFolderPropertyBagSpy.calledOnce === true);
         done();
       }
@@ -262,10 +264,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       folder: '/'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
         assert(getFolderPropertyBagSpy.calledOnce === true);
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('abc')));
         done();
       }
       catch (e) {
@@ -282,10 +284,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       debug: false
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
         assert(getWebPropertyBagSpy.calledOnce === true);
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('abc1')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('abc1')));
         done();
       }
       catch (e) {
@@ -304,10 +306,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       verbose: true
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
         assert(getFolderPropertyBagSpy.calledOnce === true);
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('getFolderPropertyBag error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('getFolderPropertyBag error')));
         done();
       }
       catch (e) {
@@ -324,10 +326,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       webUrl: 'https://contoso.sharepoint.com'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
         assert(getWebPropertyBagSpy.calledOnce === true);
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('getWebPropertyBag error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('getWebPropertyBag error')));
         done();
       }
       catch (e) {
@@ -345,10 +347,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       webUrl: 'https://contoso.sharepoint.com'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
         assert(requestObjectIdentitySpy.calledOnce === true);
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('requestObjectIdentity error')));
         done();
       }
       catch (e) {
@@ -366,10 +368,10 @@ describe(commands.PROPERTYBAG_GET, () => {
       webUrl: 'https://contoso.sharepoint.com'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
         assert(requestObjectIdentitySpy.calledOnce === true);
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
         done();
       }
       catch (e) {
@@ -388,9 +390,9 @@ describe(commands.PROPERTYBAG_GET, () => {
       folder: '/'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
         done();
       }
       catch (e) {
@@ -403,15 +405,14 @@ describe(commands.PROPERTYBAG_GET, () => {
     const error = JSON.stringify([{ "ErrorInfo": { "ErrorMessage": undefined } }]);
 
     stubAllPostRequests(null, null, new Promise<any>((resolve, reject) => { return resolve(error) }));
-    cmdInstance.action = command.action();
     const options: Object = {
       webUrl: 'https://contoso.sharepoint.com',
       key: 'vti_parentid'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('ClientSvc unknown error')));
         done();
       }
       catch (e) {
@@ -429,13 +430,13 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_parentid'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
         assert(filterByKeySpy.calledOnce === true);
 
-        const out = cmdInstanceLogSpy.lastCall.args[0];
-        assert.equal(out, '{1C5271C8-DB93-459E-9C18-68FC33EFD856}');
+        const out = loggerLogSpy.lastCall.args[0];
+        assert.strictEqual(out, '{1C5271C8-DB93-459E-9C18-68FC33EFD856}');
         done();
       }
       catch (e) {
@@ -453,19 +454,19 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_timelastmodified' //\/Date(2017,10,7,11,29,31,0)\/
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
         assert(filterByKeySpy.calledOnce === true);
 
-        const out = cmdInstanceLogSpy.lastCall.args[0];
+        const out = loggerLogSpy.lastCall.args[0];
         const expectedDate = new Date(2017, 10, 7, 11, 29, 31, 0);
-        assert.equal(out.getUTCMonth(), expectedDate.getUTCMonth(), 'getUTCMonth');
-        assert.equal(out.getUTCFullYear(), expectedDate.getUTCFullYear(), 'getUTCFullYear');
-        assert.equal(out.getUTCDate(), expectedDate.getUTCDate(), 'getUTCDate');
-        assert.equal(out.getUTCHours(), expectedDate.getUTCHours(), 'getUTCHours');
-        assert.equal(out.getUTCMinutes(), expectedDate.getUTCMinutes(), 'getUTCMinutes');
-        assert.equal(out.getSeconds(), expectedDate.getSeconds(), 'getSeconds');
+        assert.strictEqual(out.getUTCMonth(), expectedDate.getUTCMonth(), 'getUTCMonth');
+        assert.strictEqual(out.getUTCFullYear(), expectedDate.getUTCFullYear(), 'getUTCFullYear');
+        assert.strictEqual(out.getUTCDate(), expectedDate.getUTCDate(), 'getUTCDate');
+        assert.strictEqual(out.getUTCHours(), expectedDate.getUTCHours(), 'getUTCHours');
+        assert.strictEqual(out.getUTCMinutes(), expectedDate.getUTCMinutes(), 'getUTCMinutes');
+        assert.strictEqual(out.getSeconds(), expectedDate.getSeconds(), 'getSeconds');
         done();
       }
       catch (e) {
@@ -484,20 +485,20 @@ describe(commands.PROPERTYBAG_GET, () => {
       output: 'json'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
         assert(filterByKeySpy.calledOnce === true);
 
-        const out = cmdInstanceLogSpy.lastCall.args[0];
-        assert.equal(Object.prototype.toString.call(out), '[object Date]');
+        const out = loggerLogSpy.lastCall.args[0];
+        assert.strictEqual(Object.prototype.toString.call(out), '[object Date]');
         const expectedDate = new Date(2017, 10, 7, 11, 29, 31, 0);
-        assert.equal(out.getUTCMonth(), expectedDate.getUTCMonth(), 'getUTCMonth');
-        assert.equal(out.getUTCFullYear(), expectedDate.getUTCFullYear(), 'getUTCFullYear');
-        assert.equal(out.getUTCDate(), expectedDate.getUTCDate(), 'getUTCDate');
-        assert.equal(out.getUTCHours(), expectedDate.getUTCHours(), 'getUTCHours');
-        assert.equal(out.getUTCMinutes(), expectedDate.getUTCMinutes(), 'getUTCMinutes');
-        assert.equal(out.getSeconds(), expectedDate.getSeconds(), 'getSeconds');
+        assert.strictEqual(out.getUTCMonth(), expectedDate.getUTCMonth(), 'getUTCMonth');
+        assert.strictEqual(out.getUTCFullYear(), expectedDate.getUTCFullYear(), 'getUTCFullYear');
+        assert.strictEqual(out.getUTCDate(), expectedDate.getUTCDate(), 'getUTCDate');
+        assert.strictEqual(out.getUTCHours(), expectedDate.getUTCHours(), 'getUTCHours');
+        assert.strictEqual(out.getUTCMinutes(), expectedDate.getUTCMinutes(), 'getUTCMinutes');
+        assert.strictEqual(out.getSeconds(), expectedDate.getSeconds(), 'getSeconds');
         done();
       }
       catch (e) {
@@ -515,13 +516,13 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_level'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
         assert(filterByKeySpy.calledOnce === true);
 
-        const out = cmdInstanceLogSpy.lastCall.args[0];
-        assert.equal(out, 1);
+        const out = loggerLogSpy.lastCall.args[0];
+        assert.strictEqual(out, 1);
         done();
       }
       catch (e) {
@@ -538,9 +539,9 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_folderitemcount'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0], 0);
+        assert.strictEqual(loggerLogSpy.lastCall.args[0], 0);
         done();
       }
       catch (e) {
@@ -558,12 +559,12 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_candeleteversion'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         assert(filterByKeySpy.calledOnce === true);
         
-        const out = cmdInstanceLogSpy.lastCall.args[0];
-        assert.equal(out, true);
+        const out = loggerLogSpy.lastCall.args[0];
+        assert.strictEqual(out, true);
         done();
       }
       catch (e) {
@@ -581,11 +582,11 @@ describe(commands.PROPERTYBAG_GET, () => {
       verbose: true
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
-        const out = cmdInstanceLogSpy.lastCall.args[0];
-        assert.equal(out, 'Property not found.');
+        const out = loggerLogToStderrSpy.lastCall.args[0];
+        assert.strictEqual(out, 'Property not found.');
         done();
       }
       catch (e) {
@@ -603,9 +604,9 @@ describe(commands.PROPERTYBAG_GET, () => {
       verbose: false
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(cmdInstanceLogSpy.notCalled, true);
+        assert.strictEqual(loggerLogSpy.notCalled, true);
         done();
       }
       catch (e) {
@@ -622,9 +623,9 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_parentid'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. _ObjectIdentity_ not found')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. _ObjectIdentity_ not found')));
         done();
       }
       catch (e) {
@@ -641,9 +642,9 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_parentid'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. Properties not found')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. Properties not found')));
         done();
       }
       catch (e) {
@@ -659,9 +660,9 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_parentid'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. AllProperties not found')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Cannot proceed. AllProperties not found')));
         done();
       }
       catch (e) {
@@ -677,9 +678,9 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_parentid'
     }
 
-    cmdInstance.action({ options: options }, (err?: any) => {
+    command.action(logger, { options: options } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('error1')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('error1')));
         done();
       }
       catch (e) {
@@ -688,7 +689,7 @@ describe(commands.PROPERTYBAG_GET, () => {
     });
   });
 
-  it('should correctly post url, headers and body when calling client.svc when requestObjectIdentity', (done) => {
+  it('should correctly post url, headers and data when calling client.svc when requestObjectIdentity', (done) => {
     const postRequestSpy: sinon.SinonSpy = stubAllPostRequests();
     
     const options: Object = {
@@ -696,13 +697,13 @@ describe(commands.PROPERTYBAG_GET, () => {
       key: 'vti_parentid'
     };
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         const secondCall = postRequestSpy.getCalls()[0];
         assert(secondCall.calledWith(sinon.match({ url: 'https://contoso.sharepoint.com/_vti_bin/client.svc/ProcessQuery' })), 'url');
         assert(secondCall.calledWith(sinon.match({ headers: { 'X-RequestDigest': 'abc'}})), 'request digest');
-        assert(secondCall.calledWith(sinon.match({ body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Query Id="1" ObjectPathId="5"><Query SelectAllProperties="false"><Properties><Property Name="ServerRelativeUrl" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Property Id="5" ParentId="3" Name="Web" /><StaticProperty Id="3" TypeId="{3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a}" Name="Current" /></ObjectPaths></Request>`
-        })), 'body');
+        assert(secondCall.calledWith(sinon.match({ data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Query Id="1" ObjectPathId="5"><Query SelectAllProperties="false"><Properties><Property Name="ServerRelativeUrl" ScalarProperty="true" /></Properties></Query></Query></Actions><ObjectPaths><Property Id="5" ParentId="3" Name="Web" /><StaticProperty Id="3" TypeId="{3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a}" Name="Current" /></ObjectPaths></Request>`
+        })), 'data');
         done();
       }
       catch (e) {
@@ -711,19 +712,19 @@ describe(commands.PROPERTYBAG_GET, () => {
     });
   });
 
-  it('should correctly post url, headers and body when calling client.svc when getWebPropertyBag', (done) => {
+  it('should correctly post url, headers and data when calling client.svc when getWebPropertyBag', (done) => {
     const postRequestSpy: sinon.SinonSpy = stubAllPostRequests();
     const options: Object = {
       webUrl: 'https://contoso.sharepoint.com',
       key: 'vti_parentid'
     };
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         const lastCall = postRequestSpy.lastCall;
         assert(lastCall.calledWith(sinon.match({ url: 'https://contoso.sharepoint.com/_vti_bin/client.svc/ProcessQuery' })));
         assert(lastCall.calledWith(sinon.match({ headers: { 'X-RequestDigest': 'abc'}})));
-        assert(lastCall.calledWith(sinon.match({ body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Query Id="97" ObjectPathId="5"><Query SelectAllProperties="false"><Properties><Property Name="ServerRelativeUrl" ScalarProperty="true" /><Property Name="AllProperties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
+        assert(lastCall.calledWith(sinon.match({ data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Query Id="97" ObjectPathId="5"><Query SelectAllProperties="false"><Properties><Property Name="ServerRelativeUrl" ScalarProperty="true" /><Property Name="AllProperties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
         })));
         done();
       }
@@ -741,13 +742,13 @@ describe(commands.PROPERTYBAG_GET, () => {
       folder: '/'
     };
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
         const lastCall = postRequestSpy.lastCall;
         assert(lastCall.calledWith(sinon.match({ url: 'https://contoso.sharepoint.com/_vti_bin/client.svc/ProcessQuery' })));
         assert(lastCall.calledWith(sinon.match({ headers: { 'X-RequestDigest': 'abc'}})));
-        assert(lastCall.calledWith(sinon.match({ body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">/</Parameter></Parameters></Method><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
+        assert(lastCall.calledWith(sinon.match({ data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">/</Parameter></Parameters></Method><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
         })));
         done();
       }
@@ -775,13 +776,13 @@ describe(commands.PROPERTYBAG_GET, () => {
       folder: '/'
     };
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
         const lastCall = postRequestSpy.lastCall;
         assert(lastCall.calledWith(sinon.match({ url: 'https://contoso.sharepoint.com/sites/test/_vti_bin/client.svc/ProcessQuery' })));
         assert(lastCall.calledWith(sinon.match({ headers: { 'X-RequestDigest': 'abc'}})));
-        assert(lastCall.calledWith(sinon.match({ body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">/sites/test/</Parameter></Parameters></Method><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
+        assert(lastCall.calledWith(sinon.match({ data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">/sites/test/</Parameter></Parameters></Method><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
         })));
         done();
       }
@@ -799,13 +800,13 @@ describe(commands.PROPERTYBAG_GET, () => {
       folder: '/'
     };
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
 
       try {
         const lastCall = postRequestSpy.lastCall;
         assert(lastCall.calledWith(sinon.match({ url: 'https://contoso.sharepoint.com/_vti_bin/client.svc/ProcessQuery' })));
         assert(lastCall.calledWith(sinon.match({ headers: { 'X-RequestDigest': 'abc'}})));
-        assert(lastCall.calledWith(sinon.match({ body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">/</Parameter></Parameters></Method><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
+        assert(lastCall.calledWith(sinon.match({ data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">/</Parameter></Parameters></Method><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
         })));
         done();
       }
@@ -833,12 +834,12 @@ describe(commands.PROPERTYBAG_GET, () => {
       folder: '/'
     };
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
         const lastCall = postRequestSpy.lastCall;
         assert(lastCall.calledWith(sinon.match({ url: 'https://contoso.sharepoint.com/sites/test/_vti_bin/client.svc/ProcessQuery' })));
         assert(lastCall.calledWith(sinon.match({ headers: { 'X-RequestDigest': 'abc'}})));
-        assert(lastCall.calledWith(sinon.match({ body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">/sites/test/</Parameter></Parameters></Method><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
+        assert(lastCall.calledWith(sinon.match({ data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /><Query Id="12" ObjectPathId="9"><Query SelectAllProperties="false"><Properties><Property Name="Properties" SelectAll="true"><Query SelectAllProperties="false"><Properties /></Query></Property></Properties></Query></Query></Actions><ObjectPaths><Method Id="9" ParentId="5" Name="GetFolderByServerRelativeUrl"><Parameters><Parameter Type="String">/sites/test/</Parameter></Parameters></Method><Identity Id="5" Name="38e4499e-10a2-5000-ce25-77d4ccc2bd96|740c6a0b-85e2-48a0-a494-e0f1759d4a77:site:f3806c23-0c9f-42d3-bc7d-3895acc06d73:web:5a39e548-b3d7-4090-9cb9-0ce7cd85d275" /></ObjectPaths></Request>`
         })));
         done();
       }
@@ -849,7 +850,7 @@ describe(commands.PROPERTYBAG_GET, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsVerboseOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -860,7 +861,7 @@ describe(commands.PROPERTYBAG_GET, () => {
   });
 
   it('supports specifying folder', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsScopeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('[folder]') > -1) {
@@ -872,69 +873,54 @@ describe(commands.PROPERTYBAG_GET, () => {
 
   it('doesn\'t fail if the parent doesn\'t define options', () => {
     sinon.stub(Command.prototype, 'options').callsFake(() => { return []; });
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     Utils.restore(Command.prototype.options);
     assert(options.length > 0);
   });
 
   it('should properly format integer property', () => {
     const prop = (command as any).formatProperty('vti_folderitemcount$  Int32', 0);
-    assert.equal(prop.key, 'vti_folderitemcount');
-    assert.equal(prop.value, 0);
+    assert.strictEqual(prop.key, 'vti_folderitemcount');
+    assert.strictEqual(prop.value, 0);
   });
 
   it('should properly format date property', () => {
     const prop = (command as any).formatProperty('vti_timecreated', '\/Date(2017,10,7,11,29,31,0)\/');
-    assert.equal(prop.key, 'vti_timecreated');
-    assert.equal(Object.prototype.toString.call(prop.value), '[object Date]');
-    assert.equal((prop.value as Date).toISOString(), new Date(2017, 10, 7, 11, 29, 31, 0).toISOString());
+    assert.strictEqual(prop.key, 'vti_timecreated');
+    assert.strictEqual(Object.prototype.toString.call(prop.value), '[object Date]');
+    assert.strictEqual((prop.value as Date).toISOString(), new Date(2017, 10, 7, 11, 29, 31, 0).toISOString());
   });
 
   it('should properly format boolean property', () => {
     const prop = (command as any).formatProperty('vti_timecreated', 'true');
-    assert.equal(prop.key, 'vti_timecreated');
-    assert.equal(prop.value, true);
-  });
-
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { key: 'abc' } });
-    assert.equal(actual, "Missing required option url");
+    assert.strictEqual(prop.key, 'vti_timecreated');
+    assert.strictEqual(prop.value, true);
   });
 
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           webUrl: 'foo',
           key: 'abc'
         }
     });
-    assert.notEqual(actual, true);
-  });
-
-  it('fails validation if the key option is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options:
-        {
-          webUrl: 'https://contoso.sharepoint.com',
-        }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the url and key options specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           webUrl: "https://contoso.sharepoint.com",
           key: 'abc'
         }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the url, key and folder options specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
         {
           webUrl: "https://contoso.sharepoint.com",
@@ -942,11 +928,11 @@ describe(commands.PROPERTYBAG_GET, () => {
           folder: "/"
         }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('doesn\'t fail validation if the optional folder option not specified', () => {
-    const actual = (command.validate() as CommandValidate)(
+    const actual = command.validate(
       {
         options:
           {
@@ -954,40 +940,6 @@ describe(commands.PROPERTYBAG_GET, () => {
             key: 'abc'
           }
       });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.PROPERTYBAG_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.strictEqual(actual, true);
   });
 });

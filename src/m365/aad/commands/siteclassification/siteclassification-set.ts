@@ -1,14 +1,14 @@
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import GraphCommand from '../../../base/GraphCommand';
+import commands from '../../commands';
 import { DirectorySetting, UpdateDirectorySetting } from './DirectorySetting';
 import { DirectorySettingValue } from './DirectorySettingValue';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -39,13 +39,13 @@ class AadSiteClassificationUpdateCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const requestOptions: any = {
       url: `${this.resource}/beta/settings`,
       headers: {
         accept: 'application/json;odata.metadata=none'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -135,19 +135,19 @@ class AadSiteClassificationUpdateCommand extends GraphCommand {
             accept: 'application/json;odata.metadata=none',
             'content-type': 'application/json'
           },
-          json: true,
-          body: updatedDirSettings,
+          responseType: 'json',
+          data: updatedDirSettings,
         };
 
         return request.patch(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -174,47 +174,14 @@ class AadSiteClassificationUpdateCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.classifications &&
-        !args.options.defaultClassification &&
-        !args.options.usageGuidelinesUrl &&
-        !args.options.guestUsageGuidelinesUrl) {
-        return 'Specify at least one property to update';
-      }
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-
-  Examples:
-
-    Update Microsoft 365 Tenant site classification configuration
-      ${this.name} --classifications "High, Medium, Low" --defaultClassification "Medium" 
-
-    Update only the default classification
-      ${this.name} --defaultClassification "Low"
-
-    Update site classification with a usage guidelines URL 
-      ${this.name} --usageGuidelinesUrl "http://aka.ms/pnp"
-
-    Update site classification with usage guidelines URLs for guests and members
-      ${this.name} --usageGuidelinesUrl "http://aka.ms/pnp" --guestUsageGuidelinesUrl "http://aka.ms/pnp" 
-
-  More information:
-
-    SharePoint "modern" sites classification
-      https://docs.microsoft.com/en-us/sharepoint/dev/solution-guidance/modern-experience-site-classification
-    `);
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.classifications &&
+      !args.options.defaultClassification &&
+      !args.options.usageGuidelinesUrl &&
+      !args.options.guestUsageGuidelinesUrl) {
+      return 'Specify at least one property to update';
+    }
+    return true;
   }
 }
 

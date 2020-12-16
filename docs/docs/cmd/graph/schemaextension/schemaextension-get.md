@@ -5,19 +5,15 @@ Gets the properties of the specified schema extension definition
 ## Usage
 
 ```sh
-graph schemaextension get [options]
+m365 graph schemaextension get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id <id>`|The unique identifier for the schema extension definition
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id <id>`
+: The unique identifier for the schema extension definition
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -29,5 +25,5 @@ extension.
 Gets properties of a schema extension definition with ID domain_myExtension
 
 ```sh
-graph schemaextension get --id domain_myExtension 
+m365 graph schemaextension get --id domain_myExtension 
 ```

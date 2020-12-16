@@ -1,15 +1,13 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
-import request from '../../../../request';
+import { Logger } from '../../../../cli';
 import {
   CommandOption,
-  CommandTypes,
-  CommandValidate
+  CommandTypes
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -44,10 +42,10 @@ class SpoListContentTypeAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
       const list: string = args.options.listId ? encodeURIComponent(args.options.listId as string) : encodeURIComponent(args.options.listTitle as string);
-      cmd.log(`Adding content type ${args.options.contentTypeId} to list ${list} in site at ${args.options.webUrl}...`);
+      logger.logToStderr(`Adding content type ${args.options.contentTypeId} to list ${list} in site at ${args.options.webUrl}...`);
     }
 
     let requestUrl: string = '';
@@ -66,17 +64,17 @@ class SpoListContentTypeAddCommand extends SpoCommand {
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      body: requestBody,
-      json: true
+      data: requestBody,
+      responseType: 'json'
     };
 
     request
       .post(requestOptions)
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   private mapRequestBody(options: Options): any {
@@ -109,54 +107,27 @@ class SpoListContentTypeAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
+
+    if (args.options.listId) {
+      if (!Utils.isValidGuid(args.options.listId)) {
+        return `${args.options.listId} is not a valid GUID`;
       }
+    }
 
-      if (!args.options.contentTypeId) {
-        return 'Required parameter contentTypeId missing';
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return 'Specify listId or listTitle, but not both';
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return 'Specify listId or listTitle, one is required';
+    }
 
-      if (args.options.listId) {
-        if (!Utils.isValidGuid(args.options.listId)) {
-          return `${args.options.listId} is not a valid GUID`;
-        }
-      }
-
-      if (args.options.listId && args.options.listTitle) {
-        return 'Specify listId or listTitle, but not both';
-      }
-
-      if (!args.options.listId && !args.options.listTitle) {
-        return 'Specify listId or listTitle, one is required';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Add existing content type with ID ${chalk.grey('0x0120')} to the list with ID
-    ${chalk.grey('0cd891ef-afce-4e55-b836-fce03286cccf')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_CONTENTTYPE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --listId 0cd891ef-afce-4e55-b836-fce03286cccf --contentTypeId 0x0120
-
-    Add existing content type with ID ${chalk.grey('0x0120')} to the list with title ${chalk.grey('Documents')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_CONTENTTYPE_ADD} --webUrl https://contoso.sharepoint.com/sites/project-x --listTitle Documents --contentTypeId 0x0120
-      `);
+    return true;
   }
 }
 

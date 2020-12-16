@@ -5,23 +5,27 @@ Moves a file to another location
 ## Usage
 
 ```sh
-spo file move [options]
+m365 spo file move [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|The URL of the site where the file is located
-`-s, --sourceUrl <sourceUrl>`|Site-relative URL of the file to move
-`-t, --targetUrl <targetUrl>`|Server-relative URL where to move the file
-`--deleteIfAlreadyExists`|If a file already exists at the targetUrl, it will be moved to the recycle bin. If omitted, the move operation will be canceled if the file already exists at the targetUrl location
-`--allowSchemaMismatch`|Ignores any missing fields in the target document library and moves the file anyway
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: The URL of the site where the file is located
+
+`-s, --sourceUrl <sourceUrl>`
+: Site-relative URL of the file to move
+
+`-t, --targetUrl <targetUrl>`
+: Server-relative URL where to move the file
+
+`--deleteIfAlreadyExists`
+: If a file already exists at the targetUrl, it will be moved to the recycle bin. If omitted, the move operation will be canceled if the file already exists at the targetUrl location
+
+`--allowSchemaMismatch`
+: Ignores any missing fields in the target document library and moves the file anyway
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -32,25 +36,25 @@ When you move a file using the `spo file move` command, all of the versions are 
 Move file to a document library in another site collection
 
 ```sh
-spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/
+m365 spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/
 ```
 
 Move file to a document library in the same site collection
 
 ```sh
-spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test1/HRDocuments/
+m365 spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test1/HRDocuments/
 ```
 
 Move file to a document library in another site collection. If a file with the same name already exists in the target document library, move it to the recycle bin
 
 ```sh
-spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --deleteIfAlreadyExists
+m365 spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --deleteIfAlreadyExists
 ```
 
 Move file to a document library in another site collection. Allow for schema mismatch
 
  ```sh
-spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --allowSchemaMismatch
+m365 spo file move --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/sp1.pdf --targetUrl /sites/test2/Shared%20Documents/ --allowSchemaMismatch
 ```
 
 

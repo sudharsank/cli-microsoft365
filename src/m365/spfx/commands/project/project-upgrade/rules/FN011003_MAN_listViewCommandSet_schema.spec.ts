@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN011003_MAN_listViewCommandSet_schema } from './FN011003_MAN_listViewCommandSet_schema';
 
 describe('FN011003_MAN_listViewCommandSet_schema', () => {
@@ -17,6 +17,6 @@ describe('FN011003_MAN_listViewCommandSet_schema', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

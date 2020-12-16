@@ -1,18 +1,19 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandError, CommandOption } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./list-webhook-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./list-webhook-list');
 
 describe(commands.LIST_WEBHOOK_LIST, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +22,24 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +53,15 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.LIST_WEBHOOK_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.LIST_WEBHOOK_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['id', 'clientState', 'expirationDateTime', 'resource']);
   });
 
   it('retrieves all webhooks of the specific list if title option is passed (debug)', (done) => {
@@ -74,7 +80,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -89,7 +95,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         title: 'Documents',
@@ -97,18 +103,21 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            id: 'cfda40f2-6ca2-4424-9be0-33e9785b0e67',
-            clientState: 'pnp-js-core-subscription',
-            expirationDateTime: '2018-12-09T18:01:55.097Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
-          },
-          {
-            id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-            clientState: '',
-            expirationDateTime: '2019-01-27T16:32:05.4610008Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
+            "clientState": "pnp-js-core-subscription",
+            "expirationDateTime": "2018-12-09T18:01:55.097Z",
+            "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
+            "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
+          }, {
+            "clientState": '',
+            "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
+            "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
+            "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
           }
         ]));
         done();
@@ -135,7 +144,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -150,7 +159,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         listTitle: 'Documents',
@@ -158,18 +167,21 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            id: 'cfda40f2-6ca2-4424-9be0-33e9785b0e67',
-            clientState: 'pnp-js-core-subscription',
-            expirationDateTime: '2018-12-09T18:01:55.097Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
-          },
-          {
-            id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-            clientState: '',
-            expirationDateTime: '2019-01-27T16:32:05.4610008Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
+            "clientState": "pnp-js-core-subscription",
+            "expirationDateTime": "2018-12-09T18:01:55.097Z",
+            "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
+            "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
+          }, {
+            "clientState": '',
+            "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
+            "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
+            "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
           }
         ]));
         done();
@@ -196,7 +208,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -211,7 +223,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         title: 'Documents',
@@ -219,18 +231,21 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            id: 'cfda40f2-6ca2-4424-9be0-33e9785b0e67',
-            clientState: 'pnp-js-core-subscription',
-            expirationDateTime: '2018-12-09T18:01:55.097Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
-          },
-          {
-            id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-            clientState: '',
-            expirationDateTime: '2019-01-27T16:32:05.4610008Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
+            "clientState": "pnp-js-core-subscription",
+            "expirationDateTime": "2018-12-09T18:01:55.097Z",
+            "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
+            "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
+          }, {
+            "clientState": '',
+            "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
+            "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
+            "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
           }
         ]));
         done();
@@ -257,7 +272,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -272,7 +287,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         listTitle: 'Documents',
@@ -280,18 +295,21 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            id: 'cfda40f2-6ca2-4424-9be0-33e9785b0e67',
-            clientState: 'pnp-js-core-subscription',
-            expirationDateTime: '2018-12-09T18:01:55.097Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
-          },
-          {
-            id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-            clientState: '',
-            expirationDateTime: '2019-01-27T16:32:05.4610008Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
+            "clientState": "pnp-js-core-subscription",
+            "expirationDateTime": "2018-12-09T18:01:55.097Z",
+            "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
+            "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
+          }, {
+            "clientState": '',
+            "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
+            "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
+            "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
           }
         ]));
         done();
@@ -318,7 +336,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -333,7 +351,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         id: 'dfddade1-4729-428d-881e-7fedf3cae50d',
@@ -341,18 +359,21 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            id: 'cfda40f2-6ca2-4424-9be0-33e9785b0e67',
-            clientState: 'pnp-js-core-subscription',
-            expirationDateTime: '2018-12-09T18:01:55.097Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
-          },
-          {
-            id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-            clientState: '',
-            expirationDateTime: '2019-01-27T16:32:05.4610008Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
+            "clientState": "pnp-js-core-subscription",
+            "expirationDateTime": "2018-12-09T18:01:55.097Z",
+            "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
+            "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
+          }, {
+            "clientState": '',
+            "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
+            "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
+            "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
           }
         ]));
         done();
@@ -379,7 +400,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -394,7 +415,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         listId: 'dfddade1-4729-428d-881e-7fedf3cae50d',
@@ -402,18 +423,21 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            id: 'cfda40f2-6ca2-4424-9be0-33e9785b0e67',
-            clientState: 'pnp-js-core-subscription',
-            expirationDateTime: '2018-12-09T18:01:55.097Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
-          },
-          {
-            id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-            clientState: '',
-            expirationDateTime: '2019-01-27T16:32:05.4610008Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
+            "clientState": "pnp-js-core-subscription",
+            "expirationDateTime": "2018-12-09T18:01:55.097Z",
+            "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
+            "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
+          }, {
+            "clientState": '',
+            "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
+            "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
+            "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
           }
         ]));
         done();
@@ -440,7 +464,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -455,7 +479,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         id: 'dfddade1-4729-428d-881e-7fedf3cae50d',
@@ -463,18 +487,21 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            id: 'cfda40f2-6ca2-4424-9be0-33e9785b0e67',
-            clientState: 'pnp-js-core-subscription',
-            expirationDateTime: '2018-12-09T18:01:55.097Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
-          },
-          {
-            id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-            clientState: '',
-            expirationDateTime: '2019-01-27T16:32:05.4610008Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
+            "clientState": "pnp-js-core-subscription",
+            "expirationDateTime": "2018-12-09T18:01:55.097Z",
+            "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
+            "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
+          }, {
+            "clientState": '',
+            "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
+            "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
+            "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
           }
         ]));
         done();
@@ -501,7 +528,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -516,7 +543,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         listId: 'dfddade1-4729-428d-881e-7fedf3cae50d',
@@ -524,18 +551,21 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            id: 'cfda40f2-6ca2-4424-9be0-33e9785b0e67',
-            clientState: 'pnp-js-core-subscription',
-            expirationDateTime: '2018-12-09T18:01:55.097Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
-          },
-          {
-            id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-            clientState: '',
-            expirationDateTime: '2019-01-27T16:32:05.4610008Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
+            "clientState": "pnp-js-core-subscription",
+            "expirationDateTime": "2018-12-09T18:01:55.097Z",
+            "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
+            "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
+          }, {
+            "clientState": '',
+            "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
+            "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
+            "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
           }
         ]));
         done();
@@ -555,14 +585,14 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
           return Promise.resolve({
             "value": [
               {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2018-12-09T18:01:55.097Z",
                 "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
                 "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -577,7 +607,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         id: 'dfddade1-4729-428d-881e-7fedf3cae50d',
@@ -585,18 +615,21 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            id: 'cfda40f2-6ca2-4424-9be0-33e9785b0e67',
-            clientState: '',
-            expirationDateTime: '2018-12-09T18:01:55.097Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
-          },
-          {
-            id: 'cc27a922-8224-4296-90a5-ebbc54da2e85',
-            clientState: '',
-            expirationDateTime: '2019-01-27T16:32:05.4610008Z',
-            resource: 'dfddade1-4729-428d-881e-7fedf3cae50d'
+            "clientState": '',
+            "expirationDateTime": "2018-12-09T18:01:55.097Z",
+            "id": "cfda40f2-6ca2-4424-9be0-33e9785b0e67",
+            "notificationUrl": "https://deletemetestfunction.azurewebsites.net/api/FakeWebhookEndpoint?code=QlM2zaeJRti4WFGQUEqSo1ZmKMtRdB2JQ3mc2kzPj2aX6pNBAWVU4w==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
+          }, {
+            "clientState": '',
+            "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
+            "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
+            "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
+            "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
+            "resourceData": null
           }
         ]));
         done();
@@ -622,7 +655,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         verbose: true,
         id: 'dfddade1-4729-428d-881e-7fedf3cae50d',
@@ -630,7 +663,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith('No webhooks found'));
+        assert(loggerLogToStderrSpy.calledWith('No webhooks found'));
         done();
       }
       catch (e) {
@@ -655,7 +688,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
                 "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
                 "resourceData": null
               }, {
-                "clientState": null,
+                "clientState": '',
                 "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
                 "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
                 "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -670,7 +703,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         id: 'dfddade1-4729-428d-881e-7fedf3cae50d',
@@ -679,7 +712,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(
+        assert(loggerLogSpy.calledWith(
           [
             {
               "clientState": "pnp-js-core-subscription",
@@ -689,7 +722,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
               "resource": "dfddade1-4729-428d-881e-7fedf3cae50d",
               "resourceData": null
             }, {
-              "clientState": null,
+              "clientState": '',
               "expirationDateTime": "2019-01-27T16:32:05.4610008Z",
               "id": "cc27a922-8224-4296-90a5-ebbc54da2e85",
               "notificationUrl": "https://mlk-document-publishing-fa-dev-we.azurewebsites.net/api/HandleWebHookNotification?code=jZyDfmBffPn7x0xYCQtZuxfqapu7cJzJo6puvruJiMUOxUl6XkxXAA==",
@@ -728,7 +761,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
 
     const actionTitle: string = 'Documents';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         title: actionTitle,
@@ -736,7 +769,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
@@ -756,7 +789,7 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
 
     const actionId: string = '0CD891EF-AFCE-4E55-B836-FCE03286CCCF';
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         id: actionId,
@@ -773,58 +806,53 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
     });
   });
 
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if both id and title options are not passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the url option is a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
     assert(actual);
   });
 
   it('fails validation if the id option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: '12345' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: '12345' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if the listId option is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '12345' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '12345' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the id option is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
     assert(actual);
   });
 
   it('passes validation if the listId option is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF' } });
     assert(actual);
   });
 
   it('fails validation if both id and title options are passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', id: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', title: 'Documents' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', id: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', title: 'Documents' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if both listId and listTitle options are passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', listTitle: 'Documents' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com', listId: '0CD891EF-AFCE-4E55-B836-FCE03286CCCF', listTitle: 'Documents' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -832,39 +860,5 @@ describe(commands.LIST_WEBHOOK_LIST, () => {
       }
     });
     assert(containsDebugOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.LIST_WEBHOOK_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

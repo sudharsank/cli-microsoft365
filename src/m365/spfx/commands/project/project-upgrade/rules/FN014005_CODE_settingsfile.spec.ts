@@ -1,10 +1,10 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as sinon from 'sinon';
-import { Finding } from '../Finding';
-import { Project } from '../../model';
-import { FN014005_CODE_settingsfile } from './FN014005_CODE_settingsfile';
 import Utils from '../../../../../../Utils';
+import { Project } from '../../model';
+import { Finding } from '../Finding';
+import { FN014005_CODE_settingsfile } from './FN014005_CODE_settingsfile';
 
 describe('FN014005_CODE_settingsfile', () => {
   let findings: Finding[];
@@ -24,7 +24,7 @@ describe('FN014005_CODE_settingsfile', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('returns notifications if vscode settings file is absent', () => {
@@ -33,6 +33,6 @@ describe('FN014005_CODE_settingsfile', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 1);
+    assert.strictEqual(findings.length, 1);
   });
 });

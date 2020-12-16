@@ -5,20 +5,18 @@ Get hub site data for the specified site
 ## Usage
 
 ```sh
-spo hubsite data get [options]
+m365 spo hubsite data get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|URL of the site for which to retrieve hub site data
-`-f, --forceRefresh`|Set, to refresh the server cache with the latest updates
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: URL of the site for which to retrieve hub site data
+
+`-f, --forceRefresh`
+: Set, to refresh the server cache with the latest updates
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -35,7 +33,7 @@ If the specified site is not connected to a hub site site and is not a hub site 
 Get information about the hub site data for a site with URL https://contoso.sharepoint.com/sites/project-x
 
 ```sh
-spo hubsite data get --webUrl https://contoso.sharepoint.com/sites/project-x
+m365 spo hubsite data get --webUrl https://contoso.sharepoint.com/sites/project-x
 ```
 
 ## More information

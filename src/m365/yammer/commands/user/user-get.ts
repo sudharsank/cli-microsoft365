@@ -1,10 +1,9 @@
-import { CommandOption, CommandValidate } from '../../../../Command';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import YammerCommand from '../../../base/YammerCommand';
 import commands from '../../commands';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -31,7 +30,11 @@ class YammerUserGetCommand extends YammerCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['id', 'full_name', 'email', 'job_title', 'state', 'url'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let endPoint = `${this.resource}/v1/users/current.json`;
 
     if (args.options.userId) {
@@ -46,34 +49,15 @@ class YammerUserGetCommand extends YammerCommand {
         accept: 'application/json;odata.metadata=none',
         'content-type': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get(requestOptions)
       .then((res: any): void => {
-        if (args.options.output === 'json') {
-          cmd.log(res);
-        }
-        else {
-          if (res instanceof Array) {
-            cmd.log((res as any[]).map((n: any) => {
-              const item: any = {
-                id: n.id,
-                full_name: n.full_name,
-                email: n.email,
-                job_title: n.job_title,
-                state: n.state,
-                url: n.url
-              };
-              return item;
-            }));
-          } else {
-            cmd.log({ id: res.id, full_name: res.full_name, email: res.email, job_title: res.job_title, state: res.state, url: res.url });
-          }
-        }
+        logger.log(res);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -92,44 +76,12 @@ class YammerUserGetCommand extends YammerCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (args.options.userId !== undefined && args.options.email !== undefined) {
-        return `You are only allowed to search by ID or e-mail but not both`;
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.userId !== undefined && args.options.email !== undefined) {
+      return `You are only allowed to search by ID or e-mail but not both`;
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks
-
-    ${chalk.yellow('Attention:')} In order to use this command, you need to grant the Azure AD
-    application used by the CLI for Microsoft 365 the permission to the Yammer API.
-    To do this, execute the ${chalk.blue('cli consent --service yammer')} command.
-    
-    All operations return a single user object. Operations executed with the
-    ${chalk.blue('email')} parameter return an array of user objects.
-      
-  Examples:
-  
-    Returns the current user
-      ${this.name}
-
-    Returns the user with the ID 1496550697
-      ${this.name} --userId 1496550697
-
-    Returns an array of users matching the e-mail john.smith@contoso.com
-      ${this.name} --email john.smith@contoso.com
-
-    Returns an array of users matching the e-mail john.smith@contoso.com in
-    JSON. The JSON output returns a full user object
-      ${this.name} --email john.smith@contoso.com --output json
-    `);
+    return true;
   }
 }
 

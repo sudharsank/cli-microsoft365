@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./o365group-teamify');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./o365group-teamify');
 
 describe(commands.O365GROUP_TEAMIFY, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,24 +21,24 @@ describe(commands.O365GROUP_TEAMIFY, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -52,20 +52,20 @@ describe(commands.O365GROUP_TEAMIFY, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.O365GROUP_TEAMIFY), true);
+    assert.strictEqual(command.name.startsWith(commands.O365GROUP_TEAMIFY), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('validates for a correct input.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         groupId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
     done();
   });
 
@@ -78,13 +78,13 @@ describe(commands.O365GROUP_TEAMIFY, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false, groupId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee' }
     }, () => {
       try {
-        assert.equal(requestStub.lastCall.args[0].url, 'https://graph.microsoft.com/beta/teams');
-        assert.equal(requestStub.lastCall.args[0].body["template@odata.bind"], 'https://graph.microsoft.com/beta/teamsTemplates(\'standard\')');
-        assert.equal(requestStub.lastCall.args[0].body["group@odata.bind"], `https://graph.microsoft.com/v1.0/groups('8231f9f2-701f-4c6e-93ce-ecb563e3c1ee')`);
+        assert.strictEqual(requestStub.lastCall.args[0].url, 'https://graph.microsoft.com/beta/teams');
+        assert.strictEqual(requestStub.lastCall.args[0].data["template@odata.bind"], 'https://graph.microsoft.com/beta/teamsTemplates(\'standard\')');
+        assert.strictEqual(requestStub.lastCall.args[0].data["group@odata.bind"], `https://graph.microsoft.com/v1.0/groups('8231f9f2-701f-4c6e-93ce-ecb563e3c1ee')`);
         done();
       }
       catch (e) {
@@ -102,11 +102,11 @@ describe(commands.O365GROUP_TEAMIFY, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: true, groupId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee' }
     }, () => {
       try {
-        assert.notEqual(cmdInstanceLogSpy.lastCall.args[0].indexOf('DONE'), -1);
+        assert.notStrictEqual(loggerLogToStderrSpy.lastCall.args[0].indexOf('DONE'), -1);
         done();
       }
       catch (e) {
@@ -130,11 +130,11 @@ describe(commands.O365GROUP_TEAMIFY, () => {
         });
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: { debug: false, groupId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee' }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(err.message, 'Error: Failed to execute Templates backend request CreateTeamFromGroupWithTemplateRequest.');
+        assert.strictEqual(err.message, 'Error: Failed to execute Templates backend request CreateTeamFromGroupWithTemplateRequest.');
         done();
       }
       catch (e) {
@@ -143,23 +143,18 @@ describe(commands.O365GROUP_TEAMIFY, () => {
     });
   });
 
-  it('fails validation if the groupId is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the groupId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { groupId: 'invalid' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { groupId: 'invalid' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation if the groupId is a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { groupId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { groupId: '8231f9f2-701f-4c6e-93ce-ecb563e3c1ee' } });
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -167,39 +162,5 @@ describe(commands.O365GROUP_TEAMIFY, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.O365GROUP_TEAMIFY));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

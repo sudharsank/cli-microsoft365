@@ -5,19 +5,15 @@ Lists users matching specified criteria
 ## Usage
 
 ```sh
-aad user list [options]
+m365 aad user list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-p, --properties [properties]`|Comma-separated list of properties to retrieve
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-p, --properties [properties]`
+: Comma-separated list of properties to retrieve
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -30,25 +26,25 @@ To filter the list of users, include additional options that match the user prop
 List all users in the tenant
 
 ```sh
-aad user list
+m365 aad user list
 ```
 
 List all users in the tenant. For each one return the display name and e-mail address
 
 ```sh
-aad user list --properties "displayName,mail"
+m365 aad user list --properties "displayName,mail"
 ```
 
 Show users whose display name starts with _Patt_
 
 ```sh
-aad user list --displayName Patt
+m365 aad user list --displayName Patt
 ```
 
 Show all account managers whose display name starts with _Patt_
 
 ```sh
-aad user list --displayName Patt --jobTitle 'Account manager'
+m365 aad user list --displayName Patt --jobTitle 'Account manager'
 ```
 
 ## More information

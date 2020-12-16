@@ -1,14 +1,11 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+    CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import AzmgmtCommand from '../../../base/AzmgmtCommand';
-import * as os from 'os';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -29,9 +26,13 @@ class FlowRunGetCommand extends AzmgmtCommand {
     return 'Gets information about a specific run of the specified Microsoft Flow';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['name', 'startTime', 'endTime', 'status', 'triggerName'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving information about run ${args.options.name} of Microsoft Flow ${args.options.flow}...`);
+      logger.logToStderr(`Retrieving information about run ${args.options.name} of Microsoft Flow ${args.options.flow}...`);
     }
 
     const requestOptions: any = {
@@ -39,28 +40,20 @@ class FlowRunGetCommand extends AzmgmtCommand {
       headers: {
         accept: 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get(requestOptions)
       .then((res: any): void => {
-        if (args.options.output === 'json') {
-          cmd.log(res);
-        }
-        else {
-          const summary: any = {
-            name: res.name,
-            startTime: res.properties.startTime,
-            endTime: res.properties.endTime || '',
-            status: res.properties.status,
-            triggerName: res.properties.trigger.name
-          };
-          cmd.log(summary);
-        }
+        res.startTime = res.properties.startTime;
+        res.endTime = res.properties.endTime || '';
+        res.status = res.properties.status;
+        res.triggerName = res.properties.trigger.name;
+        logger.log(res);
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -81,51 +74,6 @@ class FlowRunGetCommand extends AzmgmtCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.flow) {
-        return 'Required option flow missing';
-      }
-
-      if (!args.options.environment) {
-        return 'Required option environment missing';
-      }
-
-      if (!args.options.name) {
-        return 'Required option name missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.FLOW_RUN_GET).helpInformation());
-    log(
-      `  Remarks:
-
-    ${chalk.yellow('Attention:')} This command is based on an API that is currently
-    in preview and is subject to change once the API reached general
-    availability.
-  
-    If the environment with the name you specified doesn't exist, you will get
-    the ${chalk.grey('Access to the environment \'xyz\' is denied.')} error.
-
-    If the Microsoft Flow with the name you specified doesn't exist, you will
-    get the ${chalk.grey(`The caller with object id \'abc\' does not have permission${os.EOL}` +
-        '    for connection \'xyz\' under Api \'shared_logicflows\'.')} error.
-
-    If the run with the name you specified doesn't exist, you will
-    get the ${chalk.grey(`The provided workflow run name is not valid.`)} error.
-   
-  Examples:
-  
-    Get information about the given run of the specified Microsoft Flow
-      ${this.getCommandName()} --environment Default-d87a7535-dd31-4437-bfe1-95340acd55c5 --flow 5923cb07-ce1a-4a5c-ab81-257ce820109a --name 08586653536760200319026785874CU62
-`);
   }
 }
 

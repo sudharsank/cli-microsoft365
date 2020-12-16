@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Cli, Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -40,12 +38,12 @@ class SpoListWebhookRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const list: string = args.options.listId ? encodeURIComponent(args.options.listId as string) : encodeURIComponent(args.options.listTitle as string);
 
     const removeWebhook: () => void = (): void => {
       if (this.verbose) {
-        cmd.log(`Webhook ${args.options.id} is about to be removed from list ${list} located at site ${args.options.webUrl}...`);
+        logger.logToStderr(`Webhook ${args.options.id} is about to be removed from list ${list} located at site ${args.options.webUrl}...`);
       }
 
       let requestUrl: string = '';
@@ -63,7 +61,7 @@ class SpoListWebhookRemoveCommand extends SpoCommand {
         headers: {
           'accept': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -72,7 +70,7 @@ class SpoListWebhookRemoveCommand extends SpoCommand {
           // REST delete call doesn't return anything
           cb();
         }, (err: any): void => {
-          this.handleRejectedODataJsonPromise(err, cmd, cb)
+          this.handleRejectedODataJsonPromise(err, logger, cb)
         });
     }
 
@@ -80,7 +78,7 @@ class SpoListWebhookRemoveCommand extends SpoCommand {
       removeWebhook();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -124,69 +122,31 @@ class SpoListWebhookRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
+
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
+
+    if (args.options.listId) {
+      if (!Utils.isValidGuid(args.options.listId)) {
+        return `${args.options.listId} is not a valid GUID`;
       }
+    }
 
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
+    if (args.options.listId && args.options.listTitle) {
+      return 'Specify listId or listTitle, but not both';
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
+    if (!args.options.listId && !args.options.listTitle) {
+      return 'Specify listId or listTitle, one is required';
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      if (args.options.listId) {
-        if (!Utils.isValidGuid(args.options.listId)) {
-          return `${args.options.listId} is not a valid GUID`;
-        }
-      }
-
-      if (args.options.listId && args.options.listTitle) {
-        return 'Specify listId or listTitle, but not both';
-      }
-
-      if (!args.options.listId && !args.options.listTitle) {
-        return 'Specify listId or listTitle, one is required';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-  
-    If the specified ${chalk.grey('id')} doesn't refer to an existing webhook,
-    you will get a ${chalk.grey('404 - "404 FILE NOT FOUND"')} error.
-        
-  Examples:
-  
-    Remove webhook with ID ${chalk.grey('cc27a922-8224-4296-90a5-ebbc54da2e81')} from a
-    list with ID ${chalk.grey('0cd891ef-afce-4e55-b836-fce03286cccf')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/ninja')}
-      ${commands.LIST_WEBHOOK_REMOVE} --webUrl https://contoso.sharepoint.com/sites/ninja --listId 0cd891ef-afce-4e55-b836-fce03286cccf --id cc27a922-8224-4296-90a5-ebbc54da2e81
-
-    Remove webhook with ID ${chalk.grey('cc27a922-8224-4296-90a5-ebbc54da2e81')} from a
-    list with title ${chalk.grey('Documents')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/ninja')}
-      ${commands.LIST_WEBHOOK_REMOVE} --webUrl https://contoso.sharepoint.com/sites/ninja --listTitle Documents --id cc27a922-8224-4296-90a5-ebbc54da2e81
-
-    Remove webhook with ID ${chalk.grey('cc27a922-8224-4296-90a5-ebbc54da2e81')} from a
-    list with title ${chalk.grey('Documents')} located in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/ninja')} without being asked for confirmation
-      ${commands.LIST_WEBHOOK_REMOVE} --webUrl https://contoso.sharepoint.com/sites/ninja --listTitle Documents --id cc27a922-8224-4296-90a5-ebbc54da2e81 --confirm
-      `);
+    return true;
   }
 }
 

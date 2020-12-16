@@ -5,22 +5,24 @@ Gets information about the specific app from the specified app catalog
 ## Usage
 
 ```sh
-spo app get [options]
+m365 spo app get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id [id]`|ID of the app to retrieve information for. Specify the `id` or the `name` but not both
-`-n, --name [name]`|Name of the app to retrieve information for. Specify the `id` or the `name` but not both
-`-u, --appCatalogUrl [appCatalogUrl]`|URL of the tenant or site collection app catalog. It must be specified when the scope is `sitecollection`
-`-s, --scope [scope]`|Scope of the app catalog: `tenant,sitecollection`. Default `tenant`
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id [id]`
+: ID of the app to retrieve information for. Specify the `id` or the `name` but not both
+
+`-n, --name [name]`
+: Name of the app to retrieve information for. Specify the `id` or the `name` but not both
+
+`-u, --appCatalogUrl [appCatalogUrl]`
+: URL of the tenant or site collection app catalog. It must be specified when the scope is `sitecollection`
+
+`-s, --scope [scope]`
+: Scope of the app catalog: `tenant,sitecollection`. Default `tenant`
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -33,25 +35,25 @@ When specifying site collection app catalog, you can specify the URL either with
 Return details about the app with ID _b2307a39-e878-458b-bc90-03bc578531d6_ available in the tenant app catalog.
 
 ```sh
-spo app get --id b2307a39-e878-458b-bc90-03bc578531d6
+m365 spo app get --id b2307a39-e878-458b-bc90-03bc578531d6
 ```
 
 Return details about the app with name _solution.sppkg_ available in the tenant app catalog. Will try to detect the app catalog URL
 
 ```sh
-spo app get --name solution.sppkg
+m365 spo app get --name solution.sppkg
 ```
 
 Return details about the app with name _solution.sppkg_ available in the tenant app catalog using the specified app catalog URL
 
 ```sh
-spo app get --name solution.sppkg --appCatalogUrl https://contoso.sharepoint.com/sites/apps
+m365 spo app get --name solution.sppkg --appCatalogUrl https://contoso.sharepoint.com/sites/apps
 ```
 
 Return details about the app with ID _b2307a39-e878-458b-bc90-03bc578531d6_ available in the site collection app catalog of site _https://contoso.sharepoint.com/sites/site1_.
 
 ```sh
-spo app get --id b2307a39-e878-458b-bc90-03bc578531d6 --scope sitecollection --appCatalogUrl https://contoso.sharepoint.com/sites/site1
+m365 spo app get --id b2307a39-e878-458b-bc90-03bc578531d6 --scope sitecollection --appCatalogUrl https://contoso.sharepoint.com/sites/site1
 ```
 
 ## More information

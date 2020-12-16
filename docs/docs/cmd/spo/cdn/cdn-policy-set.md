@@ -5,21 +5,21 @@ Sets CDN policy value for the current SharePoint Online tenant
 ## Usage
 
 ```sh
-spo cdn policy set [options]
+m365 spo cdn policy set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-t, --type [type]`|Type of CDN to manage. `Public,Private`. Default `Public`
-`-p, --policy <policy>`|CDN policy to configure. `IncludeFileExtensions|ExcludeRestrictedSiteClassifications`
-`-v, --value <value>`|Value for the policy to configure
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-t, --type [type]`
+: Type of CDN to manage. `Public,Private`. Default `Public`
+
+`-p, --policy <policy>`
+: CDN policy to configure. `IncludeFileExtensions|ExcludeRestrictedSiteClassifications`
+
+`-v, --value <value>`
+: Value for the policy to configure
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -33,7 +33,7 @@ Using the `-t, --type` option you can choose whether you want to manage the sett
 Set the list of extensions supported by the Public CDN
 
 ```sh
-spo cdn policy set -t Public -p IncludeFileExtensions -v CSS,EOT,GIF,ICO,JPEG,JPG,JS,MAP,PNG,SVG,TTF,WOFF,JSON
+m365 spo cdn policy set -t Public -p IncludeFileExtensions -v CSS,EOT,GIF,ICO,JPEG,JPG,JS,MAP,PNG,SVG,TTF,WOFF,JSON
 ```
 
 ## More information

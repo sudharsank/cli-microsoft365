@@ -5,21 +5,21 @@ Gets information about the specified user
 ## Usage
 
 ```sh
-aad user get [options]
+m365 aad user get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id [id]`|The ID of the user to retrieve information for. Specify `id` or `userName` but not both
-`-n, --userName [userName]`|The name of the user to retrieve information for. Specify `id` or `userName` but not both
-`-p, --properties [properties]`|Comma-separated list of properties to retrieve
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id [id]`
+: The ID of the user to retrieve information for. Specify `id` or `userName` but not both
+
+`-n, --userName [userName]`
+: The name of the user to retrieve information for. Specify `id` or `userName` but not both
+
+`-p, --properties [properties]`
+: Comma-separated list of properties to retrieve
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -32,19 +32,19 @@ If the user with the specified id or user name doesn't exist, you will get a `Re
 Get information about the user with id _1caf7dcd-7e83-4c3a-94f7-932a1299c844_
 
 ```sh
-aad user get --id 1caf7dcd-7e83-4c3a-94f7-932a1299c844
+m365 aad user get --id 1caf7dcd-7e83-4c3a-94f7-932a1299c844
 ```
 
 Get information about the user with user name _AarifS@contoso.onmicrosoft.com_
 
 ```sh
-aad user get --userName AarifS@contoso.onmicrosoft.com
+m365 aad user get --userName AarifS@contoso.onmicrosoft.com
 ```
 
 For the user with id _1caf7dcd-7e83-4c3a-94f7-932a1299c844_ retrieve the user name, e-mail address and full name
 
 ```sh
-aad user get --id 1caf7dcd-7e83-4c3a-94f7-932a1299c844 --properties "userPrincipalName,mail,displayName"
+m365 aad user get --id 1caf7dcd-7e83-4c3a-94f7-932a1299c844 --properties "userPrincipalName,mail,displayName"
 ```
 
 ## More information

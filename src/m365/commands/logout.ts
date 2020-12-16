@@ -1,10 +1,8 @@
+import * as chalk from 'chalk';
 import auth from '../../Auth';
+import { Logger } from '../../cli';
+import Command, { CommandArgs, CommandError } from '../../Command';
 import commands from './commands';
-import Command, {
-  CommandError, CommandAction, CommandArgs,
-} from '../../Command';
-
-const vorpal: Vorpal = require('../../vorpal-init');
 
 class LogoutCommand extends Command {
   public get name(): string {
@@ -15,17 +13,15 @@ class LogoutCommand extends Command {
     return 'Log out from Microsoft 365';
   }
 
-  public commandAction(cmd: CommandInstance, args: {}, cb: () => void): void {
-    const chalk = vorpal.chalk;
-
+  public commandAction(logger: Logger, args: {}, cb: () => void): void {
     if (this.verbose) {
-      cmd.log('Logging out from Microsoft 365...');
+      logger.logToStderr('Logging out from Microsoft 365...');
     }
 
     const logout: () => void = (): void => {
       auth.service.logout();
       if (this.verbose) {
-        cmd.log(chalk.green('DONE'));
+        logger.logToStderr(chalk.green('DONE'));
       }
       cb();
     }
@@ -36,47 +32,22 @@ class LogoutCommand extends Command {
         logout();
       }, (error: any): void => {
         if (this.debug) {
-          cmd.log(new CommandError(error));
+          logger.logToStderr(new CommandError(error));
         }
 
         logout();
       });
   }
 
-  public action(): CommandAction {
-    const cmd: Command = this;
-    return function (this: CommandInstance, args: CommandArgs, cb: (err?: any) => void) {
-      auth
-        .restoreAuth()
-        .then((): void => {
-          args = (cmd as any).processArgs(args);
-          (cmd as any).initAction(args, this);
-
-          cmd.commandAction(this, args, cb);
-        }, (error: any): void => {
-          cb(new CommandError(error));
-        });
-    }
-  }
-
-  public commandHelp(args: any, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.LOGOUT).helpInformation());
-    log(
-      `  Remarks:
-
-    The ${chalk.blue(commands.LOGOUT)} command logs out from Microsoft 365
-    and removes any access and refresh tokens from memory.
-
-  Examples:
-  
-    Log out from Microsoft 365
-      ${commands.LOGOUT}
-
-    Log out from Microsoft 365 in debug mode including detailed debug
-    information in the console output
-      ${commands.LOGOUT} --debug
-`);
+  public action(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
+    auth
+      .restoreAuth()
+      .then((): void => {
+        this.initAction(args, logger);
+        this.commandAction(logger, args, cb);
+      }, (error: any): void => {
+        cb(new CommandError(error));
+      });
   }
 }
 

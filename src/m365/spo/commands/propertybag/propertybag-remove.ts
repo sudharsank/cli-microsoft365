@@ -1,18 +1,16 @@
-import config from '../../../../config';
-import commands from '../../commands';
-import request from '../../../../request';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
-import { SpoPropertyBagBaseCommand } from './propertybag-base';
+import config from '../../../../config';
 import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
 import { ClientSvc, IdentityResponse } from '../../ClientSvc';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
+import { SpoPropertyBagBaseCommand } from './propertybag-base';
 
 export interface CommandArgs {
   options: Options;
@@ -41,9 +39,9 @@ class SpoPropertyBagRemoveCommand extends SpoPropertyBagBaseCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeProperty = (): void => {
-      const clientSvcCommons: ClientSvc = new ClientSvc(cmd, this.debug);
+      const clientSvcCommons: ClientSvc = new ClientSvc(logger, this.debug);
 
       this
         .getRequestDigest(args.options.webUrl)
@@ -65,18 +63,18 @@ class SpoPropertyBagRemoveCommand extends SpoPropertyBagBaseCommand {
         })
         .then((res: any): void => {
           if (this.verbose) {
-            cmd.log('DONE');
+            logger.logToStderr('DONE');
           }
 
           cb();
-        }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
     }
 
     if (args.options.confirm) {
       removeProperty();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -103,7 +101,7 @@ class SpoPropertyBagRemoveCommand extends SpoPropertyBagBaseCommand {
       headers: {
         'X-RequestDigest': this.formDigestValue
       },
-      body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetFieldValue" Id="206" ObjectPathId="205"><Parameters><Parameter Type="String">${Utils.escapeXml(options.key)}</Parameter><Parameter Type="Null" /></Parameters></Method><Method Name="Update" Id="207" ObjectPathId="198" /></Actions><ObjectPaths><Property Id="205" ParentId="198" Name="${objectType}" /><Identity Id="198" Name="${identityResp.objectIdentity}" /></ObjectPaths></Request>`
+      data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><Method Name="SetFieldValue" Id="206" ObjectPathId="205"><Parameters><Parameter Type="String">${Utils.escapeXml(options.key)}</Parameter><Parameter Type="Null" /></Parameters></Method><Method Name="Update" Id="207" ObjectPathId="198" /></Actions><ObjectPaths><Property Id="205" ParentId="198" Name="${objectType}" /><Identity Id="198" Name="${identityResp.objectIdentity}" /></ObjectPaths></Request>`
     };
 
     return new Promise<any>((resolve: any, reject: any): void => {
@@ -144,41 +142,16 @@ class SpoPropertyBagRemoveCommand extends SpoPropertyBagBaseCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (SpoCommand.isValidSharePointUrl(args.options.webUrl) !== true) {
-        return 'Missing required option url';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (SpoCommand.isValidSharePointUrl(args.options.webUrl) !== true) {
+      return 'Missing required option url';
+    }
 
-      if (!args.options.key) {
-        return 'Missing required option key';
-      }
+    if (!args.options.key) {
+      return 'Missing required option key';
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.PROPERTYBAG_REMOVE).helpInformation());
-    log(
-      `  Examples:
-
-    Removes the value of the ${chalk.grey('key1')} property from the property bag located in site ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_REMOVE} --webUrl https://contoso.sharepoint.com/sites/test --key key1
-
-    Removes the value of the ${chalk.grey('key1')} property from the property bag located in site root folder ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_REMOVE} --webUrl https://contoso.sharepoint.com/sites/test --key key1 --folder / --confirm
-
-    Removes the value of the ${chalk.grey('key1')} property from the property bag located in site document library ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_REMOVE} --webUrl https://contoso.sharepoint.com/sites/test --key key1 --folder '/Shared Documents'
-    
-    Removes property bag value located in folder in site document library ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_REMOVE} --webUrl https://contoso.sharepoint.com/sites/test --key key1 --folder '/Shared Documents/MyFolder'
-
-    Removes the value of the ${chalk.grey('key1')} property from the property bag located in site list ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_REMOVE} --webUrl https://contoso.sharepoint.com/sites/test --key key1 --folder /Lists/MyList
-    `);
+    return true;
   }
 }
 

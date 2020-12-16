@@ -5,21 +5,21 @@ Applies theme to the specified site
 ## Usage
 
 ```sh
-spo theme apply [options]
+m365 spo theme apply [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-n, --name <name>`|Name of the theme to apply
-`-u, --webUrl <webUrl>`|URL of the site to which the theme should be applied
-`--sharePointTheme`|Set to specify if the supplied theme name is a standard SharePoint theme
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-n, --name <name>`
+: Name of the theme to apply
+
+`-u, --webUrl <webUrl>`
+: URL of the site to which the theme should be applied
+
+`--sharePointTheme`
+: Set to specify if the supplied theme name is a standard SharePoint theme
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -33,13 +33,13 @@ Following standard SharePoint themes are supported by the CLI for Microsoft 365:
 Apply theme to the specified site
 
 ```sh
-spo theme apply --name Contoso-Blue --webUrl https://contoso.sharepoint.com/sites/project-x
+m365 spo theme apply --name Contoso-Blue --webUrl https://contoso.sharepoint.com/sites/project-x
 ```
 
 Apply a standard SharePoint theme to the specified site
 
 ```sh
-spo theme apply --name Blue --webUrl https://contoso.sharepoint.com/sites/project-x --sharePointTheme
+m365 spo theme apply --name Blue --webUrl https://contoso.sharepoint.com/sites/project-x --sharePointTheme
 ```
 
 ## More information

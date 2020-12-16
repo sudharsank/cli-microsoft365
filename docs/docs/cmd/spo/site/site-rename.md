@@ -5,24 +5,30 @@ Renames the URL and title of a site collection
 ## Usage
 
 ```sh
-spo site rename [options]
+m365 spo site rename [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --siteUrl <siteUrl>`|The URL of the site to rename
-`--newSiteUrl <newSiteUrl>`|New URL for the site collection
-`--newSiteTitle [newSiteTitle]`|New title for the site
-`--suppressMarketplaceAppCheck`|Suppress marketplace app check
-`--suppressWorkflow2013Check`|Suppress 2013 workflow check
-`--wait`|Wait for the job to complete
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --siteUrl <siteUrl>`
+: The URL of the site to rename
+
+`--newSiteUrl <newSiteUrl>`
+: New URL for the site collection
+
+`--newSiteTitle [newSiteTitle]`
+: New title for the site
+
+`--suppressMarketplaceAppCheck`
+: Suppress marketplace app check
+
+`--suppressWorkflow2013Check`
+: Suppress 2013 workflow check
+
+`--wait`
+: Wait for the job to complete
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you must have permissions to access the tenant admin site.
@@ -36,17 +42,17 @@ Renaming site collections is by default asynchronous and depending on the curren
 Starts the rename of the site collection with name "samplesite" to "renamed" without modifying the title
 
 ```sh
-spo site rename --siteUrl http://contoso.sharepoint.com/samplesite --newSiteUrl http://contoso.sharepoint.com/renamed
+m365 spo site rename --siteUrl http://contoso.sharepoint.com/samplesite --newSiteUrl http://contoso.sharepoint.com/renamed
 ```
 
 Starts the rename of the site collection with name "samplesite" to "renamed" modifying the title of the site to "New Title"
 
 ```sh
-spo site rename --siteUrl http://contoso.sharepoint.com/samplesite --newSiteUrl http://contoso.sharepoint.com/renamed --newSiteTitle "New Title"
+m365 spo site rename --siteUrl http://contoso.sharepoint.com/samplesite --newSiteUrl http://contoso.sharepoint.com/renamed --newSiteTitle "New Title"
 ```
 
 Renames the specified site collection and waits for the operation to complete
 
 ```sh
-spo site rename --siteUrl http://contoso.sharepoint.com/samplesite --newSiteUrl http://contoso.sharepoint.com/renamed --newSiteTitle "New Title" --wait
+m365 spo site rename --siteUrl http://contoso.sharepoint.com/samplesite --newSiteUrl http://contoso.sharepoint.com/renamed --newSiteTitle "New Title" --wait
 ```

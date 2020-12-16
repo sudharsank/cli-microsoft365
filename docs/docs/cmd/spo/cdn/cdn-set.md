@@ -5,21 +5,21 @@ Enable or disable the specified Microsoft 365 CDN
 ## Usage
 
 ```sh
-spo cdn set [options]
+m365 spo cdn set [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-e, --enabled <enabled>`|Set to true to enable CDN or to false to disable it. Valid values are `true,false`
-`-t, --type [type]`|Type of CDN to manage. `Public,Private,Both`. Default `Public`
-`--noDefaultOrigins`|pass to not create the default Origins
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-e, --enabled <enabled>`
+: Set to true to enable CDN or to false to disable it. Valid values are `true,false`
+
+`-t, --type [type]`
+: Type of CDN to manage. `Public,Private,Both`. Default `Public`
+
+`--noDefaultOrigins`
+: pass to not create the default Origins
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -37,31 +37,31 @@ Using the `--noDefaultOrigins` option you can specify to skip the creation of th
 Enable the Microsoft 365 Public CDN on the current tenant
 
 ```sh
-spo cdn set -t Public -e true
+m365 spo cdn set -t Public -e true
 ```
 
 Disable the Microsoft 365 Public CDN on the current tenant
 
 ```sh
-spo cdn set -t Public -e false
+m365 spo cdn set -t Public -e false
 ```
 
 Enable the Microsoft 365 Private CDN on the current tenant
 
 ```sh
-spo cdn set -t Private -e true
+m365 spo cdn set -t Private -e true
 ```
 
 Enable the Microsoft 365 Private and Public CDN on the current tenant with default origins
 
 ```sh
-spo cdn set -t Both -e true
+m365 spo cdn set -t Both -e true
 ```
 
 Enable the Microsoft 365 Private and Public CDN on the current tenant without default origins
 
 ```sh
-spo cdn set -t Both -e true --noDefaultOrigins
+m365 spo cdn set -t Both -e true --noDefaultOrigins
 ```
 
 ## More information

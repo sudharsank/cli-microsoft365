@@ -5,30 +5,35 @@ Gets information about the specified site design
 ## Usage
 
 ```sh
-spo sitedesign get [options]
+m365 spo sitedesign get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --id <id>`|Site design ID
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --id [id]`
+: Site design ID. Specify either id or title but not both
+
+`--title [title]`
+: Site design title. Specify either id or title but not both
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
-If the specified `id` doesn't refer to an existing site design, you will get a `File not found` error.
+If the specified `id` or `title` doesn't refer to an existing site design, you will get a `File not found` error.
 
 ## Examples
 
 Get information about the site design with ID _2c1ba4c4-cd9b-4417-832f-92a34bc34b2a_
 
 ```sh
-spo sitedesign get --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a
+m365 spo sitedesign get --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a
+```
+
+Get information about the site design with title _Contoso Site Design_
+
+```sh
+m365 spo sitedesign get --title "Contoso Site Design"
 ```
 
 ## More information

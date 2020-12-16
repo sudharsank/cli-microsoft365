@@ -5,20 +5,18 @@ Enables communication site features on the specified site
 ## Usage
 
 ```sh
-spo site commsite enable [options]
+m365 spo site commsite enable [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|The URL of the site to enable communication site features on
-`-i, --designPackageId [designPackageId]`|The ID of the site design to apply when enabling communication site features
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: The URL of the site to enable communication site features on
+
+`-i, --designPackageId [designPackageId]`
+: The ID of the site design to apply when enabling communication site features
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -28,5 +26,5 @@ Option|Description
 Enable communication site features on an existing site
 
 ```sh
-spo site commsite enable --url https://contoso.sharepoint.com
+m365 spo site commsite enable --url https://contoso.sharepoint.com
 ```

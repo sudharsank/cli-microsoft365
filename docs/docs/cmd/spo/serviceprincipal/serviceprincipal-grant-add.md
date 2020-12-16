@@ -5,26 +5,24 @@ Grants the service principal permission to the specified API
 ## Usage
 
 ```sh
-spo serviceprincipal grant add [options]
+m365 spo serviceprincipal grant add [options]
 ```
 
 ## Alias
 
 ```sh
-spo sp grant add
+m365 spo sp grant add
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-r, --resource <resource>`|The name of the resource for which permissions should be granted
-`-s, --scope <scope>`|The name of the permission that should be granted
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-r, --resource <resource>`
+: The name of the resource for which permissions should be granted
+
+`-s, --scope <scope>`
+: The name of the permission that should be granted
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -34,11 +32,11 @@ Option|Description
 Grant the service principal permission to read email using the Microsoft Graph
 
 ```sh
-spo serviceprincipal grant add --resource 'Microsoft Graph' --scope 'Mail.Read'
+m365 spo serviceprincipal grant add --resource 'Microsoft Graph' --scope 'Mail.Read'
 ```
 
 Grant the service principal permission to a custom API
 
 ```sh
-spo serviceprincipal grant add --resource 'contoso-api' --scope 'user_impersonation'
+m365 spo serviceprincipal grant add --resource 'contoso-api' --scope 'user_impersonation'
 ```

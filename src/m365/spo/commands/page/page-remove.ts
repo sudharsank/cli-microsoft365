@@ -1,12 +1,12 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import { CommandOption, CommandValidate } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import { ContextInfo } from '../../spo';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -27,7 +27,7 @@ class SpoPageRemoveCommand extends SpoCommand {
     return 'Removes a modern page';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let requestDigest: string = '';
     let pageName: string = args.options.name;
 
@@ -42,7 +42,7 @@ class SpoPageRemoveCommand extends SpoCommand {
           }
 
           if (this.verbose) {
-            cmd.log(`Removing page ${pageName}...`);
+            logger.logToStderr(`Removing page ${pageName}...`);
           }
 
           const requestOptions: any = {
@@ -54,18 +54,18 @@ class SpoPageRemoveCommand extends SpoCommand {
               'content-type': 'application/json;odata=nometadata',
               accept: 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           };
 
           return request.post(requestOptions);
         })
         .then((): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
           cb();
         },
-          (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb)
+          (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb)
         );
     };
 
@@ -73,7 +73,7 @@ class SpoPageRemoveCommand extends SpoCommand {
       removePage();
     }
     else {
-      cmd.prompt(
+      Cli.prompt(
         {
           type: 'confirm',
           name: 'continue',
@@ -112,46 +112,8 @@ class SpoPageRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.name) {
-        return 'Required parameter name missing';
-      }
-
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If you try to remove a page with that does not exist, you will get
-    a ${chalk.grey('The file does not exist')} error.
-
-    If you set the ${chalk.grey('--confirm')}  flag, you will not be prompted for confirmation
-    before the page is actually removed.
-
-  Examples:
-
-    Remove a modern page.
-      ${this.name} --name page.aspx --webUrl https://contoso.sharepoint.com/sites/a-team
-
-    Remove a modern page without a confirmation prompt.
-      ${this.name} --name page.aspx --webUrl https://contoso.sharepoint.com/sites/a-team --confirm
-    `
-    );
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

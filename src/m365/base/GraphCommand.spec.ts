@@ -1,10 +1,11 @@
-import * as sinon from 'sinon';
 import * as assert from 'assert';
-import GraphCommand from './GraphCommand';
-import auth from '../../Auth';
-import Utils from '../../Utils';
-import { CommandError } from '../../Command';
+import * as sinon from 'sinon';
 import appInsights from '../../appInsights';
+import auth from '../../Auth';
+import { Logger } from '../../cli';
+import { CommandError } from '../../Command';
+import Utils from '../../Utils';
+import GraphCommand from './GraphCommand';
 
 class MockCommand extends GraphCommand {
   public get name(): string {
@@ -15,7 +16,7 @@ class MockCommand extends GraphCommand {
     return 'Mock command';
   }
 
-  public commandAction(cmd: CommandInstance, args: {}, cb: () => void): void {
+  public commandAction(logger: Logger, args: {}, cb: () => void): void {
     cb();
   }
 
@@ -39,17 +40,14 @@ describe('GraphCommand', () => {
   it('correctly reports an error while restoring auth info', (done) => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.reject('An error has occurred'));
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'graph command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
-    cmdInstance.action({ options: {} }, (err?: any) => {
+    command.action(logger, { options: {} } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -61,16 +59,13 @@ describe('GraphCommand', () => {
   it('doesn\'t execute command when error occurred while restoring auth info', (done) => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.reject('An error has occurred'));
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'graph command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     const commandCommandActionSpy = sinon.spy(command, 'commandAction');
-    cmdInstance.action({ options: {} }, () => {
+    command.action(logger, { options: {} }, () => {
       try {
         assert(commandCommandActionSpy.notCalled);
         done();
@@ -84,17 +79,14 @@ describe('GraphCommand', () => {
   it('doesn\'t execute command when not logged in', (done) => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'graph command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     auth.service.connected = false;
     const commandCommandActionSpy = sinon.spy(command, 'commandAction');
-    cmdInstance.action({ options: {} }, () => {
+    command.action(logger, { options: {} }, () => {
       try {
         assert(commandCommandActionSpy.notCalled);
         done();
@@ -108,17 +100,14 @@ describe('GraphCommand', () => {
   it('executes command when logged in', (done) => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
     const command = new MockCommand();
-    const cmdInstance = {
-      commandWrapper: {
-        command: 'graph command'
-      },
+    const logger: Logger = {
       log: (msg: any) => { },
-      prompt: () => { },
-      action: command.action()
+      logRaw: (msg: any) => { },
+      logToStderr: (msg: any) => { }
     };
     auth.service.connected = true;
     const commandCommandActionSpy = sinon.spy(command, 'commandAction');
-    cmdInstance.action({ options: {} }, () => {
+    command.action(logger, { options: {} }, () => {
       try {
         assert(commandCommandActionSpy.called);
         done();
@@ -131,6 +120,6 @@ describe('GraphCommand', () => {
 
   it('returns correct resource', () => {
     const command = new MockCommand();
-    assert.equal((command as any).resource, 'https://graph.microsoft.com');
+    assert.strictEqual((command as any).resource, 'https://graph.microsoft.com');
   });
 });

@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./oauth2grant-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./oauth2grant-list');
 
 describe(commands.OAUTH2GRANT_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.OAUTH2GRANT_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +51,15 @@ describe(commands.OAUTH2GRANT_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.OAUTH2GRANT_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.OAUTH2GRANT_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['objectId', 'resourceId', 'scope']);
   });
 
   it('retrieves OAuth2 permission grants for the specified service principal (debug)', (done) => {
@@ -92,20 +96,28 @@ describe(commands.OAUTH2GRANT_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, clientId: '141f7648-0c71-4752-9cdb-c7d5305b7e68' } }, () => {
+    command.action(logger, { options: { debug: true, clientId: '141f7648-0c71-4752-9cdb-c7d5305b7e68' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
-          {
-            objectId: '50NAzUm3C0K9B6p8ORLtIhpPRByju_JCmZ9BBsWxwgw',
-            resourceId: '1c444f1a-bba3-42f2-999f-4106c5b1c20c',
-            scope: 'Group.ReadWrite.All'
-          },
-          {
-            objectId: '50NAzUm3C0K9B6p8ORLtIvNe8tzf4ndKg51reFehHHg',
-            resourceId: 'dcf25ef3-e2df-4a77-839d-6b7857a11c78',
-            scope: 'MyFiles.Read'
-          }
-        ]));
+        assert(loggerLogSpy.calledWith([{
+          "clientId": "cd4043e7-b749-420b-bd07-aa7c3912ed22",
+          "consentType": "AllPrincipals",
+          "expiryTime": "9999-12-31T23:59:59.9999999",
+          "objectId": "50NAzUm3C0K9B6p8ORLtIhpPRByju_JCmZ9BBsWxwgw",
+          "principalId": null,
+          "resourceId": "1c444f1a-bba3-42f2-999f-4106c5b1c20c",
+          "scope": "Group.ReadWrite.All",
+          "startTime": "0001-01-01T00:00:00"
+        },
+        {
+          "clientId": "cd4043e7-b749-420b-bd07-aa7c3912ed22",
+          "consentType": "AllPrincipals",
+          "expiryTime": "9999-12-31T23:59:59.9999999",
+          "objectId": "50NAzUm3C0K9B6p8ORLtIvNe8tzf4ndKg51reFehHHg",
+          "principalId": null,
+          "resourceId": "dcf25ef3-e2df-4a77-839d-6b7857a11c78",
+          "scope": "MyFiles.Read",
+          "startTime": "0001-01-01T00:00:00"
+        }]));
         done();
       }
       catch (e) {
@@ -148,20 +160,28 @@ describe(commands.OAUTH2GRANT_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, clientId: '141f7648-0c71-4752-9cdb-c7d5305b7e68' } }, () => {
+    command.action(logger, { options: { debug: false, clientId: '141f7648-0c71-4752-9cdb-c7d5305b7e68' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
-          {
-            objectId: '50NAzUm3C0K9B6p8ORLtIhpPRByju_JCmZ9BBsWxwgw',
-            resourceId: '1c444f1a-bba3-42f2-999f-4106c5b1c20c',
-            scope: 'Group.ReadWrite.All'
-          },
-          {
-            objectId: '50NAzUm3C0K9B6p8ORLtIvNe8tzf4ndKg51reFehHHg',
-            resourceId: 'dcf25ef3-e2df-4a77-839d-6b7857a11c78',
-            scope: 'MyFiles.Read'
-          }
-        ]));
+        assert(loggerLogSpy.calledWith([{
+          "clientId": "cd4043e7-b749-420b-bd07-aa7c3912ed22",
+          "consentType": "AllPrincipals",
+          "expiryTime": "9999-12-31T23:59:59.9999999",
+          "objectId": "50NAzUm3C0K9B6p8ORLtIhpPRByju_JCmZ9BBsWxwgw",
+          "principalId": null,
+          "resourceId": "1c444f1a-bba3-42f2-999f-4106c5b1c20c",
+          "scope": "Group.ReadWrite.All",
+          "startTime": "0001-01-01T00:00:00"
+        },
+        {
+          "clientId": "cd4043e7-b749-420b-bd07-aa7c3912ed22",
+          "consentType": "AllPrincipals",
+          "expiryTime": "9999-12-31T23:59:59.9999999",
+          "objectId": "50NAzUm3C0K9B6p8ORLtIvNe8tzf4ndKg51reFehHHg",
+          "principalId": null,
+          "resourceId": "dcf25ef3-e2df-4a77-839d-6b7857a11c78",
+          "scope": "MyFiles.Read",
+          "startTime": "0001-01-01T00:00:00"
+        }]));
         done();
       }
       catch (e) {
@@ -204,9 +224,9 @@ describe(commands.OAUTH2GRANT_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, clientId: '141f7648-0c71-4752-9cdb-c7d5305b7e68', output: 'json' } }, () => {
+    command.action(logger, { options: { debug: false, clientId: '141f7648-0c71-4752-9cdb-c7d5305b7e68', output: 'json' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([{
+        assert(loggerLogSpy.calledWith([{
           "clientId": "cd4043e7-b749-420b-bd07-aa7c3912ed22",
           "consentType": "AllPrincipals",
           "expiryTime": "9999-12-31T23:59:59.9999999",
@@ -251,9 +271,9 @@ describe(commands.OAUTH2GRANT_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, clientId: '141f7648-0c71-4752-9cdb-c7d5305b7e68' } }, () => {
+    command.action(logger, { options: { debug: false, clientId: '141f7648-0c71-4752-9cdb-c7d5305b7e68' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -276,9 +296,9 @@ describe(commands.OAUTH2GRANT_LIST, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, clientId: 'b2307a39-e878-458b-bc90-03bc578531d6' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, clientId: 'b2307a39-e878-458b-bc90-03bc578531d6' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Resource '' does not exist or one of its queried reference-property objects are not present`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Resource '' does not exist or one of its queried reference-property objects are not present`)));
         done();
       }
       catch (e) {
@@ -287,23 +307,18 @@ describe(commands.OAUTH2GRANT_LIST, () => {
     });
   });
 
-  it('fails validation if the clientId option is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the clientId is not a valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { clientId: '123' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { clientId: '123' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the clientId option specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { clientId: '6a7b1395-d313-4682-8ed4-65a6265a6320' } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { clientId: '6a7b1395-d313-4682-8ed4-65a6265a6320' } });
+    assert.strictEqual(actual, true);
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -314,7 +329,7 @@ describe(commands.OAUTH2GRANT_LIST, () => {
   });
 
   it('supports specifying clientId', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--clientId') > -1) {
@@ -322,39 +337,5 @@ describe(commands.OAUTH2GRANT_LIST, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.OAUTH2GRANT_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

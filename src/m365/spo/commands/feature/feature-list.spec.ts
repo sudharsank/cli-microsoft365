@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandValidate, CommandOption, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./feature-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./feature-list');
 
 describe(commands.FEATURE_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.FEATURE_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +51,11 @@ describe(commands.FEATURE_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FEATURE_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.FEATURE_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('retrieves available features from site collection', (done) => {
@@ -78,7 +78,7 @@ describe(commands.FEATURE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         verbose: false,
@@ -87,7 +87,7 @@ describe(commands.FEATURE_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             DefinitionId: "3019c9b4-e371-438d-98f6-0a08c34d06eb",
             DisplayName: "TenantSitesList"
@@ -125,7 +125,7 @@ describe(commands.FEATURE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         verbose: false,
@@ -134,7 +134,7 @@ describe(commands.FEATURE_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             DefinitionId: "3019c9b4-e371-438d-98f6-0a08c34d06eb",
             DisplayName: "TenantSitesList"
@@ -176,7 +176,7 @@ describe(commands.FEATURE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         verbose: false,
@@ -184,7 +184,7 @@ describe(commands.FEATURE_LIST, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             DefinitionId: "3019c9b4-e371-438d-98f6-0a08c34d06eb",
             DisplayName: "TenantSitesList"
@@ -235,9 +235,9 @@ describe(commands.FEATURE_LIST, () => {
       output: 'json'
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(
+        assert(loggerLogSpy.calledWith(
           [
             {
               "odata.type": "SP.Feature",
@@ -277,9 +277,9 @@ describe(commands.FEATURE_LIST, () => {
       scope: 'Site',
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(log.length, 0);
+        assert.strictEqual(log.length, 0);
         done();
       }
       catch (e) {
@@ -303,9 +303,9 @@ describe(commands.FEATURE_LIST, () => {
       scope: 'Web',
     }
 
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       try {
-        assert.equal(log.length, 0);
+        assert.strictEqual(log.length, 0);
         done();
       }
       catch (e) {
@@ -329,7 +329,7 @@ describe(commands.FEATURE_LIST, () => {
       url: 'https://contoso.sharepoint.com',
       scope: 'Site',
     }
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       let correctLogStatement = false;
       log.forEach(l => {
         if (!l || typeof l !== 'string') {
@@ -365,7 +365,7 @@ describe(commands.FEATURE_LIST, () => {
       url: 'https://contoso.sharepoint.com',
       scope: 'Web',
     }
-    cmdInstance.action({ options: options }, () => {
+    command.action(logger, { options: options } as any, () => {
       let correctLogStatement = false;
       log.forEach(l => {
         if (!l || typeof l !== 'string') {
@@ -396,7 +396,7 @@ describe(commands.FEATURE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         url: 'https://contoso.sharepoint.com',
@@ -404,7 +404,7 @@ describe(commands.FEATURE_LIST, () => {
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
@@ -423,7 +423,7 @@ describe(commands.FEATURE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         verbose: true,
@@ -432,7 +432,7 @@ describe(commands.FEATURE_LIST, () => {
       }
     }, (error?: any) => {
       try {
-        assert.equal(JSON.stringify(error), JSON.stringify(new CommandError(err)));
+        assert.strictEqual(JSON.stringify(error), JSON.stringify(new CommandError(err)));
         done();
       }
       catch (e) {
@@ -442,7 +442,7 @@ describe(commands.FEATURE_LIST, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsVerboseOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -453,7 +453,7 @@ describe(commands.FEATURE_LIST, () => {
   });
 
   it('supports specifying scope', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsScopeOption = false;
     options.forEach(o => {
       if (o.option.indexOf('[scope]') > -1) {
@@ -465,14 +465,9 @@ describe(commands.FEATURE_LIST, () => {
 
   it('doesn\'t fail if the parent doesn\'t define options', () => {
     sinon.stub(Command.prototype, 'options').callsFake(() => { return []; });
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     Utils.restore(Command.prototype.options);
     assert(options.length > 0);
-  });
-
-  it('fails validation if the url option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.equal(actual, "Required parameter url missing");
   });
 
   it('retrieves all Web features', (done) => {
@@ -490,9 +485,9 @@ describe(commands.FEATURE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { url: 'https://contoso.sharepoint.com/sites/abc', scope: 'Web' } }, () => {
+    command.action(logger, { options: { url: 'https://contoso.sharepoint.com/sites/abc', scope: 'Web' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             DefinitionId: '00bfea71-5932-4f9c-ad71-1557e5751100',
             DisplayName: 'WebPageLibrary'
@@ -522,9 +517,9 @@ describe(commands.FEATURE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { url: 'https://contoso.sharepoint.com/sites/abc', scope: 'Site' } }, () => {
+    command.action(logger, { options: { url: 'https://contoso.sharepoint.com/sites/abc', scope: 'Site' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             DefinitionId: '3019c9b4-e371-438d-98f6-0a08c34d06eb',
             DisplayName: 'TenantSitesList'
@@ -539,122 +534,88 @@ describe(commands.FEATURE_LIST, () => {
   });
 
   it('fails validation if the url option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         url: 'foo'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the url options specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         url: "https://contoso.sharepoint.com"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('passes validation when the url and scope options specified', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         url: "https://contoso.sharepoint.com",
         scope: "Site"
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('accepts scope to be Site', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         url: "https://contoso.sharepoint.com",
         scope: 'Site'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('accepts scope to be Web', () => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options:
       {
         url: "https://contoso.sharepoint.com",
         scope: 'Web'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
   });
 
   it('rejects invalid string scope', () => {
     const scope = 'foo';
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         url: "https://contoso.sharepoint.com",
         scope: scope
       }
     });
-    assert.equal(actual, `${scope} is not a valid Feature scope. Allowed values are Site|Web`);
+    assert.strictEqual(actual, `${scope} is not a valid Feature scope. Allowed values are Site|Web`);
   });
 
   it('rejects invalid scope value specified as number', () => {
     const scope = 123;
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         url: "https://contoso.sharepoint.com",
         scope: scope
       }
     });
-    assert.equal(actual, `${scope} is not a valid Feature scope. Allowed values are Site|Web`);
+    assert.strictEqual(actual, `${scope} is not a valid Feature scope. Allowed values are Site|Web`);
   });
 
   it('doesn\'t fail validation if the optional scope option not specified', () => {
-    const actual = (command.validate() as CommandValidate)(
+    const actual = command.validate(
       {
         options:
         {
           url: "https://contoso.sharepoint.com"
         }
       });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FEATURE_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    assert.strictEqual(actual, true);
   });
 });

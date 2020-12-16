@@ -1,12 +1,13 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import Utils from '../../../../Utils';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -34,30 +35,30 @@ class TeamsTabRemoveCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     const removeTab: () => void = (): void => {
       const requestOptions: any = {
         url: `${this.resource}/v1.0/teams/${encodeURIComponent(args.options.teamId)}/channels/${args.options.channelId}/tabs/${encodeURIComponent(args.options.tabId)}`,
         headers: {
           accept: "application/json;odata.metadata=none"
         },
-        json: true
+        responseType: 'json'
       };
       request.delete(requestOptions).then(
         (): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green("DONE"));
+            logger.logToStderr(chalk.green("DONE"));
           }
           cb();
         },
-        (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb)
+        (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb)
       );
     };
     if (args.options.confirm) {
       removeTab();
     }
     else {
-      cmd.prompt(
+      Cli.prompt(
         {
           type: "confirm",
           name: "continue",
@@ -100,53 +101,20 @@ class TeamsTabRemoveCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.teamId) {
-        return "Required parameter teamId missing";
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.teamId as string)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
 
-      if (!args.options.channelId) {
-        return "Required parameter channelId missing";
-      }
+    if (!Utils.isValidTeamsChannelId(args.options.channelId as string)) {
+      return `${args.options.channelId} is not a valid Teams ChannelId`;
+    }
 
-      if (!args.options.tabId) {
-        return "Required parameter tabId missing";
-      }
+    if (!Utils.isValidGuid(args.options.tabId as string)) {
+      return `${args.options.tabId} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.teamId as string)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      if (!Utils.isValidTeamsChannelId(args.options.channelId as string)) {
-        return `${args.options.channelId} is not a valid Teams ChannelId`;
-      }
-
-      if (!Utils.isValidGuid(args.options.tabId as string)) {
-        return `${args.options.tabId} is not a valid GUID`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Removes a tab from the specified channel. Will prompt for confirmation
-      ${this.name} --teamId 00000000-0000-0000-0000-000000000000 --channelId 19:00000000000000000000000000000000@thread.skype --tabId 06805b9e-77e3-4b93-ac81-525eb87513b8
-
-    Removes a tab from the specified channel without prompting for confirmation
-      ${this.name} --teamId 00000000-0000-0000-0000-000000000000 --channelId 19:00000000000000000000000000000000@thread.skype --tabId 06805b9e-77e3-4b93-ac81-525eb87513b8 --confirm
-
-  Additional information:
-
-    Delete tab from channel:
-      https://docs.microsoft.com/en-us/graph/api/teamstab-delete?view=graph-rest-1.0
-     `
-    );
+    return true;
   }
 }
 

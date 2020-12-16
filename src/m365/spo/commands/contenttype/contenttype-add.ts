@@ -1,15 +1,13 @@
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import { CommandError, CommandOption, CommandTypes } from '../../../../Command';
 import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import {
-  CommandOption, CommandValidate, CommandTypes, CommandError
-} from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents } from '../../spo';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -39,16 +37,16 @@ class SpoContentTypeAddCommand extends SpoCommand {
     };
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let parentInfo: string = '';
 
     this
-      .getParentInfo(args.options.listTitle, args.options.webUrl, cmd)
+      .getParentInfo(args.options.listTitle, args.options.webUrl, logger)
       .then((parent: string): Promise<ContextInfo> => {
         parentInfo = parent;
 
         if (this.verbose) {
-          cmd.log(`Retrieving request digest...`);
+          logger.logToStderr(`Retrieving request digest...`);
         }
 
         return this.getRequestDigest(args.options.webUrl);
@@ -66,7 +64,7 @@ class SpoContentTypeAddCommand extends SpoCommand {
           headers: {
             'X-RequestDigest': res.FormDigestValue
           },
-          body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="8" ObjectPathId="7" /><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /></Actions><ObjectPaths><Property Id="7" ParentId="5" Name="ContentTypes" /><Method Id="9" ParentId="7" Name="Add"><Parameters><Parameter TypeId="{168f3091-4554-4f14-8866-b20d48e45b54}">${description}${group}<Property Name="Id" Type="String">${Utils.escapeXml(args.options.id)}</Property><Property Name="Name" Type="String">${Utils.escapeXml(args.options.name)}</Property><Property Name="ParentContentType" Type="Null" /></Parameter></Parameters></Method>${parentInfo}</ObjectPaths></Request>`
+          data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="8" ObjectPathId="7" /><ObjectPath Id="10" ObjectPathId="9" /><ObjectIdentityQuery Id="11" ObjectPathId="9" /></Actions><ObjectPaths><Property Id="7" ParentId="5" Name="ContentTypes" /><Method Id="9" ParentId="7" Name="Add"><Parameters><Parameter TypeId="{168f3091-4554-4f14-8866-b20d48e45b54}">${description}${group}<Property Name="Id" Type="String">${Utils.escapeXml(args.options.id)}</Property><Property Name="Name" Type="String">${Utils.escapeXml(args.options.name)}</Property><Property Name="ParentContentType" Type="Null" /></Parameter></Parameters></Method>${parentInfo}</ObjectPaths></Request>`
         };
 
         return request.post(requestOptions);
@@ -80,14 +78,14 @@ class SpoContentTypeAddCommand extends SpoCommand {
         }
         else {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
-  private getParentInfo(listTitle: string | undefined, webUrl: string, cmd: CommandInstance): Promise<string> {
+  private getParentInfo(listTitle: string | undefined, webUrl: string, logger: Logger): Promise<string> {
     return new Promise<string>((resolve: (parentInfo: string) => void, reject: (error: any) => void): void => {
       if (!listTitle) {
         resolve('<Property Id="5" ParentId="3" Name="Web" /><StaticProperty Id="3" TypeId="{3747adcd-a3c3-41b9-bfab-4a64dd2f1e0a}" Name="Current" />');
@@ -99,7 +97,7 @@ class SpoContentTypeAddCommand extends SpoCommand {
 
       ((): Promise<{ Id: string; }> => {
         if (this.verbose) {
-          cmd.log(`Retrieving site collection id...`);
+          logger.logToStderr(`Retrieving site collection id...`);
         }
 
         const requestOptions: any = {
@@ -107,7 +105,7 @@ class SpoContentTypeAddCommand extends SpoCommand {
           headers: {
             accept: 'application/json;odata=nometadata'
           },
-          json: true
+          responseType: 'json'
         }
 
         return request.get(requestOptions);
@@ -116,7 +114,7 @@ class SpoContentTypeAddCommand extends SpoCommand {
           siteId = res.Id;
 
           if (this.verbose) {
-            cmd.log(`Retrieving site id...`);
+            logger.logToStderr(`Retrieving site id...`);
           }
 
           const requestOptions: any = {
@@ -124,7 +122,7 @@ class SpoContentTypeAddCommand extends SpoCommand {
             headers: {
               accept: 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           }
 
           return request.get(requestOptions);
@@ -133,7 +131,7 @@ class SpoContentTypeAddCommand extends SpoCommand {
           webId = res.Id;
 
           if (this.verbose) {
-            cmd.log(`Retrieving list id...`);
+            logger.logToStderr(`Retrieving list id...`);
           }
 
           const requestOptions: any = {
@@ -141,7 +139,7 @@ class SpoContentTypeAddCommand extends SpoCommand {
             headers: {
               accept: 'application/json;odata=nometadata'
             },
-            json: true
+            responseType: 'json'
           }
 
           return request.get(requestOptions);
@@ -186,54 +184,8 @@ class SpoContentTypeAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
-
-      if (!args.options.name) {
-        return 'Required parameter name missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified content type already exists, you will get a
-    ${chalk.grey('A duplicate content type "Your Content Type" was found.')} error.
-
-    The ID of the content type specifies the parent content type from which this
-    content type inherits.
-
-  Examples:
-  
-    Create a site content type that inherits from the List item content type
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/contoso-sales --name 'PnP Alert' --id 0x01007926A45D687BA842B947286090B8F67D --group 'PnP Content Types'
-    
-    Create a list content type that inherits from the List item content type
-      ${this.name} --webUrl https://contoso.sharepoint.com/sites/contoso-sales --listTitle Alerts --name 'PnP Alert' --id 0x01007926A45D687BA842B947286090B8F67D
-
-  More information:
-
-    Content Type IDs
-      https://docs.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/aa543822(v%3Doffice.14)
-`);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

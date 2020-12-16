@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./message-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./message-add');
 
 describe(commands.YAMMER_MESSAGE_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
   let firstMessage: any = { messages: [{ "id": 470839661887488, "sender_id": 1496550646, "replied_to_id": null, "created_at": "2019/12/22 17:20:30 +0000", "network_id": 801445, "message_type": "update", "sender_type": "user", "url": "https://www.yammer.com/api/v1/messages/470839661887488", "web_url": "https://www.yammer.com/nubo.eu/messages/470839661887488", "group_id": 13114941440, "body": { "parsed": "send a letter to me", "plain": "send a letter to me", "rich": "send a letter to me" }, "thread_id": 470839661887488, "client_type": "O365 Api Auth", "client_url": "https://api.yammer.com", "system_message": false, "direct_message": false, "chat_client_sequence": null, "language": null, "notified_user_ids": [], "privacy": "public", "attachments": [], "liked_by": { "count": 0, "names": [] }, "content_excerpt": "send a letter to me", "group_created_id": 13114941440 }] };
 
   before(() => {
@@ -22,23 +22,23 @@ describe(commands.YAMMER_MESSAGE_ADD, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.post
     ]);
   });
@@ -52,36 +52,35 @@ describe(commands.YAMMER_MESSAGE_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.YAMMER_MESSAGE_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.YAMMER_MESSAGE_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['id']);
   });
 
   it('repliedToId must be a number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { body: "test", repliedToId: 'nonumber' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { body: "test", repliedToId: 'nonumber' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('groupId must be a number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { body: "test", groupId: 'nonumber' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { body: "test", groupId: 'nonumber' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('networkId must be a number', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { body: "test", networkId: 'nonumber' } });
-    assert.notEqual(actual, true);
-  });
-
-  it('body is required', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { body: "test", networkId: 'nonumber' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('has all fields', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { body: "test" } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { body: "test" } });
+    assert.strictEqual(actual, true);
   });
 
   it('posts a message', function (done) {
@@ -91,9 +90,9 @@ describe(commands.YAMMER_MESSAGE_ADD, () => {
       }
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { body: "send a letter to me", debug: true } }, (err?: any) => {
+    command.action(logger, { options: { body: "send a letter to me", debug: true } } as any, (err?: any) => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0].id, 470839661887488)
+        assert.strictEqual(loggerLogSpy.lastCall.args[0].id, 470839661887488)
         done();
       }
       catch (e) {
@@ -109,9 +108,9 @@ describe(commands.YAMMER_MESSAGE_ADD, () => {
       }
       return Promise.reject('Invalid request');
     });
-    cmdInstance.action({ options: { body: "send a letter to me", debug: true, output: "json" } }, (err?: any) => {
+    command.action(logger, { options: { body: "send a letter to me", debug: true, output: "json" } } as any, (err?: any) => {
       try {
-        assert.equal(cmdInstanceLogSpy.lastCall.args[0].id, 470839661887488)
+        assert.strictEqual(loggerLogSpy.lastCall.args[0].id, 470839661887488)
         done();
       }
       catch (e) {
@@ -129,9 +128,9 @@ describe(commands.YAMMER_MESSAGE_ADD, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false } }, (err?: any) => {
+    command.action(logger, { options: { debug: false } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("An error has occurred.")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("An error has occurred.")));
         done();
       }
       catch (e) {
@@ -141,7 +140,7 @@ describe(commands.YAMMER_MESSAGE_ADD, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -149,39 +148,5 @@ describe(commands.YAMMER_MESSAGE_ADD, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.YAMMER_MESSAGE_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

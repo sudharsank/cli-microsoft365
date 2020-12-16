@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN019002_TSL_extends } from './FN019002_TSL_extends';
 
 describe('FN019002_TSL_extends', () => {
@@ -20,6 +20,6 @@ describe('FN019002_TSL_extends', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

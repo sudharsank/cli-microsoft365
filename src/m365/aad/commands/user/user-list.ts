@@ -1,11 +1,11 @@
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption
+    CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
 import { GraphItemsListCommand } from '../../../base/GraphItemsListCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -34,7 +34,7 @@ class AadUserListCommand extends GraphItemsListCommand<any> {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const properties: string[] = args.options.properties ?
       args.options.properties.split(',').map(p => p.trim()) :
       ['userPrincipalName', 'displayName'];
@@ -42,25 +42,29 @@ class AadUserListCommand extends GraphItemsListCommand<any> {
     const url: string = `${this.resource}/v1.0/users?$select=${properties.join(',')}${(filter.length > 0 ? '&' + filter : '')}&$top=100`;
 
     this
-      .getAllItems(url, cmd, true)
+      .getAllItems(url, logger, true)
       .then((): void => {
-        cmd.log(this.items);
+        logger.log(this.items);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   private getFilter(options: any): string {
     const filters: any = {};
     const excludeOptions: string[] = [
       'properties',
+      'p',
       'debug',
       'verbose',
-      'output'
+      'output',
+      'o',
+      'query',
+      '_'
     ];
 
     Object.keys(options).forEach(key => {
@@ -86,45 +90,6 @@ class AadUserListCommand extends GraphItemsListCommand<any> {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    Using the ${chalk.blue('--properties')} option, you can specify
-    a comma-separated list of user properties to retrieve from the Microsoft
-    Graph. If you don't specify any properties, the command will retrieve
-    user's display name and account name.
-
-    To filter the list of users, include additional options that match the user
-    property that you want to filter with. For example
-    ${chalk.blue('--displayName Patt')} will return all users whose displayName
-    starts with ${chalk.grey('Patt')}. Multiple filters will be combined using
-    the ${chalk.blue('and')} operator.
-
-  Examples:
-
-    List all users in the tenant
-      ${this.name}
-
-    List all users in the tenant. For each one return the display name and
-    e-mail address
-      ${this.name} --properties "displayName,mail"
-
-    Show users whose display name starts with ${chalk.grey('Patt')}
-      ${this.name} --displayName Patt
-
-    Show all account managers whose display name starts with ${chalk.grey('Patt')}
-      ${this.name} --displayName Patt --jobTitle 'Account manager'
-
-  More information:
-
-    Microsoft Graph User properties
-      https://developer.microsoft.com/en-us/graph/docs/api-reference/v1.0/resources/user#properties
-`);
   }
 }
 

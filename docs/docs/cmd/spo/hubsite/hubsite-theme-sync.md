@@ -5,19 +5,15 @@ Applies any theme updates from the parent hub site.
 ## Usage
 
 ```sh
-spo hubsite theme sync [options]
+m365 spo hubsite theme sync [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|URL of the site to apply theme updates from the hub site to.
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: URL of the site to apply theme updates from the hub site to.
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -29,7 +25,7 @@ Option|Description
 Applies any theme updates from the parent hub site to the site with URL https://contoso.sharepoint.com/sites/project-x
 
 ```sh
-spo hubsite theme sync --webUrl https://contoso.sharepoint.com/sites/project-x
+m365 spo hubsite theme sync --webUrl https://contoso.sharepoint.com/sites/project-x
 ```
 
 ## More information

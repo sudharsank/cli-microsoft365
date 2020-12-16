@@ -1,25 +1,23 @@
-import { ContextInfo, ClientSvcResponse, ClientSvcResponseContents, FormDigestInfo } from '../../spo';
-import config from '../../../../config';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import Command, {
-  CommandOption,
-  CommandValidate,
-  CommandTypes,
-  CommandError
+  CommandError, CommandOption,
+  CommandTypes
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import config from '../../../../config';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-import * as spoSiteClassicSetCommand from './site-classic-set';
-import { Options as SpoSiteClassicSetCommandOptions } from './site-classic-set';
 import * as aadO365GroupSetCommand from '../../../aad/commands/o365group/o365group-set';
 import { Options as AadO365GroupSetCommandOptions } from '../../../aad/commands/o365group/o365group-set';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ClientSvcResponse, ClientSvcResponseContents, ContextInfo, FormDigestInfo } from '../../spo';
+import { SharingCapabilities } from '../site/SharingCapabilities';
 import * as spoSiteDesignApplyCommand from '../sitedesign/sitedesign-apply';
 import { Options as SpoSiteDesignApplyCommandOptions } from '../sitedesign/sitedesign-apply';
-import { SharingCapabilities } from '../site/SharingCapabilities';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import * as spoSiteClassicSetCommand from './site-classic-set';
+import { Options as SpoSiteClassicSetCommandOptions } from './site-classic-set';
 
 interface CommandArgs {
   options: Options;
@@ -63,31 +61,31 @@ class SpoSiteSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     this
-      .loadSiteIds(args.options.url, cmd)
+      .loadSiteIds(args.options.url, logger)
       .then((): Promise<void> => {
         if (this.groupId === '00000000-0000-0000-0000-000000000000') {
           if (this.debug) {
-            cmd.log('Site is not groupified');
+            logger.logToStderr('Site is not groupified');
           }
 
-          return this.updateSite(cmd, args);
+          return this.updateSite(logger, args);
         }
         else {
           if (this.debug) {
-            cmd.log(`Site attached to group ${this.groupId}`);
+            logger.logToStderr(`Site attached to group ${this.groupId}`);
           }
 
-          return this.updateGroupifiedSite(cmd, args);
+          return this.updateGroupifiedSite(logger, args);
         }
       })
-      .then((): Promise<void> => this.updateSharedProperties(cmd, args))
-      .then((): Promise<void> => this.applySiteDesign(cmd, args))
-      .then((): Promise<void> => this.setSharingCapabilities(cmd, args))
+      .then((): Promise<void> => this.updateSharedProperties(logger, args))
+      .then((): Promise<void> => this.applySiteDesign(logger, args))
+      .then((): Promise<void> => this.setSharingCapabilities(logger, args))
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
@@ -96,11 +94,11 @@ class SpoSiteSetCommand extends SpoCommand {
           err = (err as CommandError).message;
         }
 
-        this.handleRejectedPromise(err, cmd, cb)
+        this.handleRejectedPromise(err, logger, cb);
       });
   }
 
-  private updateSite(cmd: CommandInstance, args: CommandArgs): Promise<void> {
+  private updateSite(logger: Logger, args: CommandArgs): Promise<void> {
     if (typeof args.options.isPublic !== 'undefined') {
       return Promise.reject(`The isPublic option can't be set on a site that is not groupified`);
     }
@@ -118,10 +116,10 @@ class SpoSiteSetCommand extends SpoCommand {
       debug: this.debug,
       verbose: this.verbose
     };
-    return Utils.executeCommand(spoSiteClassicSetCommand as Command, options, cmd);
+    return Cli.executeCommand(spoSiteClassicSetCommand as Command, { options: { ...options, _: [] } });
   }
 
-  private updateGroupifiedSite(cmd: CommandInstance, args: CommandArgs): Promise<void> {
+  private updateGroupifiedSite(logger: Logger, args: CommandArgs): Promise<void> {
     return new Promise<void>((resolve: () => void, reject: (error: any) => void): void => {
       if (typeof args.options.title === 'undefined' &&
         typeof args.options.isPublic === 'undefined' &&
@@ -135,7 +133,7 @@ class SpoSiteSetCommand extends SpoCommand {
 
       if (typeof args.options.title !== 'undefined') {
         promises.push(this
-          .getSpoAdminUrl(cmd, this.debug)
+          .getSpoAdminUrl(logger, this.debug)
           .then((_spoAdminUrl: string): Promise<FormDigestInfo> => {
             spoAdminUrl = _spoAdminUrl;
 
@@ -149,12 +147,12 @@ class SpoSiteSetCommand extends SpoCommand {
                 'content-type': 'application/json;charset=utf-8',
                 'X-RequestDigest': formDigest.FormDigestValue
               },
-              body: {
+              data: {
                 groupId: this.groupId,
                 siteId: this.siteId,
                 displayName: args.options.title
               },
-              json: true
+              responseType: 'json'
             };
             return request.post(requestOptions);
           }));
@@ -167,10 +165,10 @@ class SpoSiteSetCommand extends SpoCommand {
           debug: this.debug,
           verbose: this.verbose
         };
-        promises.push(Utils.executeCommand(aadO365GroupSetCommand as Command, commandOptions, cmd));
+        promises.push(Cli.executeCommand(aadO365GroupSetCommand as Command, { options: { ...commandOptions, _: [] } }));
       }
 
-      promises.push(this.setGroupifiedSiteOwners(cmd, args));
+      promises.push(this.setGroupifiedSiteOwners(logger, args));
 
       Promise
         .all(promises)
@@ -182,7 +180,7 @@ class SpoSiteSetCommand extends SpoCommand {
     });
   }
 
-  private setGroupifiedSiteOwners(cmd: CommandInstance, args: CommandArgs): Promise<void> {
+  private setGroupifiedSiteOwners(logger: Logger, args: CommandArgs): Promise<void> {
     if (typeof args.options.owners === 'undefined') {
       return Promise.resolve();
     }
@@ -190,13 +188,13 @@ class SpoSiteSetCommand extends SpoCommand {
     const owners: string[] = args.options.owners.split(',').map(o => o.trim());
 
     if (this.verbose) {
-      cmd.log('Retrieving user information to set group owners...');
+      logger.logToStderr('Retrieving user information to set group owners...');
     }
 
     let spoAdminUrl: string;
 
     return this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((_spoAdminUrl: string): Promise<{ value: { id: string; }[] }> => {
         spoAdminUrl = _spoAdminUrl;
 
@@ -205,7 +203,7 @@ class SpoSiteSetCommand extends SpoCommand {
           headers: {
             'content-type': 'application/json;odata.metadata=none'
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.get(requestOptions);
@@ -228,7 +226,7 @@ class SpoSiteSetCommand extends SpoCommand {
       });
   }
 
-  private updateSharedProperties(cmd: CommandInstance, args: CommandArgs): Promise<void> {
+  private updateSharedProperties(logger: Logger, args: CommandArgs): Promise<void> {
     if (typeof args.options.classification === 'undefined' &&
       typeof args.options.disableFlows === 'undefined' &&
       typeof args.options.shareByEmailEnabled === 'undefined') {
@@ -237,14 +235,14 @@ class SpoSiteSetCommand extends SpoCommand {
 
     return new Promise<void>((resolve: () => void, reject: (error: any) => void): void => {
       if (this.verbose) {
-        cmd.log(`Retrieving request digest...`);
+        logger.logToStderr(`Retrieving request digest...`);
       }
 
       this
         .getRequestDigest(args.options.url)
         .then((res: ContextInfo): Promise<string> => {
           if (this.verbose) {
-            cmd.log(`Updating site ${args.options.url} properties...`);
+            logger.logToStderr(`Updating site ${args.options.url} properties...`);
           }
 
           let propertyId: number = 27;
@@ -265,7 +263,7 @@ class SpoSiteSetCommand extends SpoCommand {
             headers: {
               'X-RequestDigest': res.FormDigestValue
             },
-            body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions>${payload.join('')}</Actions><ObjectPaths><Identity Id="5" Name="e10a459e-60c8-4000-8240-a68d6a12d39e|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${this.siteId}" /></ObjectPaths></Request>`
+            data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions>${payload.join('')}</Actions><ObjectPaths><Identity Id="5" Name="e10a459e-60c8-4000-8240-a68d6a12d39e|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${this.siteId}" /></ObjectPaths></Request>`
           };
 
           return request.post(requestOptions);
@@ -285,7 +283,7 @@ class SpoSiteSetCommand extends SpoCommand {
     });
   }
 
-  private applySiteDesign(cmd: CommandInstance, args: CommandArgs): Promise<void> {
+  private applySiteDesign(logger: Logger, args: CommandArgs): Promise<void> {
     if (typeof args.options.siteDesignId === 'undefined') {
       return Promise.resolve();
     }
@@ -297,23 +295,23 @@ class SpoSiteSetCommand extends SpoCommand {
       debug: this.debug,
       verbose: this.verbose
     };
-    return Utils.executeCommand(spoSiteDesignApplyCommand as Command, options, cmd);
+    return Cli.executeCommand(spoSiteDesignApplyCommand as Command, { options: { ...options, _: [] } });
   }
 
-  private setSharingCapabilities(cmd: CommandInstance, args: CommandArgs): Promise<void> {
+  private setSharingCapabilities(logger: Logger, args: CommandArgs): Promise<void> {
     if (typeof args.options.sharingCapability === 'undefined') {
       return Promise.resolve();
     }
 
     return new Promise<void>((resolve: () => void, reject: (error: any) => void): void => {
       if (this.verbose) {
-        cmd.log(`Retrieving request digest...`);
+        logger.logToStderr(`Retrieving request digest...`);
       }
 
       const sharingCapability: SharingCapabilities = SharingCapabilities[(args.options.sharingCapability as keyof typeof SharingCapabilities)];
 
       this
-        .getSpoAdminUrl(cmd, this.debug)
+        .getSpoAdminUrl(logger, this.debug)
         .then((_spoAdminUrl: string): Promise<ContextInfo> => {
           this.spoAdminUrl = _spoAdminUrl;
 
@@ -321,7 +319,7 @@ class SpoSiteSetCommand extends SpoCommand {
         })
         .then((res: ContextInfo): Promise<string> => {
           if (this.verbose) {
-            cmd.log(`Setting sharing for site  ${args.options.url} as ${args.options.sharingCapability}`);
+            logger.logToStderr(`Setting sharing for site  ${args.options.url} as ${args.options.sharingCapability}`);
           }
 
           const requestOptions: any = {
@@ -329,7 +327,7 @@ class SpoSiteSetCommand extends SpoCommand {
             headers: {
               'X-RequestDigest': res.FormDigestValue
             },
-            body: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="2" ObjectPathId="1"/><ObjectPath Id="4" ObjectPathId="3"/><SetProperty Id="5" ObjectPathId="3" Name="SharingCapability"><Parameter Type="Enum">${sharingCapability}</Parameter></SetProperty><ObjectPath Id="7" ObjectPathId="6"/><ObjectIdentityQuery Id="8" ObjectPathId="3"/></Actions><ObjectPaths><Constructor Id="1" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}"/><Method Id="3" ParentId="1" Name="GetSitePropertiesByUrl"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.url)}</Parameter><Parameter Type="Boolean">false</Parameter></Parameters></Method><Method Id="6" ParentId="3" Name="Update"/></ObjectPaths></Request>`
+            data: `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="${config.applicationName}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="2" ObjectPathId="1"/><ObjectPath Id="4" ObjectPathId="3"/><SetProperty Id="5" ObjectPathId="3" Name="SharingCapability"><Parameter Type="Enum">${sharingCapability}</Parameter></SetProperty><ObjectPath Id="7" ObjectPathId="6"/><ObjectIdentityQuery Id="8" ObjectPathId="3"/></Actions><ObjectPaths><Constructor Id="1" TypeId="{268004ae-ef6b-4e9b-8425-127220d84719}"/><Method Id="3" ParentId="1" Name="GetSitePropertiesByUrl"><Parameters><Parameter Type="String">${Utils.escapeXml(args.options.url)}</Parameter><Parameter Type="Boolean">false</Parameter></Parameters></Method><Method Id="6" ParentId="3" Name="Update"/></ObjectPaths></Request>`
           };
 
           return request.post(requestOptions);
@@ -349,9 +347,9 @@ class SpoSiteSetCommand extends SpoCommand {
     });
   }
 
-  private loadSiteIds(siteUrl: string, cmd: CommandInstance): Promise<void> {
+  private loadSiteIds(siteUrl: string, logger: Logger): Promise<void> {
     if (this.debug) {
-      cmd.log('Loading site IDs...');
+      logger.logToStderr('Loading site IDs...');
     }
 
     const requestOptions: any = {
@@ -359,7 +357,7 @@ class SpoSiteSetCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request
@@ -369,7 +367,7 @@ class SpoSiteSetCommand extends SpoCommand {
         this.siteId = siteInfo.Id;
 
         if (this.debug) {
-          cmd.log(`Retrieved site IDs. siteId: ${this.siteId}, groupId: ${this.groupId}`);
+          logger.logToStderr(`Retrieved site IDs. siteId: ${this.siteId}, groupId: ${this.groupId}`);
         }
 
         return Promise.resolve();
@@ -441,59 +439,53 @@ class SpoSiteSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.url) {
-        return 'Required parameter url missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (typeof args.options.classification === 'undefined' &&
+      typeof args.options.disableFlows === 'undefined' &&
+      typeof args.options.title === 'undefined' &&
+      typeof args.options.isPublic === 'undefined' &&
+      typeof args.options.owners === 'undefined' &&
+      typeof args.options.shareByEmailEnabled === 'undefined' &&
+      typeof args.options.siteDesignId === 'undefined' &&
+      typeof args.options.sharingCapability === 'undefined') {
+      return 'Specify at least one property to update';
+    }
 
-      if (typeof args.options.classification === 'undefined' &&
-        typeof args.options.disableFlows === 'undefined' &&
-        typeof args.options.title === 'undefined' &&
-        typeof args.options.isPublic === 'undefined' &&
-        typeof args.options.owners === 'undefined' &&
-        typeof args.options.shareByEmailEnabled === 'undefined' &&
-        typeof args.options.siteDesignId === 'undefined' &&
-        typeof args.options.sharingCapability === 'undefined') {
-        return 'Specify at least one property to update';
-      }
+    if (typeof args.options.disableFlows === 'string' &&
+      args.options.disableFlows !== 'true' &&
+      args.options.disableFlows !== 'false') {
+      return `${args.options.disableFlows} is not a valid value for the disableFlow option. Allowed values are true|false`;
+    }
 
-      if (typeof args.options.disableFlows === 'string' &&
-        args.options.disableFlows !== 'true' &&
-        args.options.disableFlows !== 'false') {
-        return `${args.options.disableFlows} is not a valid value for the disableFlow option. Allowed values are true|false`;
-      }
+    if (typeof args.options.isPublic === 'string' &&
+      args.options.isPublic !== 'true' &&
+      args.options.isPublic !== 'false') {
+      return `${args.options.isPublic} is not a valid value for the isPublic option. Allowed values are true|false`;
+    }
 
-      if (typeof args.options.isPublic === 'string' &&
-        args.options.isPublic !== 'true' &&
-        args.options.isPublic !== 'false') {
-        return `${args.options.isPublic} is not a valid value for the isPublic option. Allowed values are true|false`;
-      }
+    if (typeof args.options.shareByEmailEnabled === 'string' &&
+      args.options.shareByEmailEnabled !== 'true' &&
+      args.options.shareByEmailEnabled !== 'false') {
+      return `${args.options.shareByEmailEnabled} is not a valid value for the shareByEmailEnabled option. Allowed values are true|false`;
+    }
 
-      if (typeof args.options.shareByEmailEnabled === 'string' &&
-        args.options.shareByEmailEnabled !== 'true' &&
-        args.options.shareByEmailEnabled !== 'false') {
-        return `${args.options.shareByEmailEnabled} is not a valid value for the shareByEmailEnabled option. Allowed values are true|false`;
+    if (args.options.siteDesignId) {
+      if (!Utils.isValidGuid(args.options.siteDesignId)) {
+        return `${args.options.siteDesignId} is not a valid GUID`;
       }
+    }
 
-      if (args.options.siteDesignId) {
-        if (!Utils.isValidGuid(args.options.siteDesignId)) {
-          return `${args.options.siteDesignId} is not a valid GUID`;
-        }
-      }
+    if (args.options.sharingCapability &&
+      this.sharingCapabilities.indexOf(args.options.sharingCapability) < 0) {
+      return `${args.options.sharingCapability} is not a valid value for the sharingCapability option. Allowed values are ${this.sharingCapabilities.join('|')}`;
+    }
 
-      if (args.options.sharingCapability &&
-        this.sharingCapabilities.indexOf(args.options.sharingCapability) < 0) {
-        return `${args.options.sharingCapability} is not a valid value for the sharingCapability option. Allowed values are ${this.sharingCapabilities.join('|')}`;
-      }
-
-      return true;
-    };
+    return true;
   }
 
   public types(): CommandTypes {
@@ -501,57 +493,6 @@ class SpoSiteSetCommand extends SpoCommand {
     return {
       string: ['classification']
     }
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.SITE_SET).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-      
-  Remarks:
-
-    If the specified ${chalk.grey('url')} doesn't refer to an existing site collection,
-    you will get a ${chalk.grey('404 - "404 FILE NOT FOUND"')} error.
-
-    The ${chalk.grey('isPublic')} property can be set only on groupified site
-    collections. If you try to set it on a site collection without a group, you
-    will get an error.
-
-    When setting owners, the specified owners will be added to the already
-    configured owners. Existing owners will not be removed.
-
-  Examples:
-  
-    Update site collection's classification
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --classification MBI
-
-    Reset site collection's classification.
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --classification
-
-    Disable using Microsoft Flow on the site collection
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --disableFlows true
-
-    Update the visibility of the Microsoft 365 group behind the specified
-    groupified site collection to public
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --isPublic true
-
-    Update site collection's owners
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --owners "john@contoso.onmicrosoft.com,steve@contoso.onmicrosoft.com"
-
-    Allow sharing files in the site collection with guests
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --shareByEmailEnabled true
-
-    Apply the specified site ID to the site collection
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --siteDesignId "eb2f31da-9461-4fbf-9ea1-9959b134b89e"
-
-    Update site collection's title
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --title "My new site"
-
-    Restrict external sharing to already available external users only
-      ${this.name} --url https://contoso.sharepoint.com/sites/sales --sharingCapability ExternalUserSharingOnly
-`);
   }
 }
 

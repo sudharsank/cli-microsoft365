@@ -5,20 +5,18 @@ Install an app in the personal scope of the specified user
 ## Usage
 
 ```sh
-teams user app add [options]
+m365 teams user app add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--appId <appId>`|The ID of the app to install
-`--userId <userId>`|The ID of the user to install the app for
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--appId <appId>`
+: The ID of the app to install
+
+`--userId <userId>`
+: The ID of the user to install the app for
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -32,5 +30,5 @@ The `appId` has to be the ID of the app from the Microsoft Teams App Catalog. Do
 Install an app from the catalog for the specified user
 
 ```sh
-teams user app add --appId 4440558e-8c73-4597-abc7-3644a64c4bce --userId 2609af39-7775-4f94-a3dc-0dd67657e900
+m365 teams user app add --appId 4440558e-8c73-4597-abc7-3644a64c4bce --userId 2609af39-7775-4f94-a3dc-0dd67657e900
 ```

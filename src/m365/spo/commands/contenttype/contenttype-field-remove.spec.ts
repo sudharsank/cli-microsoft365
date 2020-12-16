@@ -1,11 +1,13 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandTypes, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-import * as assert from 'assert';
+import { Cli, Logger } from '../../../../cli';
+import Command, { CommandError, CommandTypes } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
 
 const command: Command = require('./contenttype-field-remove');
 const WEB_URL = 'https://contoso.sharepoint.com';
@@ -18,10 +20,10 @@ const SITE_ID = "50720268-eff5-48e0-835e-de588b007927";
 const LIST_TITLE = "TEST";
 
 describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let promptOptions: any;
 
   const getStubCalls = (opts: any) => {
@@ -46,7 +48,7 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
   const postStubSuccCalls = (opts: any) => {
     if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
       // Web CT
-      if (opts.body.toLowerCase() === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="77" ObjectPathId="76" /><ObjectPath Id="79" ObjectPathId="78" /><Method Name="DeleteObject" Id="80" ObjectPathId="78" /><Method Name="Update" Id="81" ObjectPathId="24"><Parameters><Parameter Type="Boolean">false</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="76" ParentId="24" Name="FieldLinks" /><Method Id="78" ParentId="76" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="24" Name="6b3ec69e-00a7-0000-55a3-61f8d779d2b3|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:contenttype:${CONTENT_TYPE_ID}" /></ObjectPaths></Request>`.toLowerCase()) {
+      if (opts.data.toLowerCase() === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="77" ObjectPathId="76" /><ObjectPath Id="79" ObjectPathId="78" /><Method Name="DeleteObject" Id="80" ObjectPathId="78" /><Method Name="Update" Id="81" ObjectPathId="24"><Parameters><Parameter Type="Boolean">false</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="76" ParentId="24" Name="FieldLinks" /><Method Id="78" ParentId="76" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="24" Name="6b3ec69e-00a7-0000-55a3-61f8d779d2b3|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:contenttype:${CONTENT_TYPE_ID}" /></ObjectPaths></Request>`.toLowerCase()) {
         return Promise.resolve(`[
             {
               "SchemaVersion": "15.0.0.0",
@@ -57,7 +59,7 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
           ]`);
       }
       // Web CT with update child CTs
-      else if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="77" ObjectPathId="76" /><ObjectPath Id="79" ObjectPathId="78" /><Method Name="DeleteObject" Id="80" ObjectPathId="78" /><Method Name="Update" Id="81" ObjectPathId="24"><Parameters><Parameter Type="Boolean">true</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="76" ParentId="24" Name="FieldLinks" /><Method Id="78" ParentId="76" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="24" Name="6b3ec69e-00a7-0000-55a3-61f8d779d2b3|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:contenttype:${CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
+      else if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="77" ObjectPathId="76" /><ObjectPath Id="79" ObjectPathId="78" /><Method Name="DeleteObject" Id="80" ObjectPathId="78" /><Method Name="Update" Id="81" ObjectPathId="24"><Parameters><Parameter Type="Boolean">true</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="76" ParentId="24" Name="FieldLinks" /><Method Id="78" ParentId="76" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="24" Name="6b3ec69e-00a7-0000-55a3-61f8d779d2b3|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:contenttype:${CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
         return Promise.resolve(`[
             {
               "SchemaVersion": "15.0.0.0",
@@ -68,7 +70,7 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
           ]`);
       }
       // List CT
-      else if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="18" ObjectPathId="17" /><ObjectPath Id="20" ObjectPathId="19" /><Method Name="DeleteObject" Id="21" ObjectPathId="19" /><Method Name="Update" Id="22" ObjectPathId="15"><Parameters><Parameter Type="Boolean">false</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="17" ParentId="15" Name="FieldLinks" /><Method Id="19" ParentId="17" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="15" Name="09eec89e-709b-0000-558c-c222dcaf9162|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:list:${LIST_ID}:contenttype:${LIST_CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
+      else if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="18" ObjectPathId="17" /><ObjectPath Id="20" ObjectPathId="19" /><Method Name="DeleteObject" Id="21" ObjectPathId="19" /><Method Name="Update" Id="22" ObjectPathId="15"><Parameters><Parameter Type="Boolean">false</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="17" ParentId="15" Name="FieldLinks" /><Method Id="19" ParentId="17" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="15" Name="09eec89e-709b-0000-558c-c222dcaf9162|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:list:${LIST_ID}:contenttype:${LIST_CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
         return Promise.resolve(`[
             {
               "SchemaVersion": "15.0.0.0",
@@ -85,7 +87,7 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
   const postStubFailedCalls = (opts: any) => {
     if ((opts.url as string).indexOf(`/_vti_bin/client.svc/ProcessQuery`) > -1) {
       // WEB CT
-      if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="77" ObjectPathId="76" /><ObjectPath Id="79" ObjectPathId="78" /><Method Name="DeleteObject" Id="80" ObjectPathId="78" /><Method Name="Update" Id="81" ObjectPathId="24"><Parameters><Parameter Type="Boolean">false</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="76" ParentId="24" Name="FieldLinks" /><Method Id="78" ParentId="76" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="24" Name="6b3ec69e-00a7-0000-55a3-61f8d779d2b3|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:contenttype:${CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
+      if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="77" ObjectPathId="76" /><ObjectPath Id="79" ObjectPathId="78" /><Method Name="DeleteObject" Id="80" ObjectPathId="78" /><Method Name="Update" Id="81" ObjectPathId="24"><Parameters><Parameter Type="Boolean">false</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="76" ParentId="24" Name="FieldLinks" /><Method Id="78" ParentId="76" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="24" Name="6b3ec69e-00a7-0000-55a3-61f8d779d2b3|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:contenttype:${CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
         return Promise.resolve(`[
           {
             "SchemaVersion": "15.0.0.0",
@@ -98,7 +100,7 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
         ]`);
       }
       // Web CT without update child CTs
-      else if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="77" ObjectPathId="76" /><ObjectPath Id="79" ObjectPathId="78" /><Method Name="DeleteObject" Id="80" ObjectPathId="78" /><Method Name="Update" Id="81" ObjectPathId="24"><Parameters><Parameter Type="Boolean">true</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="76" ParentId="24" Name="FieldLinks" /><Method Id="78" ParentId="76" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="24" Name="6b3ec69e-00a7-0000-55a3-61f8d779d2b3|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:contenttype:${CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
+      else if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="77" ObjectPathId="76" /><ObjectPath Id="79" ObjectPathId="78" /><Method Name="DeleteObject" Id="80" ObjectPathId="78" /><Method Name="Update" Id="81" ObjectPathId="24"><Parameters><Parameter Type="Boolean">true</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="76" ParentId="24" Name="FieldLinks" /><Method Id="78" ParentId="76" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="24" Name="6b3ec69e-00a7-0000-55a3-61f8d779d2b3|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:contenttype:${CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
         return Promise.resolve(`[
           {
             "SchemaVersion": "15.0.0.0",
@@ -111,7 +113,7 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
         ]`);
       }
       // LIST CT
-      else if (opts.body === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="18" ObjectPathId="17" /><ObjectPath Id="20" ObjectPathId="19" /><Method Name="DeleteObject" Id="21" ObjectPathId="19" /><Method Name="Update" Id="22" ObjectPathId="15"><Parameters><Parameter Type="Boolean">false</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="17" ParentId="15" Name="FieldLinks" /><Method Id="19" ParentId="17" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="15" Name="09eec89e-709b-0000-558c-c222dcaf9162|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:list:${LIST_ID}:contenttype:${LIST_CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
+      else if (opts.data === `<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName=".NET Library" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions><ObjectPath Id="18" ObjectPathId="17" /><ObjectPath Id="20" ObjectPathId="19" /><Method Name="DeleteObject" Id="21" ObjectPathId="19" /><Method Name="Update" Id="22" ObjectPathId="15"><Parameters><Parameter Type="Boolean">false</Parameter></Parameters></Method></Actions><ObjectPaths><Property Id="17" ParentId="15" Name="FieldLinks" /><Method Id="19" ParentId="17" Name="GetById"><Parameters><Parameter Type="Guid">{${FIELD_LINK_ID}}</Parameter></Parameters></Method><Identity Id="15" Name="09eec89e-709b-0000-558c-c222dcaf9162|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:${SITE_ID}:web:${WEB_ID}:list:${LIST_ID}:contenttype:${LIST_CONTENT_TYPE_ID}" /></ObjectPaths></Request>`) {
         return Promise.resolve(`[
           {
             "SchemaVersion": "15.0.0.0",
@@ -137,22 +139,24 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
         log.push(msg);
       },
-      prompt: (options: any, cb: (result: { continue: boolean }) => void) => {
-        promptOptions = options;
-        cb({ continue: false });
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
+        log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
+      promptOptions = options;
+      cb({ continue: false });
+    });
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).requestDigest = '';
     (command as any).webId = '';
     (command as any).siteId = '';
@@ -163,9 +167,9 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get,
-      request.post
+      request.post,
+      Cli.prompt
     ]);
   });
 
@@ -180,20 +184,20 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.CONTENTTYPE_FIELD_REMOVE), true);
+    assert.strictEqual(command.name.startsWith(commands.CONTENTTYPE_FIELD_REMOVE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('configures command types', () => {
-    assert.notEqual(typeof command.types(), 'undefined', 'command types undefined');
-    assert.notEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
+    assert.notStrictEqual(typeof command.types(), 'undefined', 'command types undefined');
+    assert.notStrictEqual((command.types() as CommandTypes).string, 'undefined', 'command string types undefined');
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -206,20 +210,8 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
   it('configures contentTypeId as string option', () => {
     const types = (command.types() as CommandTypes);
     ['i', 'contentTypeId'].forEach(o => {
-      assert.notEqual((types.string as string[]).indexOf(o), -1, `option ${o} not specified as string`);
+      assert.notStrictEqual((types.string as string[]).indexOf(o), -1, `option ${o} not specified as string`);
     });
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.CONTENTTYPE_FIELD_REMOVE));
   });
 
   // WEB CT
@@ -227,14 +219,14 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         confirm: true,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
         done();
@@ -248,14 +240,14 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         confirm: false,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       let promptIssued = false;
 
       if (promptOptions && promptOptions.type === 'confirm') {
@@ -275,16 +267,17 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
         done();
@@ -298,16 +291,17 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.notCalled);
         done();
@@ -323,17 +317,17 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         confirm: true,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -345,14 +339,14 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         confirm: false,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         let promptIssued = false;
 
@@ -371,21 +365,21 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action = command.action();
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: false,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -398,16 +392,17 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.notCalled);
         done();
@@ -423,16 +418,16 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: true,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -444,13 +439,13 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         let promptIssued = false;
 
@@ -469,17 +464,18 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: false,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
         done();
@@ -493,17 +489,18 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: false,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.notCalled);
         done();
@@ -519,16 +516,16 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: true,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -540,14 +537,14 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: false,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         let promptIssued = false;
 
@@ -567,17 +564,18 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: false,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
         done();
@@ -592,17 +590,18 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: false,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.notCalled);
         done();
@@ -618,16 +617,16 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, listTitle: LIST_TITLE, contentTypeId: LIST_CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         confirm: true,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -639,12 +638,12 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, listTitle: LIST_TITLE, contentTypeId: LIST_CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       let promptIssued = false;
 
       if (promptOptions && promptOptions.type === 'confirm') {
@@ -665,20 +664,21 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, listTitle: LIST_TITLE, contentTypeId: LIST_CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         confirm: true,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -691,20 +691,21 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, listTitle: LIST_TITLE, contentTypeId: LIST_CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         confirm: false,
         debug: false
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.notCalled);
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -718,17 +719,17 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, listTitle: LIST_TITLE, contentTypeId: LIST_CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         confirm: true,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -740,12 +741,12 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, listTitle: LIST_TITLE, contentTypeId: LIST_CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       let promptIssued = false;
 
       if (promptOptions && promptOptions.type === 'confirm') {
@@ -765,19 +766,20 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, listTitle: LIST_TITLE, contentTypeId: LIST_CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.called);
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -789,16 +791,17 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     const postCallbackStub = sinon.stub(request, 'post').callsFake(postStubSuccCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, listTitle: LIST_TITLE, contentTypeId: LIST_CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: false,
         debug: true
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
         assert(postCallbackStub.notCalled);
         done();
@@ -814,16 +817,16 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubFailedCalls);
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: true,
         debug: false,
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Unknown Error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Unknown Error')));
         done();
       }
       catch (e) {
@@ -835,9 +838,9 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubFailedCalls);
 
-    cmdInstance.action({ options: { debug: true, webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID, updateChildContentTypes: true, confirm: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: true, webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID, updateChildContentTypes: true, confirm: true } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Unknown Error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Unknown Error')));
         done();
       }
       catch (e) {
@@ -850,19 +853,20 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(getStubCalls);
     sinon.stub(request, 'post').callsFake(postStubFailedCalls);
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({
+    });
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: false,
         debug: false,
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('Unknown Error')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('Unknown Error')));
         done();
       }
       catch (e) {
@@ -875,15 +879,15 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
     sinon.stub(request, 'get').callsFake(() => Promise.reject('An error has occurred'));
     sinon.stub(request, 'post').callsFake(() => Promise.reject('An error has occurred'));
 
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID, fieldLinkId: FIELD_LINK_ID,
         updateChildContentTypes: true,
         confirm: true,
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -893,34 +897,29 @@ describe(commands.CONTENTTYPE_FIELD_REMOVE, () => {
   });
 
   // Fails validation
-  it('fails validation if contentTypeId is not passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: WEB_URL, fieldLinkId: FIELD_LINK_ID } });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if fieldLinkId is not passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if webUrl is not passed', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { fieldLinkId: FIELD_LINK_ID, contentTypeId: CONTENT_TYPE_ID } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { fieldLinkId: FIELD_LINK_ID, contentTypeId: CONTENT_TYPE_ID } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if webUrl is not correct', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { fieldLinkId: FIELD_LINK_ID, contentTypeId: CONTENT_TYPE_ID, webUrl: "test" } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { fieldLinkId: FIELD_LINK_ID, contentTypeId: CONTENT_TYPE_ID, webUrl: "test" } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('fails validation if fieldLinkId is not valid GUID', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { fieldLinkId: 'xxx', webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { fieldLinkId: 'xxx', webUrl: WEB_URL, contentTypeId: CONTENT_TYPE_ID } });
+    assert.notStrictEqual(actual, true);
   });
 
   // Passes validation
   it('passes validation', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { listId: LIST_ID, fieldLinkId: FIELD_LINK_ID, contentTypeId: CONTENT_TYPE_ID, webUrl: WEB_URL, debug: true } });
-    assert.equal(actual, true);
+    const actual = command.validate({ options: { listId: LIST_ID, fieldLinkId: FIELD_LINK_ID, contentTypeId: CONTENT_TYPE_ID, webUrl: WEB_URL, debug: true } });
+    assert.strictEqual(actual, true);
   });
 });

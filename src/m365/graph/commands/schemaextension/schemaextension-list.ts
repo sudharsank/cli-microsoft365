@@ -1,13 +1,13 @@
-import config from '../../../../config';
-import commands from '../../commands';
-import request from '../../../../request';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import GraphCommand from '../../../base/GraphCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import GraphCommand from '../../../base/GraphCommand';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -36,7 +36,7 @@ class GraphSchemaExtensionListCommand extends GraphCommand {
     telemetryProps.pageSize = typeof args.options.pageSize !== 'undefined';
     return telemetryProps;
   }
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const filter: string = this.getFilter(args.options);
     let url = `${this.resource}/v1.0/schemaExtensions?$select=*${(filter.length > 0 ? '&' + filter : '')}`;
 
@@ -50,16 +50,16 @@ class GraphSchemaExtensionListCommand extends GraphCommand {
         accept: 'application/json;odata.metadata=none',
         'content-type': 'application/json'
       },
-      json: true
+      responseType: 'json'
     };
     request.get(requestOptions)
       .then((res: any): void => {
         if (res.value && res.value.length > 0) {
           const size = args.options.pageSize ? parseInt(args.options.pageSize) : parseInt(res.value.length);
           const result = res.value.slice(-size);
-          if(args.options.output !== 'json' && result.length > 1) {
-            cmd.log(result.map((x: any) => ({
-              id: x.id, 
+          if (args.options.output !== 'json' && result.length > 1) {
+            logger.log(result.map((x: any) => ({
+              id: x.id,
               description: x.description,
               targetTypes: x.targetTypes,
               status: x.status,
@@ -67,14 +67,14 @@ class GraphSchemaExtensionListCommand extends GraphCommand {
               properties: JSON.stringify(x.properties)
             })));
           } else {
-            cmd.log(result);
+            logger.log(result);
           }
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
         }
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
 
@@ -123,50 +123,21 @@ class GraphSchemaExtensionListCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (args.options.owner && !Utils.isValidGuid(args.options.owner)) {
-        return `${args.options.owner} is not a valid GUID`;
-      }
-      if (args.options.pageNumber && parseInt(args.options.pageNumber) < 1) {
-        return 'pageNumber must be a positive number';
-      }
-      if (args.options.pageSize && parseInt(args.options.pageSize) < 1) {
-        return 'pageSize must be a positive number';
-      }
-      if (args.options.status &&
-        ['Available', 'InDevelopment', 'Deprecated'].indexOf(args.options.status) === -1) {
-        return `${args.options.status} is not a valid status value. Allowed values are Available|InDevelopment|Deprecated`;
-      }
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      ` Remarks:
-
-    pageNumber is specified as a 0-based index. A value of 2 returns the third page of items. 
-
-  Examples:
-
-    Get a list of schemaExtension objects created in the current tenant, that can be InDevelopment, Available, or Deprecated.
-      ${chalk.grey(config.delimiter)} ${this.name}
-
-    Get a list of schemaExtension objects created in the current tenant, with owner 617720dc-85fc-45d7-a187-cee75eaf239e
-      ${chalk.grey(config.delimiter)} ${this.name} --owner 617720dc-85fc-45d7-a187-cee75eaf239e
-
-    Get a list of schemaExtension objects created in the current tenant, with owner 617720dc-85fc-45d7-a187-cee75eaf239e and return the third page of results of 10
-      ${chalk.grey(config.delimiter)} ${this.name} --owner 617720dc-85fc-45d7-a187-cee75eaf239e --pageNumber 2 --pageSize 10
-
-  More information:
-
-    List schemaExtensions:
-      https://developer.microsoft.com/en-us/graph/docs/api-reference/v1.0/api/schemaextension_list
-    `
-    );
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.owner && !Utils.isValidGuid(args.options.owner)) {
+      return `${args.options.owner} is not a valid GUID`;
+    }
+    if (args.options.pageNumber && parseInt(args.options.pageNumber) < 1) {
+      return 'pageNumber must be a positive number';
+    }
+    if (args.options.pageSize && parseInt(args.options.pageSize) < 1) {
+      return 'pageSize must be a positive number';
+    }
+    if (args.options.status &&
+      ['Available', 'InDevelopment', 'Deprecated'].indexOf(args.options.status) === -1) {
+      return `${args.options.status} is not a valid status value. Allowed values are Available|InDevelopment|Deprecated`;
+    }
+    return true;
   }
 }
 module.exports = new GraphSchemaExtensionListCommand();

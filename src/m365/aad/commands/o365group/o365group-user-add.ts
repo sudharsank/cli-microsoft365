@@ -1,14 +1,14 @@
-import commands from '../../commands';
-import teamsCommands from '../../../teams/commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import Utils from '../../../../Utils';
+import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
+import Utils from '../../../../Utils';
 import GraphCommand from '../../../base/GraphCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import teamsCommands from '../../../teams/commands';
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -42,7 +42,7 @@ class AadO365GroupUserAddCommand extends GraphCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const providedGroupId: string = (typeof args.options.groupId !== 'undefined') ? args.options.groupId : args.options.teamId as string
 
     const requestOptions: any = {
@@ -50,7 +50,7 @@ class AadO365GroupUserAddCommand extends GraphCommand {
       headers: {
         accept: 'application/json;odata.metadata=none'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
@@ -63,19 +63,19 @@ class AadO365GroupUserAddCommand extends GraphCommand {
           headers: {
             'accept': 'application/json;odata.metadata=none'
           },
-          json: true,
-          body: { "@odata.id": "https://graph.microsoft.com/v1.0/directoryObjects/" + res.value }
+          responseType: 'json',
+          data: { "@odata.id": "https://graph.microsoft.com/v1.0/directoryObjects/" + res.value }
         };
 
         return request.post(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any) => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any) => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -103,52 +103,30 @@ class AadO365GroupUserAddCommand extends GraphCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.groupId && !args.options.teamId) {
-        return 'Please provide one of the following parameters: groupId or teamId';
+  public validate(args: CommandArgs): boolean | string {
+    if (!args.options.groupId && !args.options.teamId) {
+      return 'Please provide one of the following parameters: groupId or teamId';
+    }
+
+    if (args.options.groupId && args.options.teamId) {
+      return 'You cannot provide both a groupId and teamId parameter, please provide only one';
+    }
+
+    if (args.options.teamId && !Utils.isValidGuid(args.options.teamId as string)) {
+      return `${args.options.teamId} is not a valid GUID`;
+    }
+
+    if (args.options.groupId && !Utils.isValidGuid(args.options.groupId as string)) {
+      return `${args.options.groupId} is not a valid GUID`;
+    }
+
+    if (args.options.role) {
+      if (['owner', 'member'].indexOf(args.options.role.toLowerCase()) === -1) {
+        return `${args.options.role} is not a valid role value. Allowed values Owner|Member`;
       }
+    }
 
-      if (args.options.groupId && args.options.teamId) {
-        return 'You cannot provide both a groupId and teamId parameter, please provide only one';
-      }
-
-      if (args.options.teamId && !Utils.isValidGuid(args.options.teamId as string)) {
-        return `${args.options.teamId} is not a valid GUID`;
-      }
-
-      if (args.options.groupId && !Utils.isValidGuid(args.options.groupId as string)) {
-        return `${args.options.groupId} is not a valid GUID`;
-      }
-
-      if (!args.options.userName) {
-        return 'Required parameter userName missing';
-      }
-
-      if (args.options.role) {
-        if (['owner', 'member'].indexOf(args.options.role.toLowerCase()) === -1) {
-          return `${args.options.role} is not a valid role value. Allowed values Owner|Member`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-
-    Add a new member to the specified Microsoft 365 Group
-      ${this.name} --groupId '00000000-0000-0000-0000-000000000000' --userName 'anne.matthews@contoso.onmicrosoft.com'
-
-    Add a new owner to the specified Microsoft 365 Group
-      ${this.name} --groupId '00000000-0000-0000-0000-000000000000' --userName 'anne.matthews@contoso.onmicrosoft.com' --role Owner
-
-    Add a new member to the specified Microsoft Teams team
-      ${(this.alias() as string[])[0]} --teamId '00000000-0000-0000-0000-000000000000' --userName 'anne.matthews@contoso.onmicrosoft.com'
-`);
+    return true;
   }
 }
 

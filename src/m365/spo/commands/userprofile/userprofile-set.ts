@@ -1,14 +1,13 @@
-import { ContextInfo } from '../../spo';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+    CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -29,11 +28,11 @@ class SpoUserProfileSetCommand extends SpoCommand {
     return 'Sets user profile property for a SharePoint user';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     let spoUrl: string = '';
 
     this
-      .getSpoUrl(cmd, this.debug)
+      .getSpoUrl(logger, this.debug)
       .then((_spoUrl: string): Promise<ContextInfo> => {
         spoUrl = _spoUrl;
 
@@ -42,17 +41,17 @@ class SpoUserProfileSetCommand extends SpoCommand {
       .then((res: ContextInfo): Promise<string> => {
         const propertyValue: string[] = args.options.propertyValue.split(',').map(o => o.trim());
         let propertyType: string = 'SetSingleValueProfileProperty';
-        const body: any = {
+        const data: any = {
           accountName: `i:0#.f|membership|${args.options.userName}`,
           propertyName: args.options.propertyName
         };
 
         if (propertyValue.length > 1) {
           propertyType = 'SetMultiValuedProfileProperty';
-          body.propertyValues = [...propertyValue];
+          data.propertyValues = [...propertyValue];
         }
         else {
-          body.propertyValue = propertyValue[0];
+          data.propertyValue = propertyValue[0];
         }
 
         const requestOptions: any = {
@@ -62,19 +61,19 @@ class SpoUserProfileSetCommand extends SpoCommand {
             'Content-type': 'application/json;odata=verbose',
             'X-RequestDigest': res.FormDigestValue
           },
-          body: body,
-          json: true
+          data: data,
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((): void => {
         if (this.debug) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
         
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -95,43 +94,6 @@ class SpoUserProfileSetCommand extends SpoCommand {
 
     const parentOptions: CommandOption[] = super.options();
     return options.concat(parentOptions);
-  }
-
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.userName) {
-        return 'Required parameter userName missing';
-      }
-
-      if (!args.options.propertyName) {
-        return 'Required parameter propertyName missing';
-      }
-
-      if (!args.options.propertyValue) {
-        return 'Required parameter propertyValue missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    You have to have tenant admin permissions in order to use this command to
-    update profile properties of other users.
-
-  Examples:
-  
-    Updates the single-value ${chalk.grey('AboutMe')} property
-      ${commands.USERPROFILE_SET} --userName 'john.doe@mytenant.onmicrosoft.com' --propertyName 'AboutMe' --propertyValue 'Working as a Microsoft 365 developer'
-  
-    Updates the multi-value ${chalk.grey('SPS-Skills')} property
-      ${commands.USERPROFILE_SET} --userName 'john.doe@mytenant.onmicrosoft.com' --propertyName 'SPS-Skills' --propertyValue 'CSS, HTML'
-`);
   }
 }
 

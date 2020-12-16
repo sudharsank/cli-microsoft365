@@ -1,13 +1,12 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -38,9 +37,9 @@ class SpoNavigationNodeAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Adding navigation node...`);
+      logger.logToStderr(`Adding navigation node...`);
     }
 
     const nodesCollection: string = args.options.parentNodeId ?
@@ -53,25 +52,25 @@ class SpoNavigationNodeAddCommand extends SpoCommand {
         accept: 'application/json;odata=nometadata',
         'content-type': 'application/json;odata=nometadata'
       },
-      body: {
+      data: {
         Title: args.options.title,
         Url: args.options.url,
         IsExternal: args.options.isExternal === true
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .post(requestOptions)
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -107,60 +106,25 @@ class SpoNavigationNodeAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required option webUrl missing';
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
+
+    if (args.options.parentNodeId) {
+      if (isNaN(args.options.parentNodeId)) {
+        return `${args.options.parentNodeId} is not a number`;
       }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
+    }
+    else {
+      if (args.options.location !== 'QuickLaunch' &&
+        args.options.location !== 'TopNavigationBar') {
+        return `${args.options.location} is not a valid value for the location option. Allowed values are QuickLaunch|TopNavigationBar`;
       }
+    }
 
-      if (args.options.parentNodeId) {
-        if (isNaN(args.options.parentNodeId)) {
-          return `${args.options.parentNodeId} is not a number`;
-        }
-      }
-      else {
-        if (!args.options.location) {
-          return 'Required option location missing';
-        }
-        else {
-          if (args.options.location !== 'QuickLaunch' &&
-            args.options.location !== 'TopNavigationBar') {
-            return `${args.options.location} is not a valid value for the location option. Allowed values are QuickLaunch|TopNavigationBar`;
-          }
-        }
-      }
-
-      if (!args.options.title) {
-        return 'Required option title missing';
-      }
-
-      if (!args.options.url) {
-        return 'Required option url missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (message: string) => void): void {
-    log(vorpal.find(commands.NAVIGATION_NODE_ADD).helpInformation());
-    log(
-      `  Examples:
-  
-    Add a navigation node pointing to a SharePoint page to the top navigation
-      ${commands.NAVIGATION_NODE_ADD} --webUrl https://contoso.sharepoint.com/sites/team-a --location TopNavigationBar --title About --url /sites/team-s/sitepages/about.aspx
-
-    Add a navigation node pointing to an external page to the quick launch
-      ${commands.NAVIGATION_NODE_ADD} --webUrl https://contoso.sharepoint.com/sites/team-a --location QuickLaunch --title "About us" --url https://contoso.com/about-us --isExternal
-
-    Add a navigation node below an existing node
-      ${commands.NAVIGATION_NODE_ADD} --webUrl https://contoso.sharepoint.com/sites/team-a --parentNodeId 2010 --title About --url /sites/team-s/sitepages/about.aspx
-`);
+    return true;
   }
 }
 

@@ -5,20 +5,18 @@ Initializes a directory with a new CDS solution project
 ## Usage
 
 ```sh
-pa solution init [options]
+m365 pa solution init [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--publisherName <publisherName>`|Name of the CDS solution publisher.
-`--publisherPrefix <publisherPrefix>`|Customization prefix value for the CDS solution publisher.
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--publisherName <publisherName>`
+: Name of the CDS solution publisher.
+
+`--publisherPrefix <publisherPrefix>`
+: Customization prefix value for the CDS solution publisher.
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -31,7 +29,7 @@ PublisherPrefix must be 2 to 8 characters long, can only consist of alpha-numeri
 Initializes a CDS solution project using _yourPublisherName_ as publisher name and _ypn_ as publisher prefix
 
 ```sh
-pa solution init --publisherName yourPublisherName --publisherPrefix ypn
+m365 pa solution init --publisherName yourPublisherName --publisherPrefix ypn
 ```
 
 ## More information

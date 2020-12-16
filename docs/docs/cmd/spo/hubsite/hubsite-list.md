@@ -5,19 +5,15 @@ Lists hub sites in the current tenant
 ## Usage
 
 ```sh
-spo hubsite list [options]
+m365 spo hubsite list [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --includeAssociatedSites`|Include the associated sites in the result (only in JSON output)
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --includeAssociatedSites`
+: Include the associated sites in the result (only in JSON output)
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -31,13 +27,13 @@ When using the text output type (default), the command lists only the values of 
 List hub sites in the current tenant
 
 ```sh
-spo hubsite list
+m365 spo hubsite list
 ```
 
 List hub sites, including their associated sites, in the current tenant. Associated site info is only shown in JSON output.
 
 ```sh
-spo hubsite list --includeAssociatedSites --output json
+m365 spo hubsite list --includeAssociatedSites --output json
 ```
 
 ## More information

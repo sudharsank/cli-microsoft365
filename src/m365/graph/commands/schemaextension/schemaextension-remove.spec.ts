@@ -1,18 +1,20 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./schemaextension-remove');
-import * as assert from 'assert';
+import { Cli, Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./schemaextension-remove');
 
 describe(commands.SCHEMAEXTENSION_REMOVE, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
   let promptOptions: any;
 
   before(() => {
@@ -22,29 +24,31 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
         log.push(msg);
       },
-      prompt: (options: any, cb: (result: { continue: boolean }) => void) => {
-        promptOptions = options;
-        cb({ continue: false });
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
+        log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
+      promptOptions = options;
+      cb({ continue: false });
+    });
     promptOptions = undefined;
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
-      request.delete
+      request.delete,
+      Cli.prompt
     ]);
   });
 
@@ -57,11 +61,11 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.SCHEMAEXTENSION_REMOVE), true);
+    assert.strictEqual(command.name.startsWith(commands.SCHEMAEXTENSION_REMOVE), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('removes schema extension', (done) => {
@@ -73,9 +77,9 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false,id:'exttyee4dv5_MySchemaExtension', confirm: true } }, () => {
+    command.action(logger, { options: { debug: false,id:'exttyee4dv5_MySchemaExtension', confirm: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -93,9 +97,9 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, id:'exttyee4dv5_MySchemaExtension', confirm: true } }, () => {
+    command.action(logger, { options: { debug: true, id:'exttyee4dv5_MySchemaExtension', confirm: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -105,7 +109,7 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
   });
 
   it('prompts before removing schema extension when confirmation argument not passed', (done) => {
-    cmdInstance.action({ options: { debug: false, id: 'exttyee4dv5_MySchemaExtension' } }, () => {
+    command.action(logger, { options: { debug: false, id: 'exttyee4dv5_MySchemaExtension' } }, () => {
       let promptIssued = false;
 
       if (promptOptions && promptOptions.type === 'confirm') {
@@ -126,10 +130,11 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
     sinon.stub(request, 'delete').callsFake((opts) => {
       return Promise.reject('Invalid request');
     });
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: false });
-    };
-    cmdInstance.action({ options: { debug: false, id:'exttyee4dv5_MySchemaExtension' } }, () => {
+    });
+    command.action(logger, { options: { debug: false, id:'exttyee4dv5_MySchemaExtension' } }, () => {
       try {
         done();
       }
@@ -148,12 +153,13 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.prompt = (options: any, cb: (result: { continue: boolean }) => void) => {
+    Utils.restore(Cli.prompt);
+    sinon.stub(Cli, 'prompt').callsFake((options: any, cb: (result: { continue: boolean }) => void) => {
       cb({ continue: true });
-    };
-    cmdInstance.action({ options: { debug: false, id:'exttyee4dv5_MySchemaExtension' } }, () => {
+    });
+    command.action(logger, { options: { debug: false, id:'exttyee4dv5_MySchemaExtension' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -168,9 +174,9 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
       return Promise.reject({ error: 'An error has occurred' });
     });
 
-    cmdInstance.action({ options: { debug: false, id:'exttyee4dv5_MySchemaExtension', confirm: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id:'exttyee4dv5_MySchemaExtension', confirm: true } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -184,9 +190,9 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action({ options: { debug: false, id: 'exttyee4dv5_MySchemaExtension', confirm: true } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, id: 'exttyee4dv5_MySchemaExtension', confirm: true } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -196,7 +202,7 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsDebugOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -207,7 +213,7 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
   });
 
   it('supports specifying id', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--id') > -1) {
@@ -215,53 +221,5 @@ describe(commands.SCHEMAEXTENSION_REMOVE, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('fails validation if id is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-  it('passes validation if the id is specified', () => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        debug: false,
-        id: 'exttyee4dv5_MySchemaExtension'
-      }
-    });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.SCHEMAEXTENSION_REMOVE));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

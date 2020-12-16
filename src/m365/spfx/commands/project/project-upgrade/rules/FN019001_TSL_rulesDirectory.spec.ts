@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN019001_TSL_rulesDirectory } from './FN019001_TSL_rulesDirectory';
 
 describe('FN019001_TSL_rulesDirectory', () => {
@@ -19,6 +19,6 @@ describe('FN019001_TSL_rulesDirectory', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

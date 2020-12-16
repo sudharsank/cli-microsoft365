@@ -5,20 +5,18 @@ Archives specified Microsoft Teams team
 ## Usage
 
 ```sh
-teams team archive [options]
+m365 teams team archive [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --teamId <teamId>`|The ID of the Microsoft Teams team to archive
-`--shouldSetSpoSiteReadOnlyForMembers`|Sets the permissions for team members to read-only on the SharePoint Online site associated with the team
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --teamId <teamId>`
+: The ID of the Microsoft Teams team to archive
+
+`--shouldSetSpoSiteReadOnlyForMembers`
+: Sets the permissions for team members to read-only on the SharePoint Online site associated with the team
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -31,11 +29,11 @@ When a team is archived, users can no longer send or like messages on any channe
 Archive the specified Microsoft Teams team
 
 ```sh
-teams team archive --teamId 6f6fd3f7-9ba5-4488-bbe6-a789004d0d55
+m365 teams team archive --teamId 6f6fd3f7-9ba5-4488-bbe6-a789004d0d55
 ```
 
 Archive the specified Microsoft Teams team and set permissions for team members to read-only on the SharePoint Online site associated with the team
 
 ```sh
-teams team archive --teamId 6f6fd3f7-9ba5-4488-bbe6-a789004d0d55 --shouldSetSpoSiteReadOnlyForMembers
+m365 teams team archive --teamId 6f6fd3f7-9ba5-4488-bbe6-a789004d0d55 --shouldSetSpoSiteReadOnlyForMembers
 ```

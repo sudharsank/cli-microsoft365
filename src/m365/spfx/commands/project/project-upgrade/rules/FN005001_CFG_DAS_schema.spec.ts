@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { FN005001_CFG_DAS_schema } from './FN005001_CFG_DAS_schema';
 
 describe('FN005001_CFG_DAS_schema', () => {
@@ -17,7 +17,7 @@ describe('FN005001_CFG_DAS_schema', () => {
       path: '/usr/tmp'
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if schema is already up-to-date', () => {
@@ -28,6 +28,6 @@ describe('FN005001_CFG_DAS_schema', () => {
       }
     };
     rule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

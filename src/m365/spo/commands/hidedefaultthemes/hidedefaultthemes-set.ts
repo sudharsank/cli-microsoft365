@@ -1,13 +1,12 @@
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
 
 interface CommandArgs {
   options: Options;
@@ -32,12 +31,12 @@ class SpoHideDefaultThemesSetCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this
-      .getSpoAdminUrl(cmd, this.debug)
+      .getSpoAdminUrl(logger, this.debug)
       .then((spoAdminUrl: string): Promise<void> => {
         if (this.verbose) {
-          cmd.log(`Setting the value of the HideDefaultThemes setting to ${args.options.hideDefaultThemes}...`);
+          logger.logToStderr(`Setting the value of the HideDefaultThemes setting to ${args.options.hideDefaultThemes}...`);
         }
 
         const requestOptions: any = {
@@ -45,21 +44,21 @@ class SpoHideDefaultThemesSetCommand extends SpoCommand {
           headers: {
             'accept': 'application/json;odata=nometadata'
           },
-          body: {
+          data: {
             hideDefaultThemes: args.options.hideDefaultThemes,
           },
-          json: true
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((): void => {
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+      }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -74,38 +73,13 @@ class SpoHideDefaultThemesSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (typeof args.options.hideDefaultThemes === 'undefined') {
-        return 'Required parameter hideDefaultThemes missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.hideDefaultThemes !== 'false' &&
+      args.options.hideDefaultThemes !== 'true') {
+      return `${args.options.hideDefaultThemes} is not a valid boolean`;
+    }
 
-      if (args.options.hideDefaultThemes !== 'false' &&
-        args.options.hideDefaultThemes !== 'true') {
-        return `${args.options.hideDefaultThemes} is not a valid boolean`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  ${chalk.yellow('Important:')} to use this command you have to have permissions to access
-    the tenant admin site.
-  
-  Examples:
-
-    Hide default themes and allow users to use organization themes only
-      ${commands.HIDEDEFAULTTHEMES_SET} --hideDefaultThemes true
-
-  More information:
-
-    SharePoint site theming
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-theming/sharepoint-site-theming-overview
-      `);
+    return true;
   }
 }
 

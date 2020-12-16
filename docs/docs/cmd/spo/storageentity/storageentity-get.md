@@ -5,19 +5,15 @@ Get details for the specified tenant property
 ## Usage
 
 ```sh
-spo storageentity get [options]
+m365 spo storageentity get [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-k, --key <key>`|Name of the tenant property to retrieve
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-k, --key <key>`
+: Name of the tenant property to retrieve
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -28,7 +24,7 @@ Tenant properties are stored in the app catalog site associated with the site to
 Show the value, description and comment of the _AnalyticsId_ tenant property
 
 ```sh
-spo storageentity get -k AnalyticsId
+m365 spo storageentity get -k AnalyticsId
 ```
 
 ## More information

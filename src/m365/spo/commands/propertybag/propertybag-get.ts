@@ -1,15 +1,13 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import { ContextInfo } from '../../spo';
-import { SpoPropertyBagBaseCommand, Property } from './propertybag-base';
 import GlobalOptions from '../../../../GlobalOptions';
+import SpoCommand from '../../../base/SpoCommand';
 import { ClientSvc, IdentityResponse } from '../../ClientSvc';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
+import { Property, SpoPropertyBagBaseCommand } from './propertybag-base';
 
 export interface CommandArgs {
   options: Options;
@@ -36,8 +34,8 @@ class SpoPropertyBagGetCommand extends SpoPropertyBagBaseCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    const clientSvcCommons: ClientSvc = new ClientSvc(cmd, this.debug);
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
+    const clientSvcCommons: ClientSvc = new ClientSvc(logger, this.debug);
 
     this
       .getRequestDigest(args.options.webUrl)
@@ -49,21 +47,21 @@ class SpoPropertyBagGetCommand extends SpoPropertyBagBaseCommand {
       .then((identityResp: IdentityResponse): Promise<any> => {
         const opts: Options = args.options;
         if (opts.folder) {
-          return this.getFolderPropertyBag(identityResp, opts.webUrl, opts.folder, cmd);
+          return this.getFolderPropertyBag(identityResp, opts.webUrl, opts.folder, logger);
         }
 
-        return this.getWebPropertyBag(identityResp, opts.webUrl, cmd);
+        return this.getWebPropertyBag(identityResp, opts.webUrl, logger);
       })
       .then((propertyBagData: any): void => {
         const property = this.filterByKey(propertyBagData, args.options.key);
 
         if (property) {
-          cmd.log(property.value);
+          logger.log(property.value);
         } else if (this.verbose) {
-          cmd.log('Property not found.');
+          logger.logToStderr('Property not found.');
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -86,46 +84,8 @@ class SpoPropertyBagGetCommand extends SpoPropertyBagBaseCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.key) {
-        return `Required option key missing`;
-      }
-
-      if (SpoCommand.isValidSharePointUrl(args.options.webUrl) !== true) {
-        return 'Missing required option url';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.PROPERTYBAG_GET).helpInformation());
-    log(
-      `  Examples:
-
-    Returns the value of the ${chalk.grey('key1')} property from the property bag located
-    in site ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_GET} --webUrl https://contoso.sharepoint.com/sites/test --key key1
-    
-    Returns the value of the ${chalk.grey('key1')} property from the property bag located
-    in site root folder ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_GET} --webUrl https://contoso.sharepoint.com/sites/test --key key1 --folder /
-
-    Returns the value of the ${chalk.grey('key1')} property from the property bag located
-    in site document library ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_GET} --webUrl https://contoso.sharepoint.com/sites/test --key key1 --folder '/Shared Documents'
-
-    Returns the value of the ${chalk.grey('key1')} property from the property bag located
-    in folder in site document library ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_GET} --webUrl https://contoso.sharepoint.com/sites/test --key key1 --folder '/Shared Documents/MyFolder'
-
-    Returns the value of the ${chalk.grey('key1')} property from the property bag located
-    in site list ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.PROPERTYBAG_GET} --webUrl https://contoso.sharepoint.com/sites/test --key key1 --folder /Lists/MyList
-      `);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 
   private filterByKey(propertyBag: any, key: string): Property | null {

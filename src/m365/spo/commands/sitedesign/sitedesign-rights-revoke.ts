@@ -1,14 +1,14 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import { ContextInfo } from '../../spo';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -35,12 +35,12 @@ class SpoSiteDesignRightsRevokeCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const revokePermissions: () => void = (): void => {
       let spoUrl: string = '';
 
       this
-        .getSpoUrl(cmd, this.debug)
+        .getSpoUrl(logger, this.debug)
         .then((_spoUrl: string): Promise<ContextInfo> => {
           spoUrl = _spoUrl;
           return this.getRequestDigest(spoUrl);
@@ -53,29 +53,29 @@ class SpoSiteDesignRightsRevokeCommand extends SpoCommand {
               'content-type': 'application/json;charset=utf-8',
               accept: 'application/json;odata=nometadata'
             },
-            body: {
+            data: {
               id: args.options.id,
               principalNames: args.options.principals.split(',').map(p => p.trim())
             },
-            json: true
+            responseType: 'json'
           };
 
           return request.post(requestOptions);
         })
         .then((): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
-        }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
     };
 
     if (args.options.confirm) {
       revokePermissions();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -111,57 +111,12 @@ class SpoSiteDesignRightsRevokeCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (!Utils.isValidGuid(args.options.id)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
-
-      if (!args.options.principals) {
-        return 'Required parameter principals missing';
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('id')} doesn't refer to an existing site design, you will get
-    a ${chalk.grey('File not found')} error.
-
-    If all principals have rights revoked on the site design, the site design
-    becomes viewable to everyone.
-
-    If you try to revoke access for a user that doesn't have access granted
-    to the specified site design you will get a
-    ${chalk.grey('The specified user or domain group was not found')} error.
-
-  Examples:
-
-    Revoke access to the site design with ID
-    ${chalk.grey('2c1ba4c4-cd9b-4417-832f-92a34bc34b2a')} from user with alias ${chalk.grey('PattiF')}.
-    Will prompt for confirmation before revoking the access
-      ${this.name} --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a --principals PattiF
-
-    Revoke access to the site design with ID
-    ${chalk.grey('2c1ba4c4-cd9b-4417-832f-92a34bc34b2a')} from users with aliases ${chalk.grey('PattiF')} and
-    ${chalk.grey('AdeleV')} without prompting for confirmation
-      ${this.name} --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a --principals "PattiF,AdeleV" --confirm
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-`);
+    return true;
   }
 }
 

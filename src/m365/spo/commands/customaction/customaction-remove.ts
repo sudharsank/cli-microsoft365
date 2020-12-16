@@ -1,15 +1,14 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { CustomAction } from './customaction';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -38,7 +37,7 @@ class SpoCustomActionRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeCustomAction = (): void => {
       ((): Promise<CustomAction | void> => {
         if (args.options.scope && args.options.scope.toLowerCase() !== "all") {
@@ -50,21 +49,21 @@ class SpoCustomActionRemoveCommand extends SpoCommand {
         .then((customAction: CustomAction | void): void => {
           if (this.verbose) {
             if (customAction && customAction["odata.null"] === true) {
-              cmd.log(`Custom action with id ${args.options.id} not found`);
+              logger.logToStderr(`Custom action with id ${args.options.id} not found`);
             }
             else {
-              cmd.log(vorpal.chalk.green('DONE'));
+              logger.logToStderr(chalk.green('DONE'));
             }
           }
           cb();
-        }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+        }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
     }
 
     if (args.options.confirm) {
       removeCustomAction();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -87,7 +86,7 @@ class SpoCustomActionRemoveCommand extends SpoCommand {
         accept: 'application/json;odata=nometadata',
         'X-HTTP-Method': 'DELETE'
       },
-      json: true
+      responseType: 'json'
     };
 
     return request.post(requestOptions);
@@ -148,55 +147,24 @@ class SpoCustomActionRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (Utils.isValidGuid(args.options.id) === false) {
-        return `${args.options.id} is not valid. Custom action Id (GUID) expected.`;
+  public validate(args: CommandArgs): boolean | string {
+    if (Utils.isValidGuid(args.options.id) === false) {
+      return `${args.options.id} is not valid. Custom action Id (GUID) expected.`;
+    }
+
+    if (SpoCommand.isValidSharePointUrl(args.options.url) !== true) {
+      return 'Missing required option url';
+    }
+
+    if (args.options.scope) {
+      if (args.options.scope !== 'Site' &&
+        args.options.scope !== 'Web' &&
+        args.options.scope !== 'All') {
+        return `${args.options.scope} is not a valid custom action scope. Allowed values are Site|Web|All`;
       }
+    }
 
-      if (SpoCommand.isValidSharePointUrl(args.options.url) !== true) {
-        return 'Missing required option url';
-      }
-
-      if (args.options.scope) {
-        if (args.options.scope !== 'Site' &&
-          args.options.scope !== 'Web' &&
-          args.options.scope !== 'All') {
-          return `${args.options.scope} is not a valid custom action scope. Allowed values are Site|Web|All`;
-        }
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.CUSTOMACTION_REMOVE).helpInformation());
-    log(
-      `  Examples:
-  
-    Removes user custom action with ID ${chalk.grey('058140e3-0e37-44fc-a1d3-79c487d371a3')}
-    located in site or site collection ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_REMOVE} -i 058140e3-0e37-44fc-a1d3-79c487d371a3 -u https://contoso.sharepoint.com/sites/test --confirm
-
-    Removes user custom action with ID ${chalk.grey('058140e3-0e37-44fc-a1d3-79c487d371a3')}
-    located in site or site collection ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_REMOVE} --id 058140e3-0e37-44fc-a1d3-79c487d371a3 --url https://contoso.sharepoint.com/sites/test
-
-    Removes user custom action with ID ${chalk.grey('058140e3-0e37-44fc-a1d3-79c487d371a3')}
-    located in site collection ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_REMOVE} -i 058140e3-0e37-44fc-a1d3-79c487d371a3 -u https://contoso.sharepoint.com/sites/test -s Site
-
-    Removes user custom action with ID ${chalk.grey('058140e3-0e37-44fc-a1d3-79c487d371a3')}
-    located in site ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_REMOVE} --id 058140e3-0e37-44fc-a1d3-79c487d371a3 --url https://contoso.sharepoint.com/sites/test --scope Web
-
-  More information:
-
-    UserCustomAction REST API resources:
-      https://msdn.microsoft.com/en-us/library/office/dn531432.aspx#bk_UserCustomAction
-      `);
+    return true;
   }
 }
 

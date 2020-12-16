@@ -1,43 +1,49 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError } from '../../../../Command';
-import * as sinon from 'sinon';
-const command: Command = require('./id-get');
 import * as assert from 'assert';
-import Utils from '../../../../Utils';
-import request from '../../../../request';
+import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./id-get');
 
 describe(commands.TENANT_ID_GET, () => {
-  let vorpal: Vorpal;
   let log: any[];
-  let cmdInstanceLogSpy: sinon.SinonSpy;
-  let cmdInstance: any;
+  let loggerLogSpy: sinon.SinonSpy;
+  let logger: Logger;
 
   before(() => {
     sinon.stub(appInsights, 'trackEvent').callsFake(() => { });
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
     auth.service.connected = true;
+    if (!auth.service.accessTokens[auth.defaultResource]) {
+      auth.service.accessTokens[auth.defaultResource] = {
+        expiresOn: '123',
+        value: 'abc'
+      };
+    }
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
+    logger = {
+      log: (msg: string) => {
+        log.push(msg);
       },
-      action: command.action(),
-      log: (msg: any) => {
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -45,17 +51,18 @@ describe(commands.TENANT_ID_GET, () => {
   after(() => {
     Utils.restore([
       appInsights.trackEvent,
-      auth.restoreAuth
+      auth.restoreAuth,
+      Utils.getUserNameFromAccessToken
     ]);
     auth.service.connected = false;
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TENANT_ID_GET), true);
+    assert.strictEqual(command.name.startsWith(commands.TENANT_ID_GET), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
   it('gets logged in Microsoft 365 tenant ID if no domain name is passed', (done) => {
@@ -134,9 +141,9 @@ describe(commands.TENANT_ID_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: {} }, () => {
+    command.action(logger, { options: {} }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith('31537af4-6d77-4bb9-a681-d2394888ea26'));
+        assert(loggerLogSpy.calledWith('31537af4-6d77-4bb9-a681-d2394888ea26'));
         Utils.restore(Utils.getUserNameFromAccessToken);
         done();
       }
@@ -218,9 +225,9 @@ describe(commands.TENANT_ID_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: false, domainName: 'contoso.com' } }, () => {
+    command.action(logger, { options: { debug: false, domainName: 'contoso.com' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith('6babcaad-604b-40ac-a9d7-9fd97c0b779f'));
+        assert(loggerLogSpy.calledWith('6babcaad-604b-40ac-a9d7-9fd97c0b779f'));
         done();
       }
       catch (e) {
@@ -249,9 +256,9 @@ describe(commands.TENANT_ID_GET, () => {
       return Promise.reject('Invalid Request');
     });
 
-    cmdInstance.action({ options: { debug: false, domainName: 'xyz.com' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, domainName: 'xyz.com' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError("AADSTS90002: Tenant 'xyz.com' not found. This may happen if there are no active subscriptions for the tenant. Check with your subscription administrator.\r\nTrace ID: 8c0e5644-738f-460f-900c-edb4c918b100\r\nCorrelation ID: 69a7237f-1f84-4b88-aae7-8f7fd46d685a\r\nTimestamp: 2019-06-15 15:41:39Z")));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError("AADSTS90002: Tenant 'xyz.com' not found. This may happen if there are no active subscriptions for the tenant. Check with your subscription administrator.\r\nTrace ID: 8c0e5644-738f-460f-900c-edb4c918b100\r\nCorrelation ID: 69a7237f-1f84-4b88-aae7-8f7fd46d685a\r\nTimestamp: 2019-06-15 15:41:39Z")));
         done();
       }
       catch (e) {
@@ -263,9 +270,9 @@ describe(commands.TENANT_ID_GET, () => {
   it('correctly handles random API error', (done) => {
     sinon.stub(request, 'get').callsFake(() => Promise.reject('An error has occurred'));
 
-    cmdInstance.action({ options: { debug: false, domainName: 'xyz.com' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, domainName: 'xyz.com' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -275,7 +282,7 @@ describe(commands.TENANT_ID_GET, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -283,39 +290,5 @@ describe(commands.TENANT_ID_GET, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TENANT_ID_GET));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

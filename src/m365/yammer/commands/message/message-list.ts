@@ -1,10 +1,9 @@
-import { CommandOption, CommandValidate } from '../../../../Command';
+import { Logger } from '../../../../cli';
+import { CommandOption } from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
 import YammerCommand from '../../../base/YammerCommand';
 import commands from '../../commands';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -47,7 +46,11 @@ class YammerMessageListCommand extends YammerCommand {
     return telemetryProps;
   }
 
-  private getAllItems(cmd: CommandInstance, args: CommandArgs, messageId: number): Promise<void> {
+  public defaultProperties(): string[] | undefined {
+    return ['id', 'replied_to_id', 'thread_id', 'group_id', 'shortBody'];
+  }
+
+  private getAllItems(logger: Logger, args: CommandArgs, messageId: number): Promise<void> {
     return new Promise<void>((resolve: () => void, reject: (error: any) => void): void => {
       let endpoint = `${this.resource}/v1`;
 
@@ -110,7 +113,7 @@ class YammerMessageListCommand extends YammerCommand {
           accept: 'application/json;odata.metadata=none',
           'content-type': 'application/json;odata=nometadata'
         },
-        json: true
+        responseType: 'json'
       };
 
       request
@@ -125,7 +128,7 @@ class YammerMessageListCommand extends YammerCommand {
           else {
             if (res.meta.older_available === true) {
               this
-                .getAllItems(cmd, args, this.items[this.items.length - 1].id)
+                .getAllItems(logger, args, this.items[this.items.length - 1].id)
                 .then((): void => {
                   resolve();
                 }, (err: any): void => {
@@ -142,44 +145,33 @@ class YammerMessageListCommand extends YammerCommand {
     });
   };
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this.items = []; // this will reset the items array in interactive mode
 
     this
-      .getAllItems(cmd, args, -1)
+      .getAllItems(logger, args, -1)
       .then((): void => {
-        if (args.options.output === 'json') {
-          cmd.log(this.items);
-        }
-        else {
-          cmd.log(this.items.map((n: any) => {
-            let shortBody;
-            const bodyToProcess = n.body.plain;
+        this.items.forEach(m => {
+          let shortBody;
+          const bodyToProcess = m.body.plain;
 
-            if (bodyToProcess) {
-              let maxLength = 35;
-              let addedDots = "...";
-              if (bodyToProcess.length < maxLength) {
-                maxLength = bodyToProcess.length;
-                addedDots = "";
-              }
-
-              shortBody = bodyToProcess.replace(/\n/g, ' ').substring(0, maxLength) + addedDots;
+          if (bodyToProcess) {
+            let maxLength = 35;
+            let addedDots = "...";
+            if (bodyToProcess.length < maxLength) {
+              maxLength = bodyToProcess.length;
+              addedDots = "";
             }
 
-            const item: any = {
-              id: n.id,
-              replied_to_id: n.replied_to_id,
-              thread_id: n.thread_id,
-              group_id: n.group_id,
-              shortBody: shortBody
-            };
-            return item;
-          }));
-        }
+            shortBody = bodyToProcess.replace(/\n/g, ' ').substring(0, maxLength) + addedDots;
+          }
 
+          m.shortBody = shortBody;
+        });
+
+        logger.log(this.items);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   };
 
   public options(): CommandOption[] {
@@ -215,87 +207,36 @@ class YammerMessageListCommand extends YammerCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (args.options.groupId && args.options.threadId) {
-        return `You cannot specify groupId and threadId at the same time`;
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.groupId && args.options.threadId) {
+      return `You cannot specify groupId and threadId at the same time`;
+    }
 
-      if (args.options.feedType && (args.options.groupId || args.options.threadId)) {
-        return `You cannot specify the feedType with groupId or threadId at the same time`;
-      }
+    if (args.options.feedType && (args.options.groupId || args.options.threadId)) {
+      return `You cannot specify the feedType with groupId or threadId at the same time`;
+    }
 
-      if (args.options.feedType && YammerMessageListCommand.feedTypes.indexOf(args.options.feedType) < 0) {
-        return `${args.options.feedType} is not a valid value for the feedType option. Allowed values are ${YammerMessageListCommand.feedTypes.join('|')}`;
-      }
+    if (args.options.feedType && YammerMessageListCommand.feedTypes.indexOf(args.options.feedType) < 0) {
+      return `${args.options.feedType} is not a valid value for the feedType option. Allowed values are ${YammerMessageListCommand.feedTypes.join('|')}`;
+    }
 
-      if (args.options.olderThanId && typeof args.options.olderThanId !== 'number') {
-        return `${args.options.olderThanId} is not a number`;
-      }
+    if (args.options.olderThanId && typeof args.options.olderThanId !== 'number') {
+      return `${args.options.olderThanId} is not a number`;
+    }
 
-      if (args.options.groupId && typeof args.options.groupId !== 'number') {
-        return `${args.options.groupId} is not a number`;
-      }
+    if (args.options.groupId && typeof args.options.groupId !== 'number') {
+      return `${args.options.groupId} is not a number`;
+    }
 
-      if (args.options.threadId && typeof args.options.threadId !== 'number') {
-        return `${args.options.threadId} is not a number`;
-      }
+    if (args.options.threadId && typeof args.options.threadId !== 'number') {
+      return `${args.options.threadId} is not a number`;
+    }
 
-      if (args.options.limit && typeof args.options.limit !== 'number') {
-        return `${args.options.limit} is not a number`;
-      }
+    if (args.options.limit && typeof args.options.limit !== 'number') {
+      return `${args.options.limit} is not a number`;
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-  
-    ${chalk.yellow('Attention:')} In order to use this command, you need to grant the Azure AD
-    application used by the CLI for Microsoft 365 the permission to the Yammer API.
-    To do this, execute the ${chalk.blue('cli consent --service yammer')} command.
-
-    Feed types:
-  
-      - All: Corresponds to “All” conversations in the Yammer web interface
-      - Top: The algorithmic feed for the user that corresponds to "Top"
-        conversations. The Top conversations feed is the feed currently shown in
-        the Yammer mobile apps
-      - My: The user’s feed, based on the selection they have made between
-        "Following" and "Top" conversations
-      - Following: The "Following" feed which is conversations involving people
-        and topics that the user is following
-      - Sent: All messages sent by the user
-      - Private: Private messages received by the user
-      - Received: All messages received by the user
-    
-  Examples:
-    
-    Returns all Yammer network messages
-      ${this.name}
-    
-    Returns all Yammer network messages older than the message ID 5611239081
-      ${this.name} --olderThanId 5611239081
-
-    Returns all Yammer network thread starter (first message) for each thread
-      ${this.name} --threaded
-
-    Returns the first 10 Yammer network messages
-      ${this.name} --limit 10
-
-    Returns the first 10 Yammer network messages from the Yammer group 312891231
-      ${this.name} --groupId 312891231 --limit 10
-
-    Returns the first 10 Yammer network messages from thread 5611239081
-      ${this.name} --threadId 5611239081 --limit 10
-    
-    Returns the first 20 Yammer message from the sent feed of the user
-      ${this.name} --feedType Sent --limit 20
-`);
+    return true;
   }
 }
 

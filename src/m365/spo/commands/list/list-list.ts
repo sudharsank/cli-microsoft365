@@ -1,14 +1,12 @@
-import commands from '../../commands';
+import { Logger } from '../../../../cli';
+import {
+  CommandOption
+} from '../../../../Command';
 import GlobalOptions from '../../../../GlobalOptions';
 import request from '../../../../request';
-import {
-  CommandOption,
-  CommandValidate
-} from '../../../../Command';
 import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
 import { ListInstanceCollection } from "./ListInstanceCollection";
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
   options: Options;
@@ -27,49 +25,34 @@ class ListListCommand extends SpoCommand {
     return 'Lists all available list in the specified site';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public defaultProperties(): string[] | undefined {
+    return ['Title', 'Url', 'Id'];
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (this.verbose) {
-      cmd.log(`Retrieving all lists in site at ${args.options.webUrl}...`);
-    }
-
-    let requestUrl: string;
-
-    if (args.options.output === 'json') {
-      requestUrl = `${args.options.webUrl}/_api/web/lists?$expand=RootFolder`;
-    }
-    else {
-      requestUrl = `${args.options.webUrl}/_api/web/lists?$expand=RootFolder&$select=Title,Id,RootFolder/ServerRelativeURL`;
+      logger.logToStderr(`Retrieving all lists in site at ${args.options.webUrl}...`);
     }
 
     const requestOptions: any = {
-      url: requestUrl,
+      url: `${args.options.webUrl}/_api/web/lists?$expand=RootFolder`,
       method: 'GET',
       headers: {
         'accept': 'application/json;odata=nometadata'
       },
-      json: true
+      responseType: 'json'
     };
 
     request
       .get<ListInstanceCollection>(requestOptions)
       .then((listInstances: ListInstanceCollection): void => {
-        if (args.options.output === 'json') {
-          if (listInstances.value) {
-            cmd.log(listInstances.value);
-          }
-        }
-        else {
-          cmd.log(listInstances.value.map(l => {
-            return {
-              Title: l.Title,
-              Url: l.RootFolder.ServerRelativeUrl,
-              Id: l.Id
-            };
-          }));
-        }
+        listInstances.value.forEach(l => {
+          l.Url = l.RootFolder.ServerRelativeUrl;
+        });
 
+        logger.log(listInstances.value);
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -84,30 +67,8 @@ class ListListCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required parameter webUrl missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Examples:
-  
-    Return all lists located in site ${chalk.grey('https://contoso.sharepoint.com/sites/project-x')}
-      ${commands.LIST_LIST} --webUrl https://contoso.sharepoint.com/sites/project-x
-      `);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.webUrl);
   }
 }
 

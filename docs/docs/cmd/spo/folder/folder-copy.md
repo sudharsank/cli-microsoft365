@@ -5,22 +5,24 @@ Copies a folder to another location
 ## Usage
 
 ```sh
-spo folder copy [options]
+m365 spo folder copy [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --webUrl <webUrl>`|The URL of the site where the folder is located
-`-s, --sourceUrl <sourceUrl>`|Site-relative URL of the folder to copy
-`-t, --targetUrl <targetUrl>`|Server-relative URL where to copy the folder
-`--allowSchemaMismatch`|Ignores any missing fields in the target document library and copies the folder anyway
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --webUrl <webUrl>`
+: The URL of the site where the folder is located
+
+`-s, --sourceUrl <sourceUrl>`
+: Site-relative URL of the folder to copy
+
+`-t, --targetUrl <targetUrl>`
+: Server-relative URL where to copy the folder
+
+`--allowSchemaMismatch`
+: Ignores any missing fields in the target document library and copies the folder anyway
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -31,19 +33,19 @@ When you copy a folder with documents that have version history, only the latest
 Copies folder from a document library located in one site collection to another site collection
 
 ```sh
-spo folder copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test2/Shared%20Documents/
+m365 spo folder copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test2/Shared%20Documents/
 ```
 
 Copies folder from a document library to another site in the same site collection
 
 ```sh
-spo folder copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test1/HRDocuments/
+m365 spo folder copy --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test1/HRDocuments/
 ```
 
 Copies folder to a document library in another site collection. Allow for schema mismatch
 
 ```sh
-spo folder cope --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test2/Shared%20Documents/ --allowSchemaMismatch
+m365 spo folder cope --webUrl https://contoso.sharepoint.com/sites/test1 --sourceUrl /Shared%20Documents/MyFolder --targetUrl /sites/test2/Shared%20Documents/ --allowSchemaMismatch
 ```
 
 ## More information

@@ -1,13 +1,13 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import { ContextInfo } from '../../spo';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -34,11 +34,11 @@ class SpoSiteScriptAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     let spoUrl: string = '';
 
     this
-      .getSpoUrl(cmd, this.debug)
+      .getSpoUrl(logger, this.debug)
       .then((_spoUrl: string): Promise<ContextInfo> => {
         spoUrl = _spoUrl;
         return this.getRequestDigest(spoUrl);
@@ -51,21 +51,21 @@ class SpoSiteScriptAddCommand extends SpoCommand {
             'content-type': 'application/json;charset=utf-8',
             accept: 'application/json;odata=nometadata'
           },
-          body: JSON.parse(args.options.content),
-          json: true
+          data: JSON.parse(args.options.content),
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -88,48 +88,15 @@ class SpoSiteScriptAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.title) {
-        return 'Required parameter title missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    try {
+      JSON.parse(args.options.content);
+    }
+    catch (e) {
+      return `Specified content value is not a valid JSON string. Error: ${e}`;
+    }
 
-      if (!args.options.content) {
-        return 'Required parameter content missing';
-      }
-
-      try {
-        JSON.parse(args.options.content);
-      }
-      catch (e) {
-        return `Specified content value is not a valid JSON string. Error: ${e}`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    Each time you execute the ${chalk.blue(this.name)} command, it will create
-    a new site script with a unique ID. Before creating a site script, be sure
-    that another script with the same name doesn't already exist.
-
-  Examples:
-  
-    Create new site script for use with site designs. Script contents are stored
-    in the ${chalk.grey('$script')} variable
-      ${this.name} --title "Contoso" --description "Contoso theme script" --content $script
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-`);
+    return true;
   }
 }
 

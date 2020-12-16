@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
 import { ManifestRule } from './ManifestRule';
 
 class MockManifestRule extends ManifestRule {
@@ -36,6 +36,6 @@ describe('ManifestRule', () => {
   })
 
   it('rule has empty file', () => {
-    assert.equal('', rule.file);
+    assert.strictEqual('', rule.file);
   });
 });

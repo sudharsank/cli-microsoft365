@@ -1,18 +1,19 @@
-import commands from '../commands';
-import Command, { CommandOption, CommandValidate, CommandError } from '../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../appInsights';
 import auth from '../../../Auth';
-const command: Command = require('./flow-list');
-import * as assert from 'assert';
+import { Logger } from '../../../cli';
+import Command, { CommandError } from '../../../Command';
 import request from '../../../request';
 import Utils from '../../../Utils';
+import commands from '../commands';
+const command: Command = require('./flow-list');
 
 describe(commands.FLOW_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +22,24 @@ describe(commands.FLOW_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +53,15 @@ describe(commands.FLOW_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.FLOW_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.FLOW_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['name', 'displayName']);
   });
 
   it('retrieves available Flows (debug)', (done) => {
@@ -194,16 +200,130 @@ describe(commands.FLOW_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
+    command.action(logger, { options: { debug: true, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            name: '1c6ee23a-a835-44bc-a4f5-462b658efc13',
-            displayName: 'Send myself a reminder in 10 minutes'
+            "name": "1c6ee23a-a835-44bc-a4f5-462b658efc13",
+            "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/1c6ee23a-a835-44bc-a4f5-462b658efc13",
+            "type": "Microsoft.ProcessSimple/environments/flows",
+            "properties": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+              "displayName": "Send myself a reminder in 10 minutes",
+              "triggerSchema": {
+                "type": "object",
+                "required": [],
+                "properties": {}
+              },
+              "state": "Started",
+              "createdTime": "2018-03-23T17:58:41.4590149Z",
+              "lastModifiedTime": "2018-03-23T17:58:41.4596534Z",
+              "templateName": "2ec8fd1095d711e69e6b05429ec0d0d7",
+              "environment": {
+                "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "type": "Microsoft.ProcessSimple/environments",
+                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
+              },
+              "definitionSummary": {
+                "triggers": [
+                  {
+                    "type": "Request",
+                    "kind": "Button"
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "Wait"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "SendNotification",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "SendNotification"
+                      }
+                    }
+                  }
+                ],
+                "description": "Use this template to send yourself a custom delayed reminder which can be triggered with a button tap - for example, when you are close to completing a meeting or when you step into the office."
+              },
+              "creator": {
+                "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userType": "ActiveDirectory"
+              },
+              "provisioningMethod": "FromDefinition",
+              "flowFailureAlertSubscribed": true
+            },
+            displayName: "Send myself a reminder in 10 minutes"
           },
           {
-            name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d',
-            displayName: 'Get a daily digest of the top CNN news'
+            "name": "3989cb59-ce1a-4a5c-bb78-257c5c39381d",
+            "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/3989cb59-ce1a-4a5c-bb78-257c5c39381d",
+            "type": "Microsoft.ProcessSimple/environments/flows",
+            "properties": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+              "displayName": "Get a daily digest of the top CNN news",
+              "state": "Started",
+              "createdTime": "2018-03-23T17:59:35.4407282Z",
+              "lastModifiedTime": "2018-03-23T17:59:37.1164508Z",
+              "templateName": "a04de6ce52984b3db0b907f588994bc8",
+              "environment": {
+                "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "type": "Microsoft.ProcessSimple/environments",
+                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
+              },
+              "definitionSummary": {
+                "triggers": [
+                  {
+                    "type": "Recurrence"
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "If"
+                  },
+                  {
+                    "type": "Query"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "ListFeedItems",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "ListFeedItems"
+                      }
+                    }
+                  },
+                  {
+                    "type": "Foreach"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "SendEmailNotification",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "SendEmailNotification"
+                      }
+                    }
+                  },
+                  {
+                    "type": "Compose"
+                  }
+                ],
+                "description": "Each day, get an email with a list of all of the top CNN posts from the last day."
+              },
+              "creator": {
+                "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userType": "ActiveDirectory"
+              },
+              "provisioningMethod": "FromDefinition",
+              "flowFailureAlertSubscribed": true
+            },
+            displayName: "Get a daily digest of the top CNN news"
           }
         ]));
         done();
@@ -350,15 +470,129 @@ describe(commands.FLOW_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            name: '1c6ee23a-a835-44bc-a4f5-462b658efc13',
+            "name": "1c6ee23a-a835-44bc-a4f5-462b658efc13",
+            "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/1c6ee23a-a835-44bc-a4f5-462b658efc13",
+            "type": "Microsoft.ProcessSimple/environments/flows",
+            "properties": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+              "displayName": "Send myself a reminder in 10 minutes",
+              "triggerSchema": {
+                "type": "object",
+                "required": [],
+                "properties": {}
+              },
+              "state": "Started",
+              "createdTime": "2018-03-23T17:58:41.4590149Z",
+              "lastModifiedTime": "2018-03-23T17:58:41.4596534Z",
+              "templateName": "2ec8fd1095d711e69e6b05429ec0d0d7",
+              "environment": {
+                "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "type": "Microsoft.ProcessSimple/environments",
+                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
+              },
+              "definitionSummary": {
+                "triggers": [
+                  {
+                    "type": "Request",
+                    "kind": "Button"
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "Wait"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "SendNotification",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "SendNotification"
+                      }
+                    }
+                  }
+                ],
+                "description": "Use this template to send yourself a custom delayed reminder which can be triggered with a button tap - for example, when you are close to completing a meeting or when you step into the office."
+              },
+              "creator": {
+                "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userType": "ActiveDirectory"
+              },
+              "provisioningMethod": "FromDefinition",
+              "flowFailureAlertSubscribed": true
+            },
             displayName: 'Send myself a reminder in 10 minutes'
           },
           {
-            name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d',
+            "name": "3989cb59-ce1a-4a5c-bb78-257c5c39381d",
+            "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/3989cb59-ce1a-4a5c-bb78-257c5c39381d",
+            "type": "Microsoft.ProcessSimple/environments/flows",
+            "properties": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+              "displayName": "Get a daily digest of the top CNN news",
+              "state": "Started",
+              "createdTime": "2018-03-23T17:59:35.4407282Z",
+              "lastModifiedTime": "2018-03-23T17:59:37.1164508Z",
+              "templateName": "a04de6ce52984b3db0b907f588994bc8",
+              "environment": {
+                "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "type": "Microsoft.ProcessSimple/environments",
+                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
+              },
+              "definitionSummary": {
+                "triggers": [
+                  {
+                    "type": "Recurrence"
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "If"
+                  },
+                  {
+                    "type": "Query"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "ListFeedItems",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "ListFeedItems"
+                      }
+                    }
+                  },
+                  {
+                    "type": "Foreach"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "SendEmailNotification",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "SendEmailNotification"
+                      }
+                    }
+                  },
+                  {
+                    "type": "Compose"
+                  }
+                ],
+                "description": "Each day, get an email with a list of all of the top CNN posts from the last day."
+              },
+              "creator": {
+                "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userType": "ActiveDirectory"
+              },
+              "provisioningMethod": "FromDefinition",
+              "flowFailureAlertSubscribed": true
+            },
             displayName: 'Get a daily digest of the top CNN news'
           }
         ]));
@@ -513,15 +747,129 @@ describe(commands.FLOW_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            name: '1c6ee23a-a835-44bc-a4f5-462b658efc13',
+            "name": "1c6ee23a-a835-44bc-a4f5-462b658efc13",
+            "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/1c6ee23a-a835-44bc-a4f5-462b658efc13",
+            "type": "Microsoft.ProcessSimple/environments/flows",
+            "properties": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+              "displayName": "Send myself a reminder in 10 minutes",
+              "triggerSchema": {
+                "type": "object",
+                "required": [],
+                "properties": {}
+              },
+              "state": "Started",
+              "createdTime": "2018-03-23T17:58:41.4590149Z",
+              "lastModifiedTime": "2018-03-23T17:58:41.4596534Z",
+              "templateName": "2ec8fd1095d711e69e6b05429ec0d0d7",
+              "environment": {
+                "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "type": "Microsoft.ProcessSimple/environments",
+                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
+              },
+              "definitionSummary": {
+                "triggers": [
+                  {
+                    "type": "Request",
+                    "kind": "Button"
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "Wait"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "SendNotification",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "SendNotification"
+                      }
+                    }
+                  }
+                ],
+                "description": "Use this template to send yourself a custom delayed reminder which can be triggered with a button tap - for example, when you are close to completing a meeting or when you step into the office."
+              },
+              "creator": {
+                "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userType": "ActiveDirectory"
+              },
+              "provisioningMethod": "FromDefinition",
+              "flowFailureAlertSubscribed": true
+            },
             displayName: 'Send myself a reminder in 10 minutes'
           },
           {
-            name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d',
+            "name": "3989cb59-ce1a-4a5c-bb78-257c5c39381d",
+            "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/3989cb59-ce1a-4a5c-bb78-257c5c39381d",
+            "type": "Microsoft.ProcessSimple/environments/flows",
+            "properties": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+              "displayName": "Get a daily digest of the top CNN news",
+              "state": "Started",
+              "createdTime": "2018-03-23T17:59:35.4407282Z",
+              "lastModifiedTime": "2018-03-23T17:59:37.1164508Z",
+              "templateName": "a04de6ce52984b3db0b907f588994bc8",
+              "environment": {
+                "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "type": "Microsoft.ProcessSimple/environments",
+                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
+              },
+              "definitionSummary": {
+                "triggers": [
+                  {
+                    "type": "Recurrence"
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "If"
+                  },
+                  {
+                    "type": "Query"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "ListFeedItems",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "ListFeedItems"
+                      }
+                    }
+                  },
+                  {
+                    "type": "Foreach"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "SendEmailNotification",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "SendEmailNotification"
+                      }
+                    }
+                  },
+                  {
+                    "type": "Compose"
+                  }
+                ],
+                "description": "Each day, get an email with a list of all of the top CNN posts from the last day."
+              },
+              "creator": {
+                "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userType": "ActiveDirectory"
+              },
+              "provisioningMethod": "FromDefinition",
+              "flowFailureAlertSubscribed": true
+            },
             displayName: 'Get a daily digest of the top CNN news'
           }
         ]));
@@ -669,15 +1017,129 @@ describe(commands.FLOW_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', asAdmin: true } }, () => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', asAdmin: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            name: '1c6ee23a-a835-44bc-a4f5-462b658efc13',
+            "name": "1c6ee23a-a835-44bc-a4f5-462b658efc13",
+            "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/1c6ee23a-a835-44bc-a4f5-462b658efc13",
+            "type": "Microsoft.ProcessSimple/environments/flows",
+            "properties": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+              "displayName": "Send myself a reminder in 10 minutes",
+              "triggerSchema": {
+                "type": "object",
+                "required": [],
+                "properties": {}
+              },
+              "state": "Started",
+              "createdTime": "2018-03-23T17:58:41.4590149Z",
+              "lastModifiedTime": "2018-03-23T17:58:41.4596534Z",
+              "templateName": "2ec8fd1095d711e69e6b05429ec0d0d7",
+              "environment": {
+                "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "type": "Microsoft.ProcessSimple/environments",
+                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
+              },
+              "definitionSummary": {
+                "triggers": [
+                  {
+                    "type": "Request",
+                    "kind": "Button"
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "Wait"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "SendNotification",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "SendNotification"
+                      }
+                    }
+                  }
+                ],
+                "description": "Use this template to send yourself a custom delayed reminder which can be triggered with a button tap - for example, when you are close to completing a meeting or when you step into the office."
+              },
+              "creator": {
+                "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userType": "ActiveDirectory"
+              },
+              "provisioningMethod": "FromDefinition",
+              "flowFailureAlertSubscribed": true
+            },
             displayName: 'Send myself a reminder in 10 minutes'
           },
           {
-            name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d',
+            "name": "3989cb59-ce1a-4a5c-bb78-257c5c39381d",
+            "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/3989cb59-ce1a-4a5c-bb78-257c5c39381d",
+            "type": "Microsoft.ProcessSimple/environments/flows",
+            "properties": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+              "displayName": "Get a daily digest of the top CNN news",
+              "state": "Started",
+              "createdTime": "2018-03-23T17:59:35.4407282Z",
+              "lastModifiedTime": "2018-03-23T17:59:37.1164508Z",
+              "templateName": "a04de6ce52984b3db0b907f588994bc8",
+              "environment": {
+                "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "type": "Microsoft.ProcessSimple/environments",
+                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
+              },
+              "definitionSummary": {
+                "triggers": [
+                  {
+                    "type": "Recurrence"
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "If"
+                  },
+                  {
+                    "type": "Query"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "ListFeedItems",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "ListFeedItems"
+                      }
+                    }
+                  },
+                  {
+                    "type": "Foreach"
+                  },
+                  {
+                    "type": "ApiConnection",
+                    "swaggerOperationId": "SendEmailNotification",
+                    "metadata": {
+                      "flowSystemMetadata": {
+                        "swaggerOperationId": "SendEmailNotification"
+                      }
+                    }
+                  },
+                  {
+                    "type": "Compose"
+                  }
+                ],
+                "description": "Each day, get an email with a list of all of the top CNN posts from the last day."
+              },
+              "creator": {
+                "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
+                "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
+                "userType": "ActiveDirectory"
+              },
+              "provisioningMethod": "FromDefinition",
+              "flowFailureAlertSubscribed": true
+            },
             displayName: 'Get a daily digest of the top CNN news'
           }
         ]));
@@ -836,165 +1298,9 @@ describe(commands.FLOW_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', asAdmin: true } }, () => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', asAdmin: true } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
-          {
-            name: '1c6ee23a-a835-44bc-a4f5-462b658efc13',
-            displayName: 'Send myself a reminder in 10 minutes'
-          },
-          {
-            name: '3989cb59-ce1a-4a5c-bb78-257c5c39381d',
-            displayName: 'Get a daily digest of the top CNN news'
-          }
-        ]));
-        done();
-      }
-      catch (e) {
-        done(e);
-      }
-    });
-  });
-
-  it('outputs all properties when output is JSON', (done) => {
-    sinon.stub(request, 'get').callsFake((opts) => {
-      if ((opts.url as string).indexOf(`providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows?api-version=2016-11-01`) > -1) {
-        if (opts.headers &&
-          opts.headers.accept &&
-          opts.headers.accept.indexOf('application/json') === 0) {
-          return Promise.resolve({
-            "value": [
-              {
-                "name": "1c6ee23a-a835-44bc-a4f5-462b658efc13",
-                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/1c6ee23a-a835-44bc-a4f5-462b658efc13",
-                "type": "Microsoft.ProcessSimple/environments/flows",
-                "properties": {
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
-                  "displayName": "Send myself a reminder in 10 minutes",
-                  "triggerSchema": {
-                    "type": "object",
-                    "required": [],
-                    "properties": {}
-                  },
-                  "state": "Started",
-                  "createdTime": "2018-03-23T17:58:41.4590149Z",
-                  "lastModifiedTime": "2018-03-23T17:58:41.4596534Z",
-                  "templateName": "2ec8fd1095d711e69e6b05429ec0d0d7",
-                  "environment": {
-                    "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
-                    "type": "Microsoft.ProcessSimple/environments",
-                    "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
-                  },
-                  "definitionSummary": {
-                    "triggers": [
-                      {
-                        "type": "Request",
-                        "kind": "Button"
-                      }
-                    ],
-                    "actions": [
-                      {
-                        "type": "Wait"
-                      },
-                      {
-                        "type": "ApiConnection",
-                        "swaggerOperationId": "SendNotification",
-                        "metadata": {
-                          "flowSystemMetadata": {
-                            "swaggerOperationId": "SendNotification"
-                          }
-                        }
-                      }
-                    ],
-                    "description": "Use this template to send yourself a custom delayed reminder which can be triggered with a button tap - for example, when you are close to completing a meeting or when you step into the office."
-                  },
-                  "creator": {
-                    "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
-                    "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
-                    "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
-                    "userType": "ActiveDirectory"
-                  },
-                  "provisioningMethod": "FromDefinition",
-                  "flowFailureAlertSubscribed": true
-                }
-              },
-              {
-                "name": "3989cb59-ce1a-4a5c-bb78-257c5c39381d",
-                "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/3989cb59-ce1a-4a5c-bb78-257c5c39381d",
-                "type": "Microsoft.ProcessSimple/environments/flows",
-                "properties": {
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
-                  "displayName": "Get a daily digest of the top CNN news",
-                  "state": "Started",
-                  "createdTime": "2018-03-23T17:59:35.4407282Z",
-                  "lastModifiedTime": "2018-03-23T17:59:37.1164508Z",
-                  "templateName": "a04de6ce52984b3db0b907f588994bc8",
-                  "environment": {
-                    "name": "Default-d87a7535-dd31-4437-bfe1-95340acd55c5",
-                    "type": "Microsoft.ProcessSimple/environments",
-                    "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5"
-                  },
-                  "definitionSummary": {
-                    "triggers": [
-                      {
-                        "type": "Recurrence"
-                      }
-                    ],
-                    "actions": [
-                      {
-                        "type": "If"
-                      },
-                      {
-                        "type": "Query"
-                      },
-                      {
-                        "type": "ApiConnection",
-                        "swaggerOperationId": "ListFeedItems",
-                        "metadata": {
-                          "flowSystemMetadata": {
-                            "swaggerOperationId": "ListFeedItems"
-                          }
-                        }
-                      },
-                      {
-                        "type": "Foreach"
-                      },
-                      {
-                        "type": "ApiConnection",
-                        "swaggerOperationId": "SendEmailNotification",
-                        "metadata": {
-                          "flowSystemMetadata": {
-                            "swaggerOperationId": "SendEmailNotification"
-                          }
-                        }
-                      },
-                      {
-                        "type": "Compose"
-                      }
-                    ],
-                    "description": "Each day, get an email with a list of all of the top CNN posts from the last day."
-                  },
-                  "creator": {
-                    "tenantId": "d87a7535-dd31-4437-bfe1-95340acd55c5",
-                    "objectId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
-                    "userId": "da8f7aea-cf43-497f-ad62-c2feae89a194",
-                    "userType": "ActiveDirectory"
-                  },
-                  "provisioningMethod": "FromDefinition",
-                  "flowFailureAlertSubscribed": true
-                }
-              }
-            ]
-          });
-        }
-      }
-
-      return Promise.reject('Invalid request');
-    });
-
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5', output: 'json' } }, () => {
-      try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             "name": "1c6ee23a-a835-44bc-a4f5-462b658efc13",
             "id": "/providers/Microsoft.ProcessSimple/environments/Default-d87a7535-dd31-4437-bfe1-95340acd55c5/flows/1c6ee23a-a835-44bc-a4f5-462b658efc13",
@@ -1047,7 +1353,8 @@ describe(commands.FLOW_LIST, () => {
               },
               "provisioningMethod": "FromDefinition",
               "flowFailureAlertSubscribed": true
-            }
+            },
+            displayName: 'Send myself a reminder in 10 minutes'
           },
           {
             "name": "3989cb59-ce1a-4a5c-bb78-257c5c39381d",
@@ -1113,7 +1420,8 @@ describe(commands.FLOW_LIST, () => {
               },
               "provisioningMethod": "FromDefinition",
               "flowFailureAlertSubscribed": true
-            }
+            },
+            displayName: 'Get a daily digest of the top CNN news'
           }
         ]));
         done();
@@ -1134,9 +1442,9 @@ describe(commands.FLOW_LIST, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError(`Access to the environment 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' is denied.`)));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Access to the environment 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' is denied.`)));
         done();
       }
       catch (e) {
@@ -1150,9 +1458,9 @@ describe(commands.FLOW_LIST, () => {
       return Promise.resolve({ value: [] });
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' } }, () => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -1166,9 +1474,9 @@ describe(commands.FLOW_LIST, () => {
       return Promise.resolve({ value: [] });
     });
 
-    cmdInstance.action({ options: { debug: true, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' } }, () => {
+    command.action(logger, { options: { debug: true, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c6' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith('No Flows found'));
+        assert(loggerLogToStderrSpy.calledWith('No Flows found'));
         done();
       }
       catch (e) {
@@ -1191,9 +1499,9 @@ describe(commands.FLOW_LIST, () => {
       });
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -1285,9 +1593,9 @@ describe(commands.FLOW_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -1296,18 +1604,8 @@ describe(commands.FLOW_LIST, () => {
     });
   });
 
-  it('fails validation if the environment name is not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
-  it('passes validation when the environment name option specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { environment: 'Default-d87a7535-dd31-4437-bfe1-95340acd55c5' } });
-    assert.equal(actual, true);
-  });
-
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -1318,7 +1616,7 @@ describe(commands.FLOW_LIST, () => {
   });
 
   it('supports specifying environment name', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--environment') > -1) {
@@ -1329,7 +1627,7 @@ describe(commands.FLOW_LIST, () => {
   });
 
   it('supports specifying option to retrieve Flows as admin', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option.indexOf('--asAdmin') > -1) {
@@ -1337,39 +1635,5 @@ describe(commands.FLOW_LIST, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.FLOW_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

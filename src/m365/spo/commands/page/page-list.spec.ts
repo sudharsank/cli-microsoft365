@@ -1,18 +1,18 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./page-list');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./page-list');
 
 describe(commands.PAGE_LIST, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
   
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
@@ -21,23 +21,23 @@ describe(commands.PAGE_LIST, () => {
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get
     ]);
   });
@@ -51,11 +51,15 @@ describe(commands.PAGE_LIST, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.PAGE_LIST), true);
+    assert.strictEqual(command.name.startsWith(commands.PAGE_LIST), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
+  });
+
+  it('defines correct properties for the default output', () => {
+    assert.deepStrictEqual(command.defaultProperties(), ['Name', 'Title']);
   });
 
   it('lists all modern pages', (done) => {
@@ -180,16 +184,118 @@ describe(commands.PAGE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            Name: 'page_118.aspx',
-            Title: 'page_118'
+            "ListItemAllFields": {
+              "FileSystemObjectType": 0,
+              "Id": 122,
+              "ServerRedirectedEmbedUri": null,
+              "ServerRedirectedEmbedUrl": "",
+              "ContentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C41180023536E5F3BB7DA449A374D731B978084",
+              "ComplianceAssetId": null,
+              "WikiField": null,
+              "Title": "page_118",
+              "ClientSideApplicationId": "b6917cb1-93a0-4b97-a84d-7cf49975d4ec",
+              "CanvasContent1": "<div></div>",
+              "BannerImageUrl": {
+                "Description": "/_layouts/15/images/sitepagethumbnail.png",
+                "Url": "https://contoso.sharepoint.com/_layouts/15/images/sitepagethumbnail.png"
+              },
+              "Description": null,
+              "PromotedState": 0,
+              "FirstPublishedDate": null,
+              "LayoutWebpartsContent": null,
+              "AuthorsId": null,
+              "AuthorsStringId": null,
+              "OriginalSourceUrl": null,
+              "ID": 122,
+              "Created": "2018-03-13T13:18:00",
+              "AuthorId": 6,
+              "Modified": "2018-03-13T13:18:01",
+              "EditorId": 6,
+              "OData__CopySource": null,
+              "CheckoutUserId": null,
+              "OData__UIVersionString": "0.3",
+              "GUID": "b8920589-bbed-4e21-a1c1-1f4d93118caf"
+            },
+            "CheckInComment": "",
+            "CheckOutType": 2,
+            "ContentTag": "{6707E2AF-14B5-4FF1-A25D-001C6B44EEC2},3,2",
+            "CustomizedPageStatus": 2,
+            "ETag": "\"{6707E2AF-14B5-4FF1-A25D-001C6B44EEC2},3\"",
+            "Exists": true,
+            "IrmEnabled": false,
+            "Length": "1899",
+            "Level": 2,
+            "LinkingUri": null,
+            "LinkingUrl": "",
+            "MajorVersion": 0,
+            "MinorVersion": 3,
+            "Name": "page_118.aspx",
+            "ServerRelativeUrl": "/sites/team-a/SitePages/page_118.aspx",
+            "TimeCreated": "2018-03-13T20:18:00Z",
+            "TimeLastModified": "2018-03-13T20:18:01Z",
+            "Title": "page_118",
+            "UIVersion": 3,
+            "UIVersionLabel": "0.3",
+            "UniqueId": "6707e2af-14b5-4ff1-a25d-001c6b44eec2"
           },
           {
-            Name: 'page_719.aspx',
-            Title: 'page_719'
+            "ListItemAllFields": {
+              "FileSystemObjectType": 0,
+              "Id": 723,
+              "ServerRedirectedEmbedUri": null,
+              "ServerRedirectedEmbedUrl": "",
+              "ContentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C41180023536E5F3BB7DA449A374D731B978084",
+              "ComplianceAssetId": null,
+              "WikiField": null,
+              "Title": "page_719",
+              "ClientSideApplicationId": "b6917cb1-93a0-4b97-a84d-7cf49975d4ec",
+              "CanvasContent1": "<div></div>",
+              "BannerImageUrl": {
+                "Description": "/_layouts/15/images/sitepagethumbnail.png",
+                "Url": "https://contoso.sharepoint.com/_layouts/15/images/sitepagethumbnail.png"
+              },
+              "Description": null,
+              "PromotedState": 0,
+              "FirstPublishedDate": null,
+              "LayoutWebpartsContent": null,
+              "AuthorsId": null,
+              "AuthorsStringId": null,
+              "OriginalSourceUrl": null,
+              "ID": 723,
+              "Created": "2018-03-13T13:31:43",
+              "AuthorId": 6,
+              "Modified": "2018-03-13T13:31:44",
+              "EditorId": 6,
+              "OData__CopySource": null,
+              "CheckoutUserId": null,
+              "OData__UIVersionString": "0.3",
+              "GUID": "e8cd0967-d340-4f48-aec6-b0fb73714f98"
+            },
+            "CheckInComment": "",
+            "CheckOutType": 2,
+            "ContentTag": "{3CCC58F9-7892-4132-9B0C-003686AB7C68},3,2",
+            "CustomizedPageStatus": 2,
+            "ETag": "\"{3CCC58F9-7892-4132-9B0C-003686AB7C68},3\"",
+            "Exists": true,
+            "IrmEnabled": false,
+            "Length": "1899",
+            "Level": 2,
+            "LinkingUri": null,
+            "LinkingUrl": "",
+            "MajorVersion": 0,
+            "MinorVersion": 3,
+            "Name": "page_719.aspx",
+            "ServerRelativeUrl": "/sites/team-a/SitePages/page_719.aspx",
+            "TimeCreated": "2018-03-13T20:31:43Z",
+            "TimeLastModified": "2018-03-13T20:31:44Z",
+            "Title": "page_719",
+            "UIVersion": 3,
+            "UIVersionLabel": "0.3",
+            "UniqueId": "3ccc58f9-7892-4132-9b0c-003686ab7c68"
           }
         ]));
         done();
@@ -322,16 +428,118 @@ describe(commands.PAGE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: true, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: true, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
-            Name: 'page_118.aspx',
-            Title: 'page_118'
+            "ListItemAllFields": {
+              "FileSystemObjectType": 0,
+              "Id": 122,
+              "ServerRedirectedEmbedUri": null,
+              "ServerRedirectedEmbedUrl": "",
+              "ContentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C41180023536E5F3BB7DA449A374D731B978084",
+              "ComplianceAssetId": null,
+              "WikiField": null,
+              "Title": "page_118",
+              "ClientSideApplicationId": "b6917cb1-93a0-4b97-a84d-7cf49975d4ec",
+              "CanvasContent1": "<div></div>",
+              "BannerImageUrl": {
+                "Description": "/_layouts/15/images/sitepagethumbnail.png",
+                "Url": "https://contoso.sharepoint.com/_layouts/15/images/sitepagethumbnail.png"
+              },
+              "Description": null,
+              "PromotedState": 0,
+              "FirstPublishedDate": null,
+              "LayoutWebpartsContent": null,
+              "AuthorsId": null,
+              "AuthorsStringId": null,
+              "OriginalSourceUrl": null,
+              "ID": 122,
+              "Created": "2018-03-13T13:18:00",
+              "AuthorId": 6,
+              "Modified": "2018-03-13T13:18:01",
+              "EditorId": 6,
+              "OData__CopySource": null,
+              "CheckoutUserId": null,
+              "OData__UIVersionString": "0.3",
+              "GUID": "b8920589-bbed-4e21-a1c1-1f4d93118caf"
+            },
+            "CheckInComment": "",
+            "CheckOutType": 2,
+            "ContentTag": "{6707E2AF-14B5-4FF1-A25D-001C6B44EEC2},3,2",
+            "CustomizedPageStatus": 2,
+            "ETag": "\"{6707E2AF-14B5-4FF1-A25D-001C6B44EEC2},3\"",
+            "Exists": true,
+            "IrmEnabled": false,
+            "Length": "1899",
+            "Level": 2,
+            "LinkingUri": null,
+            "LinkingUrl": "",
+            "MajorVersion": 0,
+            "MinorVersion": 3,
+            "Name": "page_118.aspx",
+            "ServerRelativeUrl": "/sites/team-a/SitePages/page_118.aspx",
+            "TimeCreated": "2018-03-13T20:18:00Z",
+            "TimeLastModified": "2018-03-13T20:18:01Z",
+            "Title": "page_118",
+            "UIVersion": 3,
+            "UIVersionLabel": "0.3",
+            "UniqueId": "6707e2af-14b5-4ff1-a25d-001c6b44eec2"
           },
           {
-            Name: 'page_719.aspx',
-            Title: 'page_719'
+            "ListItemAllFields": {
+              "FileSystemObjectType": 0,
+              "Id": 723,
+              "ServerRedirectedEmbedUri": null,
+              "ServerRedirectedEmbedUrl": "",
+              "ContentTypeId": "0x0101009D1CB255DA76424F860D91F20E6C41180023536E5F3BB7DA449A374D731B978084",
+              "ComplianceAssetId": null,
+              "WikiField": null,
+              "Title": "page_719",
+              "ClientSideApplicationId": "b6917cb1-93a0-4b97-a84d-7cf49975d4ec",
+              "CanvasContent1": "<div></div>",
+              "BannerImageUrl": {
+                "Description": "/_layouts/15/images/sitepagethumbnail.png",
+                "Url": "https://contoso.sharepoint.com/_layouts/15/images/sitepagethumbnail.png"
+              },
+              "Description": null,
+              "PromotedState": 0,
+              "FirstPublishedDate": null,
+              "LayoutWebpartsContent": null,
+              "AuthorsId": null,
+              "AuthorsStringId": null,
+              "OriginalSourceUrl": null,
+              "ID": 723,
+              "Created": "2018-03-13T13:31:43",
+              "AuthorId": 6,
+              "Modified": "2018-03-13T13:31:44",
+              "EditorId": 6,
+              "OData__CopySource": null,
+              "CheckoutUserId": null,
+              "OData__UIVersionString": "0.3",
+              "GUID": "e8cd0967-d340-4f48-aec6-b0fb73714f98"
+            },
+            "CheckInComment": "",
+            "CheckOutType": 2,
+            "ContentTag": "{3CCC58F9-7892-4132-9B0C-003686AB7C68},3,2",
+            "CustomizedPageStatus": 2,
+            "ETag": "\"{3CCC58F9-7892-4132-9B0C-003686AB7C68},3\"",
+            "Exists": true,
+            "IrmEnabled": false,
+            "Length": "1899",
+            "Level": 2,
+            "LinkingUri": null,
+            "LinkingUrl": "",
+            "MajorVersion": 0,
+            "MinorVersion": 3,
+            "Name": "page_719.aspx",
+            "ServerRelativeUrl": "/sites/team-a/SitePages/page_719.aspx",
+            "TimeCreated": "2018-03-13T20:31:43Z",
+            "TimeLastModified": "2018-03-13T20:31:44Z",
+            "Title": "page_719",
+            "UIVersion": 3,
+            "UIVersionLabel": "0.3",
+            "UniqueId": "3ccc58f9-7892-4132-9b0c-003686ab7c68"
           }
         ]));
         done();
@@ -464,9 +672,9 @@ describe(commands.PAGE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, output: 'json', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: false, output: 'json', webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith([
+        assert(loggerLogSpy.calledWith([
           {
             "ListItemAllFields": {
               "FileSystemObjectType": 0,
@@ -595,9 +803,9 @@ describe(commands.PAGE_LIST, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, () => {
       try {
-        assert(cmdInstanceLogSpy.notCalled);
+        assert(loggerLogSpy.notCalled);
         done();
       }
       catch (e) {
@@ -611,9 +819,9 @@ describe(commands.PAGE_LIST, () => {
       return Promise.reject({ error: { 'odata.error': { message: { value: 'An error has occurred' } } } });
     });
 
-    cmdInstance.action({ options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } }, (err?: any) => {
+    command.action(logger, { options: { debug: false, webUrl: 'https://contoso.sharepoint.com/sites/team-a' } } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -623,7 +831,7 @@ describe(commands.PAGE_LIST, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -633,52 +841,13 @@ describe(commands.PAGE_LIST, () => {
     assert(containsOption);
   });
 
-  it('fails validation if the webUrl option not specified', () => {
-    const actual = (command.validate() as CommandValidate)({ options: {} });
-    assert.notEqual(actual, true);
-  });
-
   it('fails validation if the webUrl option is not a valid SharePoint site URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'foo' } });
-    assert.notEqual(actual, true);
+    const actual = command.validate({ options: { webUrl: 'foo' } });
+    assert.notStrictEqual(actual, true);
   });
 
   it('passes validation when the webUrl is a valid SharePoint URL', () => {
-    const actual = (command.validate() as CommandValidate)({ options: { webUrl: 'https://contoso.sharepoint.com' } });
-    assert.equal(actual, true);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.PAGE_LIST));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
+    const actual = command.validate({ options: { webUrl: 'https://contoso.sharepoint.com' } });
+    assert.strictEqual(actual, true);
   });
 });

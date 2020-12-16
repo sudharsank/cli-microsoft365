@@ -5,19 +5,15 @@ Disables site classification
 ## Usage
 
 ```sh
-aad siteclassification disable [options]
+m365 aad siteclassification disable [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`--confirm`|Don't prompt for confirming disabling site classification
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`--confirm`
+: Don't prompt for confirming disabling site classification
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -29,13 +25,13 @@ Option|Description
 Disable site classification
 
 ```sh
-aad siteclassification disable
+m365 aad siteclassification disable
 ```
 
 Disable site classification without confirmation
 
 ```sh
-aad siteclassification disable --confirm
+m365 aad siteclassification disable --confirm
 ```
 
 ## More information

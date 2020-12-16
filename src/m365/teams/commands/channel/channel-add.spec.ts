@@ -1,44 +1,47 @@
-import commands from '../../commands';
-import Command, { CommandOption, CommandError, CommandValidate } from '../../../../Command';
+import * as assert from 'assert';
+import * as chalk from 'chalk';
 import * as sinon from 'sinon';
 import appInsights from '../../../../appInsights';
 import auth from '../../../../Auth';
-const command: Command = require('./channel-add');
-import * as assert from 'assert';
+import { Logger } from '../../../../cli';
+import Command, { CommandError } from '../../../../Command';
 import request from '../../../../request';
 import Utils from '../../../../Utils';
+import commands from '../../commands';
+const command: Command = require('./channel-add');
 
 describe(commands.TEAMS_CHANNEL_ADD, () => {
-  let vorpal: Vorpal;
   let log: string[];
-  let cmdInstance: any;
-  let cmdInstanceLogSpy: sinon.SinonSpy;
+  let logger: Logger;
+  let loggerLogSpy: sinon.SinonSpy;
+  let loggerLogToStderrSpy: sinon.SinonSpy;
 
   before(() => {
     sinon.stub(auth, 'restoreAuth').callsFake(() => Promise.resolve());
-    sinon.stub(appInsights, 'trackEvent').callsFake(() => {});
+    sinon.stub(appInsights, 'trackEvent').callsFake(() => { });
     auth.service.connected = true;
   });
 
   beforeEach(() => {
-    vorpal = require('../../../../vorpal-init');
     log = [];
-    cmdInstance = {
-      commandWrapper: {
-        command: command.name
-      },
-      action: command.action(),
+    logger = {
       log: (msg: string) => {
+        log.push(msg);
+      },
+      logRaw: (msg: string) => {
+        log.push(msg);
+      },
+      logToStderr: (msg: string) => {
         log.push(msg);
       }
     };
-    cmdInstanceLogSpy = sinon.spy(cmdInstance, 'log');
+    loggerLogSpy = sinon.spy(logger, 'log');
+    loggerLogToStderrSpy = sinon.spy(logger, 'logToStderr');
     (command as any).items = [];
   });
 
   afterEach(() => {
     Utils.restore([
-      vorpal.find,
       request.get,
       request.post
     ]);
@@ -53,57 +56,156 @@ describe(commands.TEAMS_CHANNEL_ADD, () => {
   });
 
   it('has correct name', () => {
-    assert.equal(command.name.startsWith(commands.TEAMS_CHANNEL_ADD), true);
+    assert.strictEqual(command.name.startsWith(commands.TEAMS_CHANNEL_ADD), true);
   });
 
   it('has a description', () => {
-    assert.notEqual(command.description, null);
+    assert.notStrictEqual(command.description, null);
   });
 
-  it('fails validation if the name is not provided.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+  it('fails validation if both teamId and teamName options are passed', (done) => {
+    const actual = command.validate({
       options: {
-        teamId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402'
+        teamId: '00000000-0000-0000-0000-000000000000',
+        teamName: 'Team Name',
+        name: 'Architecture Discussion',
+        description: 'Architecture'
       }
     });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
+    done();
+  });
+
+  it('fails validation if both channelId and channelName options are not passed', (done) => {
+    const actual = command.validate({
+      options: {
+        name: 'Architecture Discussion',
+        description: 'Architecture'
+      }
+    });
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('fails validation if the teamId is not a valid guid.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
-        teamId: '61703ac8a-c49b-4fd4-8223-28f0ac3a6402'
+        teamId: '61703ac8a-c49b-4fd4-8223-28f0ac3a6402',
+        name: 'Architecture Discussion',
+        description: 'Architecture'
       }
     });
-    assert.notEqual(actual, true);
-    done();
-  });
-
-
-  it('fails validation if the teamId is not provided.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
-      options: {
-        name: 'Architecture'
-      }
-    });
-    assert.notEqual(actual, true);
+    assert.notStrictEqual(actual, true);
     done();
   });
 
   it('validates for a correct input.', (done) => {
-    const actual = (command.validate() as CommandValidate)({
+    const actual = command.validate({
       options: {
         teamId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
         name: 'Architecture',
         description: 'Architecture meeting'
       }
     });
-    assert.equal(actual, true);
+    assert.strictEqual(actual, true);
     done();
   });
 
-  it('creates channel within the Microsoft Teams team in the tenant with description', (done) => {
+  it('fails to get team when team does not exists', (done) => {
+    sinon.stub(request, 'get').callsFake((opts) => {
+      if ((opts.url as string).indexOf(`/me/joinedTeams?$filter=displayName eq '`) > -1) {
+        return Promise.resolve({ value: [] });
+      }
+      return Promise.reject('The specified team does not exist in the Microsoft Teams');
+    });
+
+    command.action(logger, {
+      options: {
+        debug: true,
+        teamName: 'Team Name',
+        name: 'Architecture Discussion',
+        description: 'Architecture'
+      }
+    }, (err?: any) => {
+      try {
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`The specified team does not exist in the Microsoft Teams`)));
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+    });
+  });
+
+  it('fails when multiple teams with same name exists', (done) => {
+    sinon.stub(request, 'get').callsFake((opts) => {
+      if ((opts.url as string).indexOf(`/me/joinedTeams?$filter=displayName eq '`) > -1) {
+        return Promise.resolve({
+          "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#teams",
+          "@odata.count": 2,
+          "value": [
+            {
+              "id": "00000000-0000-0000-0000-000000000000",
+              "createdDateTime": null,
+              "displayName": "Team Name",
+              "description": "Team Description",
+              "internalId": null,
+              "classification": null,
+              "specialization": null,
+              "visibility": null,
+              "webUrl": null,
+              "isArchived": false,
+              "isMembershipLimitedToOwners": null,
+              "memberSettings": null,
+              "guestSettings": null,
+              "messagingSettings": null,
+              "funSettings": null,
+              "discoverySettings": null
+            },
+            {
+              "id": "00000000-0000-0000-0000-000000000000",
+              "createdDateTime": null,
+              "displayName": "Team Name",
+              "description": "Team Description",
+              "internalId": null,
+              "classification": null,
+              "specialization": null,
+              "visibility": null,
+              "webUrl": null,
+              "isArchived": false,
+              "isMembershipLimitedToOwners": null,
+              "memberSettings": null,
+              "guestSettings": null,
+              "messagingSettings": null,
+              "funSettings": null,
+              "discoverySettings": null
+            }
+          ]
+        });
+      }
+
+      return Promise.reject('Invalid request');
+    });
+
+    command.action(logger, {
+      options: {
+        debug: true,
+        teamName: 'Team Name',
+        name: 'Architecture Discussion',
+        description: 'Architecture'
+      }
+    }, (err?: any) => {
+      try {
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError(`Multiple Microsoft Teams teams with name Team Name found: 00000000-0000-0000-0000-000000000000,00000000-0000-0000-0000-000000000000`)));
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+    });
+  });
+
+  it('creates channel within the Microsoft Teams team in the tenant with description by team id', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/teams/6703ac8a-c49b-4fd4-8223-28f0ac3a6402/channels`) {
         return Promise.resolve({
@@ -115,8 +217,7 @@ describe(commands.TEAMS_CHANNEL_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: true,
         teamId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
@@ -125,12 +226,12 @@ describe(commands.TEAMS_CHANNEL_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
           "id": "19:d9c63a6d6a2644af960d74ea927bdfb0@thread.skype",
           "displayName": "Architecture Discussion",
           "description": "Architecture"
         }));
-        assert(cmdInstanceLogSpy.calledWith(vorpal.chalk.green('DONE')));
+        assert(loggerLogToStderrSpy.calledWith(chalk.green('DONE')));
         done();
       }
       catch (e) {
@@ -139,7 +240,7 @@ describe(commands.TEAMS_CHANNEL_ADD, () => {
     });
   });
 
-  it('creates channel within the Microsoft Teams team in the tenant without description', (done) => {
+  it('creates channel within the Microsoft Teams team in the tenant without description by team id', (done) => {
     sinon.stub(request, 'post').callsFake((opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/teams/6703ac8a-c49b-4fd4-8223-28f0ac3a6402/channels`) {
         return Promise.resolve({
@@ -151,8 +252,7 @@ describe(commands.TEAMS_CHANNEL_ADD, () => {
       return Promise.reject('Invalid request');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         teamId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
@@ -160,7 +260,70 @@ describe(commands.TEAMS_CHANNEL_ADD, () => {
       }
     }, () => {
       try {
-        assert(cmdInstanceLogSpy.calledWith({
+        assert(loggerLogSpy.calledWith({
+          "id": "19:d9c63a6d6a2644af960d74ea927bdfb0@thread.skype",
+          "displayName": "Architecture Discussion",
+          "description": null
+        }));
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+    });
+  });
+
+  it('creates channel within the Microsoft Teams team in the tenant by team name', (done) => {
+    sinon.stub(request, 'get').callsFake((opts) => {
+      if ((opts.url as string).indexOf(`/me/joinedTeams?$filter=displayName eq '`) > -1) {
+        return Promise.resolve({
+          "value": [
+            {
+              "id": "00000000-0000-0000-0000-000000000000",
+              "createdDateTime": null,
+              "displayName": "Team Name",
+              "description": "Team Description",
+              "internalId": null,
+              "classification": null,
+              "specialization": null,
+              "visibility": null,
+              "webUrl": null,
+              "isArchived": false,
+              "isMembershipLimitedToOwners": null,
+              "memberSettings": null,
+              "guestSettings": null,
+              "messagingSettings": null,
+              "funSettings": null,
+              "discoverySettings": null
+            }
+          ]
+        });
+      }
+
+      return Promise.reject('Invalid request');
+    });
+
+    sinon.stub(request, 'post').callsFake((opts) => {
+      if ((opts.url as string).indexOf(`/channels`) > -1) {
+        return Promise.resolve({
+          "id": "19:d9c63a6d6a2644af960d74ea927bdfb0@thread.skype",
+          "displayName": "Architecture Discussion",
+          "description": null
+        });
+      }
+
+      return Promise.reject('Invalid request');
+    });
+
+    command.action(logger, {
+      options: {
+        debug: true,
+        teamName: 'Team Name',
+        name: 'Architecture Discussion'
+      }
+    }, () => {
+      try {
+        assert(loggerLogSpy.calledWith({
           "id": "19:d9c63a6d6a2644af960d74ea927bdfb0@thread.skype",
           "displayName": "Architecture Discussion",
           "description": null
@@ -178,16 +341,15 @@ describe(commands.TEAMS_CHANNEL_ADD, () => {
       return Promise.reject('An error has occurred');
     });
 
-    cmdInstance.action = command.action();
-    cmdInstance.action({
+    command.action(logger, {
       options: {
         debug: false,
         teamId: '6703ac8a-c49b-4fd4-8223-28f0ac3a6402',
         name: 'Architecture Discussion'
       }
-    }, (err?: any) => {
+    } as any, (err?: any) => {
       try {
-        assert.equal(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
+        assert.strictEqual(JSON.stringify(err), JSON.stringify(new CommandError('An error has occurred')));
         done();
       }
       catch (e) {
@@ -197,7 +359,7 @@ describe(commands.TEAMS_CHANNEL_ADD, () => {
   });
 
   it('supports debug mode', () => {
-    const options = (command.options() as CommandOption[]);
+    const options = command.options();
     let containsOption = false;
     options.forEach(o => {
       if (o.option === '--debug') {
@@ -205,39 +367,5 @@ describe(commands.TEAMS_CHANNEL_ADD, () => {
       }
     });
     assert(containsOption);
-  });
-
-  it('has help referring to the right command', () => {
-    const cmd: any = {
-      log: (msg: string) => { },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    const find = sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    assert(find.calledWith(commands.TEAMS_CHANNEL_ADD));
-  });
-
-  it('has help with examples', () => {
-    const _log: string[] = [];
-    const cmd: any = {
-      log: (msg: string) => {
-        _log.push(msg);
-      },
-      prompt: () => { },
-      helpInformation: () => { }
-    };
-    sinon.stub(vorpal, 'find').callsFake(() => cmd);
-    cmd.help = command.help();
-    cmd.help({}, () => { });
-    let containsExamples: boolean = false;
-    _log.forEach(l => {
-      if (l && l.indexOf('Examples:') > -1) {
-        containsExamples = true;
-      }
-    });
-    Utils.restore(vorpal.find);
-    assert(containsExamples);
   });
 });

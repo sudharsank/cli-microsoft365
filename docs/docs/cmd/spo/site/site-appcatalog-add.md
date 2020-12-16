@@ -5,19 +5,15 @@ Creates a site collection app catalog in the specified site
 ## Usage
 
 ```sh
-spo site appcatalog add [options]
+m365 spo site appcatalog add [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-u, --url <url>`|URL of the site collection where the app catalog should be added
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-u, --url <url>`
+: URL of the site collection where the app catalog should be added
+
+--8<-- "docs/cmd/_global.md"
 
 !!! important
     To use this command you have to have permissions to access the tenant admin site.
@@ -27,7 +23,7 @@ Option|Description
 Add a site collection app catalog to the specified site
 
 ```sh
-spo site appcatalog add --url https://contoso.sharepoint/sites/site
+m365 spo site appcatalog add --url https://contoso.sharepoint/sites/site
 ```
 
 ## More information

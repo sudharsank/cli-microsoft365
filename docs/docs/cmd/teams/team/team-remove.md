@@ -5,20 +5,18 @@ Removes the specified Microsoft Teams team
 ## Usage
 
 ```sh
-teams team remove [options]
+m365 teams team remove [options]
 ```
 
 ## Options
 
-Option|Description
-------|-----------
-`--help`|output usage information
-`-i, --teamId <teamId>`|The ID of the Teams team to remove
-`--confirm`|Don't prompt for confirming removing the specified team
-`--query [query]`|JMESPath query string. See [http://jmespath.org/](http://jmespath.org/) for more information and examples
-`-o, --output [output]`|Output type. `json,text`. Default `text`
-`--verbose`|Runs command with verbose logging
-`--debug`|Runs command with debug logging
+`-i, --teamId <teamId>`
+: The ID of the Teams team to remove
+
+`--confirm`
+: Don't prompt for confirming removing the specified team
+
+--8<-- "docs/cmd/_global.md"
 
 ## Remarks
 
@@ -29,13 +27,13 @@ When deleted, Microsoft 365 groups are moved to a temporary container and can be
 Removes the specified team
 
 ```sh
-teams team remove --teamId '00000000-0000-0000-0000-000000000000'
+m365 teams team remove --teamId '00000000-0000-0000-0000-000000000000'
 ```
 
 Removes the specified team without confirmation
 
 ```sh
-teams team remove --teamId '00000000-0000-0000-0000-000000000000' --confirm
+m365 teams team remove --teamId '00000000-0000-0000-0000-000000000000' --confirm
 ```
 
 ## More information

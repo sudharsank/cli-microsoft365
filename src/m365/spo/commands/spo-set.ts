@@ -1,14 +1,11 @@
-import commands from '../commands';
-import GlobalOptions from '../../../GlobalOptions';
-import {
-  CommandOption,
-  CommandValidate,
-  CommandError
-} from '../../../Command';
-import SpoCommand from '../../base/SpoCommand';
 import auth from '../../../Auth';
-
-const vorpal: Vorpal = require('../../../vorpal-init');
+import { Logger } from '../../../cli';
+import {
+  CommandError, CommandOption
+} from '../../../Command';
+import GlobalOptions from '../../../GlobalOptions';
+import SpoCommand from '../../base/SpoCommand';
+import commands from '../commands';
 
 interface CommandArgs {
   options: Options;
@@ -27,7 +24,7 @@ class SpoSetCommand extends SpoCommand {
     return 'Sets the URL of the root SharePoint site collection for use in SPO commands';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: (err?: any) => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: (err?: any) => void): void {
     auth.service.spoUrl = args.options.url;
     auth.storeConnectionInfo().then(() => {
       cb();
@@ -48,38 +45,8 @@ class SpoSetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.url) {
-        return 'Required parameter url missing';
-      }
-
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: any, log: (help: string) => void): void {
-    log(vorpal.find(commands.SET).helpInformation());
-    log(` Remarks:
-
-    CLI for Microsoft 365 automatically discovers the URL of the root SharePoint site
-    collection/SharePoint tenant admin site (whichever is needed to run
-    the particular command). In specific cases, like when managing multi-geo
-    Microsoft 365 tenants, it could be desirable to make the CLI manage
-    the specific geography. For such cases, you can use this command
-    to explicitly specify the SPO URL that should be used when executing SPO
-    commands.
-      
-  Examples:
-  
-    Set SPO URL to the specified URL
-      ${commands.SET} --url https://contoso.sharepoint.com
-`);
+  public validate(args: CommandArgs): boolean | string {
+    return SpoCommand.isValidSharePointUrl(args.options.url);
   }
 }
 

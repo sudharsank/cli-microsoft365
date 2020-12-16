@@ -1,7 +1,7 @@
-import { ResolutionRule } from './ResolutionRule';
 import * as assert from 'assert';
-import { Finding } from '../Finding';
 import { Project } from '../../model';
+import { Finding } from '../Finding';
+import { ResolutionRule } from './ResolutionRule';
 
 class ResRule extends ResolutionRule {
   constructor() {
@@ -46,7 +46,7 @@ describe('ResolutionRule', () => {
       path: '/usr/tmp'
     };
     depRule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return any notifications if the custom condition fails', () => {
@@ -57,7 +57,7 @@ describe('ResolutionRule', () => {
       }
     };
     depRule.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 
   it('doesn\'t return notification if the resolution is already up-to-date', () => {
@@ -71,6 +71,6 @@ describe('ResolutionRule', () => {
       }
     };
     depRule2.visit(project, findings);
-    assert.equal(findings.length, 0);
+    assert.strictEqual(findings.length, 0);
   });
 });

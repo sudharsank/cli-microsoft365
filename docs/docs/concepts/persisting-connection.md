@@ -19,7 +19,7 @@ By persisting the connection information the CLI for Microsoft 365 can be used t
 _Deploy all apps that are not yet deployed in the tenant app catalog:_
 
 ```sh
-# get all apps available in the tenant app catalog
+m365 # get all apps available in the tenant app catalog
 apps=$(m365 spo app list -o json)
 
 # get IDs of all apps that are not deployed
@@ -39,7 +39,7 @@ When you log in to Microsoft 365 in the CLI for Microsoft 365, the CLI will pers
 
 Depending on the CLI for Microsoft 365 commands you have used, the CLI might persist some additional information. For example, when using commands that interact with SharePoint Online, the CLI will store the URL of your SharePoint Online tenant as well as its ID.
 
-The CLI for Microsoft 365 stores its connection information in a JSON file located in the home directory of the current user, on MacOS and Linux, this is `~/.o365cli-tokens.json` and on Windows, this is `<root>\Users\<username>\.o365cli-tokens.json`. The contents of this file are not encrypted.
+The CLI for Microsoft 365 stores its connection information in a JSON file located in the home directory of the current user, on MacOS and Linux, this is `~/.cli-m365-tokens.json` and on Windows, this is `<root>\Users\<username>\.cli-m365-tokens.json`. The contents of this file are not encrypted.
 
 ## Removing persisted connection information
 

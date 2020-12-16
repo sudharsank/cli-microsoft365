@@ -1,14 +1,14 @@
-import request from '../../../../request';
-import commands from '../../commands';
+import * as chalk from 'chalk';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption, CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
-import Utils from '../../../../Utils';
-import { ContextInfo } from '../../spo';
 import GlobalOptions from '../../../../GlobalOptions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import request from '../../../../request';
+import Utils from '../../../../Utils';
+import SpoCommand from '../../../base/SpoCommand';
+import commands from '../../commands';
+import { SiteDesign } from './SiteDesign';
 
 interface CommandArgs {
   options: Options;
@@ -19,6 +19,8 @@ interface Options extends GlobalOptions {
 }
 
 class SpoSiteDesignGetCommand extends SpoCommand {
+  private spoUrl: string = "";
+
   public get name(): string {
     return `${commands.SITEDESIGN_GET}`;
   }
@@ -27,45 +29,76 @@ class SpoSiteDesignGetCommand extends SpoCommand {
     return 'Gets information about the specified site design';
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
-    let spoUrl: string = '';
+  private getSiteDesignId(args: CommandArgs): Promise<string> {
+    if (args.options.id) {
+      return Promise.resolve(args.options.id);
+    }
 
+    const requestOptions: any = {
+      url: `${this.spoUrl}/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesigns`,
+      headers: {
+        accept: 'application/json;odata=nometadata'
+      },
+      responseType: 'json'
+    };
+
+    return request
+      .post<{ value: SiteDesign[] }>(requestOptions)
+      .then(response => {
+        const matchingSiteDesigns: SiteDesign[] = response.value.filter(x => x.Title === args.options.title);
+
+        if (matchingSiteDesigns.length === 0) {
+          return Promise.reject(`The specified site design does not exist`);
+        }
+
+        if (matchingSiteDesigns.length > 1) {
+          return Promise.reject(`Multiple site designs with title ${args.options.title} found: ${matchingSiteDesigns.map(x => x.Id).join(', ')}`);
+        }
+
+        return Promise.resolve(matchingSiteDesigns[0].Id);
+      });
+  }
+
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     this
-      .getSpoUrl(cmd, this.debug)
-      .then((_spoUrl: string): Promise<ContextInfo> => {
-        spoUrl = _spoUrl;
-        return this.getRequestDigest(spoUrl);
+      .getSpoUrl(logger, this.debug)
+      .then((_spoUrl: string): Promise<string> => {
+        this.spoUrl = _spoUrl
+        return this.getSiteDesignId(args);
       })
-      .then((res: ContextInfo): Promise<string> => {
+      .then((siteDesignId: string): Promise<string> => {
         const requestOptions: any = {
-          url: `${spoUrl}/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignMetadata`,
+          url: `${this.spoUrl}/_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility.GetSiteDesignMetadata`,
           headers: {
-            'X-RequestDigest': res.FormDigestValue,
             'content-type': 'application/json;charset=utf-8',
             accept: 'application/json;odata=nometadata'
           },
-          body: { id: args.options.id },
-          json: true
+          data: { id: siteDesignId },
+          responseType: 'json'
         };
 
         return request.post(requestOptions);
       })
       .then((res: any): void => {
-        cmd.log(res);
+        logger.log(res);
 
         if (this.verbose) {
-          cmd.log(vorpal.chalk.green('DONE'));
+          logger.logToStderr(chalk.green('DONE'));
         }
 
         cb();
-      }, (err: any): void => this.handleRejectedODataJsonPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedODataJsonPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
     const options: CommandOption[] = [
       {
-        option: '-i, --id <id>',
-        description: 'Site design ID'
+        option: '-i, --id [id]',
+        description: 'Site design ID. Specify either id or title but not both'
+      },
+      {
+        option: '--title [title]',
+        description: 'Site design title. Specify either id or title but not both'
       }
     ];
 
@@ -73,39 +106,20 @@ class SpoSiteDesignGetCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.id) {
-        return 'Required parameter id missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    if (args.options.id && args.options.title) {
+      return 'Specify either id or title, but not both.';
+    }
 
-      if (!Utils.isValidGuid(args.options.id)) {
-        return `${args.options.id} is not a valid GUID`;
-      }
+    if (!args.options.id && !args.options.title) {
+      return 'Specify id or title, one is required';
+    }
 
-      return true;
-    };
-  }
+    if (args.options.id && !Utils.isValidGuid(args.options.id as string)) {
+      return `${args.options.id} is not a valid GUID`;
+    }
 
-  public commandHelp(args: {}, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(this.name).helpInformation());
-    log(
-      `  Remarks:
-
-    If the specified ${chalk.grey('id')} doesn't refer to an existing site design, you will get
-    a ${chalk.grey('File not found')} error.
-
-  Examples:
-  
-    Get information about the site design with ID ${chalk.grey('2c1ba4c4-cd9b-4417-832f-92a34bc34b2a')}
-      ${this.name} --id 2c1ba4c4-cd9b-4417-832f-92a34bc34b2a
-
-  More information:
-
-    SharePoint site design and site script overview
-      https://docs.microsoft.com/en-us/sharepoint/dev/declarative-customization/site-design-overview
-`);
+    return true;
   }
 }
 

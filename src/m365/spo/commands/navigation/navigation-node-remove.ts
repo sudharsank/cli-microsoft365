@@ -1,14 +1,13 @@
-import { ContextInfo } from '../../spo';
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import * as chalk from 'chalk';
+import { Cli, Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import SpoCommand from '../../../base/SpoCommand';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { ContextInfo } from '../../spo';
 
 interface CommandArgs {
   options: Options;
@@ -37,13 +36,13 @@ class SpoNavigationNodeRemoveCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     const removeNode: () => void = (): void => {
       this
         .getRequestDigest(args.options.webUrl)
         .then((res: ContextInfo): Promise<void> => {
           if (this.verbose) {
-            cmd.log(`Removing navigation node...`);
+            logger.logToStderr(`Removing navigation node...`);
           }
 
           const requestOptions: any = {
@@ -52,25 +51,25 @@ class SpoNavigationNodeRemoveCommand extends SpoCommand {
               accept: 'application/json;odata=nometadata',
               'X-RequestDigest': res.FormDigestValue
             },
-            json: true
+            responseType: 'json'
           };
 
           return request.delete(requestOptions);
         })
         .then((): void => {
           if (this.verbose) {
-            cmd.log(vorpal.chalk.green('DONE'));
+            logger.logToStderr(chalk.green('DONE'));
           }
 
           cb();
-        }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, cmd, cb));
+        }, (rawRes: any): void => this.handleRejectedODataJsonPromise(rawRes, logger, cb));
     };
 
     if (args.options.confirm) {
       removeNode();
     }
     else {
-      cmd.prompt({
+      Cli.prompt({
         type: 'confirm',
         name: 'continue',
         default: false,
@@ -111,51 +110,23 @@ class SpoNavigationNodeRemoveCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.webUrl) {
-        return 'Required option webUrl missing';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.webUrl);
-      if (isValidSharePointUrl !== true) {
-        return isValidSharePointUrl;
-      }
+    if (args.options.location !== 'QuickLaunch' &&
+      args.options.location !== 'TopNavigationBar') {
+      return `${args.options.location} is not a valid value for the location option. Allowed values are QuickLaunch|TopNavigationBar`;
+    }
 
-      if (!args.options.location) {
-        return 'Required option location missing';
-      }
-      else {
-        if (args.options.location !== 'QuickLaunch' &&
-          args.options.location !== 'TopNavigationBar') {
-          return `${args.options.location} is not a valid value for the location option. Allowed values are QuickLaunch|TopNavigationBar`;
-        }
-      }
+    const id: number = parseInt(args.options.id);
+    if (isNaN(id)) {
+      return `${args.options.id} is not a number`;
+    }
 
-      if (!args.options.id) {
-        return 'Required option id missing';
-      }
-
-      const id: number = parseInt(args.options.id);
-      if (isNaN(id)) {
-        return `${args.options.id} is not a number`;
-      }
-
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (message: string) => void): void {
-    log(vorpal.find(commands.NAVIGATION_NODE_REMOVE).helpInformation());
-    log(
-      `  Examples:
-  
-    Remove a node from the top navigation. Will prompt for confirmation
-      ${commands.NAVIGATION_NODE_REMOVE} --webUrl https://contoso.sharepoint.com/sites/team-a --location TopNavigationBar --id 2003
-
-    Remove a node from the quick launch without prompting for confirmation
-      ${commands.NAVIGATION_NODE_REMOVE} --webUrl https://contoso.sharepoint.com/sites/team-a --location QuickLaunch --id 2003 --confirm
-`);
+    return true;
   }
 }
 

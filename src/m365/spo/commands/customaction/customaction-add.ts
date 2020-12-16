@@ -1,16 +1,14 @@
-import request from '../../../../request';
-import commands from '../../commands';
-import GlobalOptions from '../../../../GlobalOptions';
+import { Logger } from '../../../../cli';
 import {
-  CommandOption,
-  CommandValidate
+  CommandOption
 } from '../../../../Command';
-import SpoCommand from '../../../base/SpoCommand';
+import GlobalOptions from '../../../../GlobalOptions';
+import request from '../../../../request';
 import Utils from '../../../../Utils';
-import { CustomAction } from './customaction';
+import SpoCommand from '../../../base/SpoCommand';
 import { BasePermissions, PermissionKind } from '../../base-permissions';
-
-const vorpal: Vorpal = require('../../../../vorpal-init');
+import commands from '../../commands';
+import { CustomAction } from './customaction';
 
 interface CommandArgs {
   options: Options;
@@ -81,7 +79,7 @@ class SpoCustomActionAddCommand extends SpoCommand {
     return telemetryProps;
   }
 
-  public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+  public commandAction(logger: Logger, args: CommandArgs, cb: () => void): void {
     if (!args.options.scope) {
       args.options.scope = 'Web';
     }
@@ -93,15 +91,15 @@ class SpoCustomActionAddCommand extends SpoCommand {
       headers: {
         accept: 'application/json;odata=nometadata'
       },
-      body: requestBody,
-      json: true
+      data: requestBody,
+      responseType: 'json'
     };
 
     request
       .post<CustomAction>(requestOptions)
       .then((customAction: CustomAction): void => {
         if (this.verbose) {
-          cmd.log({
+          logger.logToStderr({
             ClientSideComponentId: customAction.ClientSideComponentId,
             ClientSideComponentProperties: customAction.ClientSideComponentProperties,
             CommandUIExtension: customAction.CommandUIExtension,
@@ -124,7 +122,7 @@ class SpoCustomActionAddCommand extends SpoCommand {
           });
         }
         cb();
-      }, (err: any): void => this.handleRejectedPromise(err, cmd, cb));
+      }, (err: any): void => this.handleRejectedPromise(err, logger, cb));
   }
 
   public options(): CommandOption[] {
@@ -209,162 +207,80 @@ class SpoCustomActionAddCommand extends SpoCommand {
     return options.concat(parentOptions);
   }
 
-  public validate(): CommandValidate {
-    return (args: CommandArgs): boolean | string => {
-      if (!args.options.title) {
-        return 'Missing required option title';
-      }
+  public validate(args: CommandArgs): boolean | string {
+    const isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(args.options.url);
+    if (isValidSharePointUrl !== true) {
+      return isValidSharePointUrl;
+    }
 
-      if (!args.options.name) {
-        return 'Missing required option name';
-      }
+    if (args.options.registrationId && !args.options.registrationType) {
+      return 'Option registrationId is specified, but registrationType is missing';
+    }
 
-      if (!args.options.location) {
-        return 'Missing required option location';
-      }
+    if (args.options.registrationType && !args.options.registrationId) {
+      return 'Option registrationType is specified, but registrationId is missing';
+    }
 
-      if (!args.options.url || SpoCommand.isValidSharePointUrl(args.options.url) !== true) {
-        return 'Missing required option url';
-      }
+    let location: string = args.options.location.toLowerCase();
+    const locationsRequireGroup: string[] = [
+      'microsoft.sharepoint.standardmenu', 'microsoft.sharepoint.contenttypesettings',
+      'microsoft.sharepoint.contenttypetemplatesettings', 'microsoft.sharepoint.create',
+      'microsoft.sharepoint.groupspage', 'microsoft.sharepoint.listedit',
+      'microsoft.sharepoint.listedit.documentlibrary', 'microsoft.sharepoint.peoplepage',
+      'microsoft.sharepoint.sitesettings'
+    ];
 
-      if (args.options.registrationId && !args.options.registrationType) {
-        return 'Option registrationId is specified, but registrationType is missing';
-      }
+    if (locationsRequireGroup.indexOf(location) > -1 && !args.options.group) {
+      return `The location specified requires the group option to be specified as well`;
+    }
 
-      if (args.options.registrationType && !args.options.registrationId) {
-        return 'Option registrationType is specified, but registrationId is missing';
-      }
+    if (location === 'scriptlink' &&
+      !args.options.scriptSrc &&
+      !args.options.scriptBlock
+    ) {
+      return 'Option scriptSrc or scriptBlock is required when the location is set to ScriptLink';
+    }
 
-      let location: string = args.options.location.toLowerCase();
-      const locationsRequireGroup: string[] = [
-        'microsoft.sharepoint.standardmenu', 'microsoft.sharepoint.contenttypesettings',
-        'microsoft.sharepoint.contenttypetemplatesettings', 'microsoft.sharepoint.create',
-        'microsoft.sharepoint.groupspage', 'microsoft.sharepoint.listedit',
-        'microsoft.sharepoint.listedit.documentlibrary', 'microsoft.sharepoint.peoplepage',
-        'microsoft.sharepoint.sitesettings'
-      ];
+    if ((args.options.scriptSrc || args.options.scriptBlock) && location !== 'scriptlink') {
+      return 'Option scriptSrc or scriptBlock is specified, but the location option is different than ScriptLink. Please use --actionUrl, if the location should be different than ScriptLink';
+    }
 
-      if (locationsRequireGroup.indexOf(location) > -1 && !args.options.group) {
-        return `The location specified requires the group option to be specified as well`;
-      }
+    if (args.options.scriptSrc && args.options.scriptBlock) {
+      return 'Either option scriptSrc or scriptBlock can be specified, but not both';
+    }
 
-      if (location === 'scriptlink' &&
-        !args.options.scriptSrc &&
-        !args.options.scriptBlock
-      ) {
-        return 'Option scriptSrc or scriptBlock is required when the location is set to ScriptLink';
-      }
+    if (args.options.sequence && (args.options.sequence < 0 || args.options.sequence > 65536)) {
+      return 'Invalid option sequence. Expected value in range from 0 to 65536';
+    }
 
-      if ((args.options.scriptSrc || args.options.scriptBlock) && location !== 'scriptlink') {
-        return 'Option scriptSrc or scriptBlock is specified, but the location option is different than ScriptLink. Please use --actionUrl, if the location should be different than ScriptLink';
-      }
+    if (args.options.clientSideComponentId && Utils.isValidGuid(args.options.clientSideComponentId) === false) {
+      return `ClientSideComponentId ${args.options.clientSideComponentId} is not a valid GUID`;
+    }
 
-      if (args.options.scriptSrc && args.options.scriptBlock) {
-        return 'Either option scriptSrc or scriptBlock can be specified, but not both';
-      }
+    if (args.options.clientSideComponentProperties && !args.options.clientSideComponentId) {
+      return `Option clientSideComponentProperties is specified, but the clientSideComponentId option is missing`;
+    }
 
-      if (args.options.sequence && (args.options.sequence < 0 || args.options.sequence > 65536)) {
-        return 'Invalid option sequence. Expected value in range from 0 to 65536';
-      }
+    if (args.options.scope &&
+      args.options.scope !== 'Site' &&
+      args.options.scope !== 'Web'
+    ) {
+      return `${args.options.scope} is not a valid custom action scope. Allowed values are Site|Web`;
+    }
 
-      if (args.options.clientSideComponentId && Utils.isValidGuid(args.options.clientSideComponentId) === false) {
-        return `ClientSideComponentId ${args.options.clientSideComponentId} is not a valid GUID`;
-      }
+    if (args.options.rights) {
+      const rights = args.options.rights.split(',');
 
-      if (args.options.clientSideComponentProperties && !args.options.clientSideComponentId) {
-        return `Option clientSideComponentProperties is specified, but the clientSideComponentId option is missing`;
-      }
+      for (let item of rights) {
+        const kind: PermissionKind = PermissionKind[(item.trim() as keyof typeof PermissionKind)];
 
-      if (args.options.scope &&
-        args.options.scope !== 'Site' &&
-        args.options.scope !== 'Web'
-      ) {
-        return `${args.options.scope} is not a valid custom action scope. Allowed values are Site|Web`;
-      }
-
-      if (args.options.rights) {
-        const rights = args.options.rights.split(',');
-
-        for (let item of rights) {
-          const kind: PermissionKind = PermissionKind[(item.trim() as keyof typeof PermissionKind)];
-
-          if (!kind) {
-            return `Rights option '${item}' is not recognized as valid PermissionKind choice. Please note it is case sensitive`;
-          }
+        if (!kind) {
+          return `Rights option '${item}' is not recognized as valid PermissionKind choice. Please note it is case sensitive`;
         }
       }
+    }
 
-      return true;
-    };
-  }
-
-  public commandHelp(args: CommandArgs, log: (help: string) => void): void {
-    const chalk = vorpal.chalk;
-    log(vorpal.find(commands.CUSTOMACTION_ADD).helpInformation());
-    log(
-      `  Remarks:
-          
-    Running this command from the Windows Command Shell (cmd.exe) or PowerShell for Windows OS XP,
-    7, 8, 8.1 without bash installed might require additional formatting for command options that have
-    JSON, XML or JavaScript values, because the command shell treat quotes differently. For example,
-    this is how ApplicationCustomizer user custom action can be created from the Windows cmd.exe:
-
-      m365 ${commands.CUSTOMACTION_ADD} -u https://contoso.sharepoint.com/sites/test -t "YourAppCustomizer" -n "YourName" -l "ClientSideExtension.ApplicationCustomizer" -c b41916e7-e69d-467f-b37f-ff8ecf8f99f2 -p '{\"testMessage\":\"Test message\"}'
-    
-    Note, how the clientSideComponentProperties option (-p) has escaped double quotes
-    ${chalk.grey(`'{\"testMessage\":\"Test message\"}'`)} compared to execution from bash:
-    ${chalk.grey(`'{"testMessage":"Test message"}'`)}.
-
-    The ${chalk.grey(`--rights`)} option accepts case-sensitive values.
-
-  Examples:
-    
-    Adds tenant-wide SharePoint Framework Application Customizer extension in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_ADD} -u https://contoso.sharepoint.com/sites/test -t "YourAppCustomizer" -n "YourName" -l "ClientSideExtension.ApplicationCustomizer" -c b41916e7-e69d-467f-b37f-ff8ecf8f99f2 -p '{"testMessage":"Test message"}'
-    
-    Adds tenant-wide SharePoint Framework ${chalk.blue('modern list view')} Command Set extension in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_ADD} -u https://contoso.sharepoint.com/sites/test -t "YourCommandSet" -n "YourName" -l "ClientSideExtension.ListViewCommandSet" -c db3e6e35-363c-42b9-a254-ca661e437848 -p '{"sampleTextOne":"One item is selected in the list.", "sampleTextTwo":"This command is always visible."}' --registrationId 100 --registrationType List
-    
-    Creates url custom action in the SiteActions menu in site ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_ADD} -u https://contoso.sharepoint.com/sites/test -t "YourTitle" -n "YourName" -l "Microsoft.SharePoint.StandardMenu" -g "SiteActions" --actionUrl "~site/SitePages/Home.aspx" --sequence 100
-    
-    Creates custom action in ${chalk.blue('classic')} Document Library edit context menu in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_ADD} -u https://contoso.sharepoint.com/sites/test -t "YourTitle" -n "YourName" -l "EditControlBlock" --actionUrl "javascript:(function(){ return console.log('CLI for Microsoft 365 rocks!'); })();" --registrationId 101 --registrationType List
-    
-    Creates ScriptLink custom action with script source in ${chalk.blue('classic pages')} in
-    site collection ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_ADD} -u https://contoso.sharepoint.com/sites/test -t "YourTitle" -n "YourName" -l "ScriptLink" --scriptSrc "~sitecollection/SiteAssets/YourScript.js" --sequence 101 -s Site
-    
-    Creates ScriptLink custom action with script block in ${chalk.blue('classic pages')} in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_ADD} -u https://contoso.sharepoint.com/sites/test -t "YourTitle" -n "YourName" -l "ScriptLink" --scriptBlock "(function(){ return console.log('Hello CLI for Microsoft 365!'); })();" --sequence 102
-    
-    Creates ${chalk.blue('classic List View')} custom action located in the Ribbon in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_ADD} -u https://contoso.sharepoint.com/sites/test -t "YourTitle" -n "YourName" -l "CommandUI.Ribbon" --commandUIExtension '<CommandUIExtension><CommandUIDefinitions><CommandUIDefinition Location="Ribbon.List.Share.Controls._children"><Button Id="Ribbon.List.Share.GetItemsCountButton" Alt="Get list items count" Sequence="11" Command="Invoke_GetItemsCountButtonRequest" LabelText="Get Items Count" TemplateAlias="o1" Image32by32="_layouts/15/images/placeholder32x32.png" Image16by16="_layouts/15/images/placeholder16x16.png" /></CommandUIDefinition></CommandUIDefinitions><CommandUIHandlers><CommandUIHandler Command="Invoke_GetItemsCountButtonRequest" CommandAction="javascript: alert(ctx.TotalListItems);" EnabledScript="javascript: function checkEnable() { return (true);} checkEnable();"/></CommandUIHandlers></CommandUIExtension>'
-    
-    Creates custom action with delegated rights in the SiteActions menu in site
-    ${chalk.grey('https://contoso.sharepoint.com/sites/test')}
-      ${commands.CUSTOMACTION_ADD} -u https://contoso.sharepoint.com/sites/test -t "YourTitle" -n "YourName" -l "Microsoft.SharePoint.StandardMenu" -g "SiteActions" --actionUrl "~site/SitePages/Home.aspx" --rights "AddListItems,DeleteListItems,ManageLists"
-  
-  More information:
-
-    UserCustomAction REST API resources:
-      https://msdn.microsoft.com/en-us/library/office/dn531432.aspx#bk_UserCustomAction
-      
-    UserCustomAction Locations and Group IDs:
-      https://msdn.microsoft.com/en-us/library/office/bb802730.aspx
-
-    UserCustomAction Element:
-      https://msdn.microsoft.com/en-us/library/office/ms460194.aspx
-
-    UserCustomAction Rights:
-      https://msdn.microsoft.com/en-us/library/office/microsoft.sharepoint.spbasepermissions.aspx
-
-      `);
+    return true;
   }
 
   private mapRequestBody(options: Options): any {
